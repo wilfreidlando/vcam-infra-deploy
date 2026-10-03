@@ -194,7 +194,7 @@ wildcard d'un coup.
 ```
 /app/
 ├── nginx-proxy-conf/          existant — inchangé
-├── vps-platform/              clone de ce dépôt (vcam-infra-deployment)
+├── vps-platform/              clone de ce dépôt (vcam-infra-deploy)
 │   └── observability/.env
 ├── core-system/
 │   ├── prod/                  checkout git — .env              (promotion uniquement)

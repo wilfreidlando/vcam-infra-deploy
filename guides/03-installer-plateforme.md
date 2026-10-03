@@ -9,7 +9,7 @@ Il ne modifie ni nginx-proxy, ni les projets existants.
 ## Étape 1 — Cloner la plateforme
 
 ```bash
-$ git clone https://github.com/wilfreidlando/vcam-infra-deployment.git /app/vps-platform
+$ git clone https://github.com/wilfreidlando/vcam-infra-deploy.git /app/vps-platform
 ```
 
 Tous les chemins de la documentation partent de là : `/app/vps-platform/bin/deploy.sh`,

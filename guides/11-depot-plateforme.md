@@ -1,6 +1,6 @@
 # 11. Mettre à jour la plateforme sur le serveur
 
-La plateforme (ce dépôt, `https://github.com/wilfreidlando/vcam-infra-deployment`) est clonée sur le
+La plateforme (ce dépôt, `https://github.com/wilfreidlando/vcam-infra-deploy`) est clonée sur le
 serveur dans `/app/vps-platform`. Les projets s'en servent ainsi :
 
 | Ce qu'un projet utilise | Comment |

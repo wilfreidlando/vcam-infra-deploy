@@ -15,7 +15,7 @@ détaillé. On peut s'arrêter entre deux phases : rien ne reste à moitié fait
 ## A. Vérifier sur un poste (Docker, ou WSL2 sous Windows)
 
 ```bash
-git clone https://github.com/wilfreidlando/vcam-infra-deployment.git vps-platform
+git clone https://github.com/wilfreidlando/vcam-infra-deploy.git vps-platform
 git clone -b claude/zen-gates-lewzx5 https://github.com/wilfreidlando/vcam-core-system.git core
 git clone -b vps-standard <dépôt de WILMANAGER> app
 
