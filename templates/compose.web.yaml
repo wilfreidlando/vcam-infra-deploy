@@ -1,0 +1,42 @@
+# VPS standard — any web stack (Node, Next.js, Python, Go, static…)
+# (infra/README.md). One container serving HTTP on APP_PORT, published by
+# nginx-proxy; add a database from compose.laravel.yaml if needed.
+
+x-defaults: &defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  app:
+    <<: *defaults
+    image: mon-site:${IMAGE_TAG:-latest}
+    build: { context: . }
+    env_file: [ "${ENV_FILE:-.env}" ]
+    environment:
+      VIRTUAL_HOST: ${VIRTUAL_HOST}
+      VIRTUAL_PORT: "${APP_PORT:-3000}"
+      LETSENCRYPT_HOST: ${VIRTUAL_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    labels:
+      observability.enable: "true"
+      observability.app: mon-site
+      observability.deployment: ${DEPLOYMENT:-prod}
+    networks: [ default, nginx-proxy, observability ]
+    healthcheck:
+      # The image must contain wget or curl; adapt the path.
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:${APP_PORT:-3000}/ >/dev/null || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy: { resources: { limits: { cpus: "${APP_CPUS:-1.0}", memory: "${APP_MEMORY:-512M}" } } }
+
+networks:
+  default:
+    name: mon-site-${DEPLOYMENT:-prod}-internal
+  nginx-proxy:
+    external: true
+  observability:
+    external: true

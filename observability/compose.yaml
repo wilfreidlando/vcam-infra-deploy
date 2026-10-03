@@ -1,0 +1,146 @@
+# Shared observability platform for the whole VPS (ADR-0064) — logs (Loki),
+# traces (Tempo), metrics (Prometheus), one UI (Grafana), one collector
+# (Grafana Alloy). Like nginx-proxy, it is NOT part of any application: it
+# runs once per server, in its own Compose project, and every application
+# (the Core in production and staging, any other Laravel project) plugs in
+# by joining the external `observability` network and adding labels to its
+# containers. Nothing about an application's containers is read unless it
+# opts in with `observability.enable=true` — see README.md.
+#
+#   docker network create observability   # once (deploy/bootstrap.sh does it)
+#   docker compose -f infra/observability/compose.yaml --env-file infra/observability/.env up -d
+#
+# Grafana is published through the existing nginx-proxy at GRAFANA_HOST,
+# behind its own login. Nothing else is reachable from the Internet:
+# applications reach Alloy (OTLP) on the private `observability` network.
+name: observability
+
+x-limits: &small
+  deploy:
+    resources:
+      limits:
+        cpus: "0.50"
+        memory: 512M
+
+services:
+  alloy:
+    image: grafana/alloy:v1.10.2
+    container_name: observability-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Read-only: discovers opted-in containers, tails their stdout.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+    networks:
+      - internal
+      - observability
+    <<: *small
+
+  loki:
+    image: grafana/loki:3.5.5
+    container_name: observability-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: ${LOKI_MEMORY_LIMIT:-1G}
+
+  tempo:
+    image: grafana/tempo:2.8.2
+    container_name: observability-tempo
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/config.yaml
+    volumes:
+      - ./tempo/config.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - internal
+    <<: *small
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: observability-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
+      # Alloy scrapes the applications and pushes here (remote write):
+      # Alloy is the only container that needs the Docker socket.
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - internal
+    <<: *small
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: observability-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: https://${GRAFANA_HOST:-grafana.localhost}
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GRAFANA_ALERT_EMAIL: ${GRAFANA_ALERT_EMAIL:-ops@example.com}
+      GF_SMTP_ENABLED: ${GF_SMTP_ENABLED:-false}
+      GF_SMTP_HOST: ${GF_SMTP_HOST:-}
+      GF_SMTP_USER: ${GF_SMTP_USER:-}
+      GF_SMTP_PASSWORD: ${GF_SMTP_PASSWORD:-}
+      GF_SMTP_FROM_ADDRESS: ${GF_SMTP_FROM_ADDRESS:-grafana@example.com}
+      VIRTUAL_HOST: ${GRAFANA_HOST:-grafana.localhost}
+      VIRTUAL_PORT: 3000
+      LETSENCRYPT_HOST: ${GRAFANA_HOST:-grafana.localhost}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+    networks:
+      - internal
+      - nginx-proxy
+    <<: *small
+
+volumes:
+  alloy-data:
+  loki-data:
+  tempo-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  # Loki/Tempo/Prometheus are reachable only from this project.
+  internal:
+    name: observability-internal
+  # Shared with the applications: they reach Alloy here, Alloy scrapes them here.
+  observability:
+    name: observability
+    external: true
+  nginx-proxy:
+    name: nginx-proxy
+    external: true

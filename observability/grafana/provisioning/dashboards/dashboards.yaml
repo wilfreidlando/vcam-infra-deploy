@@ -1,0 +1,12 @@
+# ADR-0064 — one Grafana folder per sub-directory of dashboards/: drop a
+# project's own dashboards in dashboards/<Project name>/ and they appear in
+# that folder after a Grafana restart.
+apiVersion: 1
+
+providers:
+  - name: dashboards
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

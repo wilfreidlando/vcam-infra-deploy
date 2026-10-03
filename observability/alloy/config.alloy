@@ -1,0 +1,175 @@
+// Grafana Alloy (ADR-0064) — the single collector for every application on
+// the VPS. Opt-in per container, through Docker labels:
+//
+//   observability.enable=true          required — nothing else is read
+//   observability.app=<name>           optional — defaults to the Compose project
+//   observability.deployment=<name>    optional — prod | staging | … (default: prod)
+//   observability.metrics.port=<port>  optional — scrape http://<container>:<port><path>
+//   observability.metrics.path=<path>  optional — default /metrics
+//
+// The container must also be attached to the external `observability`
+// network: Alloy scrapes it there, and the application sends its traces to
+// http://observability-alloy:4318 there.
+//
+//  1. Logs: stdout of each opted-in container → Loki, labelled by app,
+//     deployment, service and level. Laravel JSON lines (Monolog
+//     JsonFormatter) are parsed; correlation_id / trace_id / project_id stay
+//     structured metadata, never labels (unbounded cardinality).
+//  2. Metrics: scraped every 30 s, pushed to Prometheus (remote write).
+//  3. Traces: OTLP/HTTP (4318) or gRPC (4317) → Tempo.
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Common to logs and metrics: opted-in containers, seen once — on the
+// shared network (a container on several networks is listed once per
+// network by the Docker API).
+discovery.relabel "opted_in" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_enable"]
+    regex         = "true"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_network_name"]
+    regex         = "observability"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_app"]
+    regex         = "(.+)"
+    target_label  = "app"
+  }
+  rule {
+    target_label = "deployment"
+    replacement  = "prod"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_deployment"]
+    regex         = "(.+)"
+    target_label  = "deployment"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+// ── Logs ────────────────────────────────────────────────────────────────
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.opted_in.output
+  forward_to = [loki.process.laravel.receiver]
+}
+
+loki.process "laravel" {
+  // Laravel's JsonFormatter line: {"message","context","level_name","extra":{…}}.
+  // A non-JSON line (another framework, a crash trace) goes through as is.
+  stage.json {
+    expressions = {
+      level          = "level_name",
+      correlation_id = "extra.correlation_id",
+      trace_id       = "extra.trace_id",
+      project_id     = "extra.project_id",
+      environment    = "extra.environment",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level       = "",
+      environment = "",
+    }
+  }
+
+  stage.structured_metadata {
+    values = {
+      correlation_id = "",
+      trace_id       = "",
+      project_id     = "",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ── Metrics ─────────────────────────────────────────────────────────────
+discovery.relabel "metrics" {
+  targets = discovery.relabel.opted_in.output
+
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_metrics_port"]
+    regex         = ".+"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_network_ip", "__meta_docker_container_label_observability_metrics_port"]
+    separator     = ":"
+    target_label  = "__address__"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_metrics_path"]
+    regex         = "(.+)"
+    target_label  = "__metrics_path__"
+  }
+}
+
+prometheus.scrape "applications" {
+  targets         = discovery.relabel.metrics.output
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+// ── Traces ──────────────────────────────────────────────────────────────
+otelcol.receiver.otlp "default" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}

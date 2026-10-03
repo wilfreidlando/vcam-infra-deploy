@@ -1,0 +1,122 @@
+# VPS standard — Laravel project (infra/README.md). Copy as compose.prod.yaml,
+# replace « mon-saas », adapt the Dockerfile target / commands. Used for BOTH
+# staging and production by infra/bin/deploy.sh (project name and env file
+# differ, nothing else).
+#
+# The rules this file applies (checked by infra/bin/vps-audit.sh):
+#   - no `ports:` — traffic only through nginx-proxy (VIRTUAL_HOST)
+#   - database/cache on the project's private network only
+#   - restart policy, memory limit, healthcheck, log rotation everywhere
+#   - images tagged by commit (IMAGE_TAG), never a moving `latest`
+#   - observability labels + shared `observability` network for app containers
+
+x-defaults: &defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+x-app: &app
+  <<: *defaults
+  image: mon-saas:${IMAGE_TAG:-latest}
+  build: { context: ., target: production }
+  env_file: [ "${ENV_FILE:-.env}" ]
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  networks: [ default, observability ]
+  labels:
+    observability.enable: "true"
+    observability.app: mon-saas
+    observability.deployment: ${DEPLOYMENT:-prod}
+
+services:
+  app:
+    <<: *app
+    # Serves HTTP on 8000 (FrankenPHP, Octane, or php-fpm + nginx in the image).
+    environment:
+      VIRTUAL_HOST: ${VIRTUAL_HOST}
+      VIRTUAL_PORT: "8000"
+      LETSENCRYPT_HOST: ${VIRTUAL_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    networks: [ default, observability, nginx-proxy ]
+    labels:
+      observability.enable: "true"
+      observability.app: mon-saas
+      observability.deployment: ${DEPLOYMENT:-prod}
+      observability.metrics.port: "8000"     # retirer si pas de /metrics
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://127.0.0.1:8000/up" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy: { resources: { limits: { cpus: "${APP_CPUS:-1.0}", memory: "${APP_MEMORY:-768M}" } } }
+
+  queue:
+    <<: *app
+    command: php artisan queue:work --tries=3 --max-time=3600   # ou: php artisan horizon
+    healthcheck: { disable: true }
+    deploy: { resources: { limits: { cpus: "0.5", memory: "${QUEUE_MEMORY:-512M}" } } }
+
+  scheduler:
+    <<: *app
+    command: php artisan schedule:work
+    healthcheck: { disable: true }
+    deploy: { resources: { limits: { cpus: "0.25", memory: "256M" } } }
+
+  db:
+    <<: *defaults
+    image: postgres:18-alpine        # ou mysql:8.4 / mariadb:11 (adapter healthcheck et backup)
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes: [ db-data:/var/lib/postgresql ]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy: { resources: { limits: { cpus: "1.0", memory: "${DB_MEMORY:-768M}" } } }
+
+  redis:
+    <<: *defaults
+    image: valkey/valkey:8.1-alpine
+    command: valkey-server --appendonly yes --maxmemory 192mb --maxmemory-policy noeviction
+    volumes: [ redis-data:/data ]
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy: { resources: { limits: { cpus: "0.25", memory: "256M" } } }
+
+  backup:
+    <<: *defaults
+    build: { context: /app/vps-platform/infra/images/db-backup }   # chemin du dépôt plateforme sur le VPS
+    image: vps/db-backup:1
+    env_file: [ "${ENV_FILE:-.env}" ]        # BACKUP_PASSPHRASE, BACKUP_S3_*, AWS_*
+    environment:
+      BACKUP_NAME: mon-saas-${DEPLOYMENT:-prod}
+      BACKUP_ENGINE: postgres
+      PGHOST: db
+      PGDATABASE: ${DB_DATABASE}
+      PGUSER: ${DB_USERNAME}
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes: [ backups:/backups ]
+    depends_on: { db: { condition: service_healthy } }
+    deploy: { resources: { limits: { cpus: "0.5", memory: "256M" } } }
+
+volumes:
+  db-data:
+  redis-data:
+  backups:
+
+networks:
+  default:
+    name: mon-saas-${DEPLOYMENT:-prod}-internal
+  nginx-proxy:
+    external: true
+  observability:
+    external: true

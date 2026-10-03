@@ -1,0 +1,10 @@
+# Prometheus (ADR-0064) — storage and query only. Applications are scraped
+# by Alloy (Docker-label discovery) and pushed here by remote write, so
+# adding a project never means editing this file.
+global:
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

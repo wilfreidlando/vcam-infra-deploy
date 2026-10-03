@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+# VPS standard deployment tool (infra/README.md, ADR-0064) — the same
+# protocol for every Docker project on the server, whatever its stack:
+#
+#   build an image once per commit (tag = commit SHA)
+#     → staging, automatically
+#     → production, manually, with the EXACT image staging validated
+#     → automatic rollback if the health check fails
+#
+# The project describes itself in a committed `platform.env` at its root
+# (see infra/templates/platform.env). Secrets stay in the per-environment
+# env files (.env, .env.staging), never committed.
+#
+# Usage, from the project's checkout (staging checkout for build/watch,
+# production checkout for promote):
+#
+#   deploy.sh build [ref]          build images for ref (default origin/$STAGING_BRANCH)
+#   deploy.sh up <env> <sha>       deploy an already-built SHA to staging|prod
+#   deploy.sh watch [branch]       cron-friendly: build + deploy staging if the branch moved
+#   deploy.sh promote [sha] [-y]   deploy to prod the SHA currently on staging (or the given one)
+#   deploy.sh rollback <env>       redeploy the previous SHA of that environment
+#   deploy.sh status               current/previous SHA and containers of each environment
+#
+# Every action is logged to $STATE_DIR/<app>/deploy.log; one lock per app
+# means a build, a staging deploy and a promotion never overlap.
+set -euo pipefail
+
+# ── Configuration ───────────────────────────────────────────────────────
+PROJECT_DIR="$(pwd)"
+if [[ ! -f "${PROJECT_DIR}/platform.env" ]]; then
+    echo "deploy: no platform.env in ${PROJECT_DIR} — run from the project's root (infra/templates/platform.env)" >&2
+    exit 2
+fi
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/platform.env"
+
+: "${APP_NAME:?platform.env must set APP_NAME}"
+: "${COMPOSE_FILE:=compose.yaml}"
+: "${ENV_FILE_PROD:=.env}"
+: "${ENV_FILE_STAGING:=.env.staging}"
+: "${STAGING_BRANCH:=main}"
+: "${HEALTH_SERVICE:=app}"
+: "${HEALTH_CMD:=}"
+: "${HEALTH_TIMEOUT:=120}"
+: "${MIGRATE_SERVICE:=}"
+: "${MIGRATE_CMD:=}"
+: "${BACKUP_SERVICE:=}"
+: "${BACKUP_CMD:=backup.sh}"
+: "${KEEP_IMAGES:=5}"
+: "${STATE_DIR:=/var/lib/vps-platform}"
+# 1 when the image bakes environment-specific values at build time (e.g.
+# Next.js NEXT_PUBLIC_*): each environment then gets its own image built
+# from the same commit, tagged <sha>-<env>. Default 0: one image, promoted.
+: "${BUILD_PER_ENV:=0}"
+
+APP_STATE="${STATE_DIR}/${APP_NAME}"
+mkdir -p "${APP_STATE}/prod" "${APP_STATE}/staging"
+LOG="${APP_STATE}/deploy.log"
+
+log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ${APP_NAME}: $*" | tee -a "${LOG}" >&2; }
+die() { log "ERREUR — $*"; exit 1; }
+
+env_file_for() {
+    case "$1" in
+        prod) echo "${ENV_FILE_PROD}" ;;
+        staging) echo "${ENV_FILE_STAGING}" ;;
+        *) die "environnement inconnu « $1 » (staging|prod)" ;;
+    esac
+}
+
+# docker compose for one environment, images pinned to IMAGE_TAG.
+dc() {
+    local env="$1"; shift
+    local envfile; envfile="$(env_file_for "${env}")"
+    [[ -f "${envfile}" ]] || die "fichier ${envfile} absent (copier l'exemple et le remplir)"
+    IMAGE_TAG="${IMAGE_TAG:-latest}" docker compose -p "${APP_NAME}-${env}" -f "${COMPOSE_FILE}" --env-file "${envfile}" "$@"
+}
+
+state_get() { cat "${APP_STATE}/$1/$2" 2>/dev/null || true; }
+state_set() { echo "$3" > "${APP_STATE}/$1/$2"; }
+
+is_git() { git -C "${PROJECT_DIR}" rev-parse --git-dir >/dev/null 2>&1; }
+
+lock() {
+    exec 9>"${APP_STATE}/lock"
+    flock -n 9 || die "un autre déploiement de ${APP_NAME} est en cours"
+}
+
+tag_for() {
+    if [[ "${BUILD_PER_ENV}" == 1 ]]; then echo "$2-$1"; else echo "$2"; fi
+}
+
+# Images of this project built for a SHA (only those carrying the tag).
+images_for() {
+    local env="$1" tag; tag="$(tag_for "$1" "$2")"
+    IMAGE_TAG="${tag}" dc "${env}" config --images 2>/dev/null | grep -E ":${tag}$" | sort -u || true
+}
+
+missing_images() {
+    local env="$1" sha="$2" img found=0 missing=0
+    while read -r img; do
+        [[ -z "${img}" ]] && continue
+        found=1
+        docker image inspect "${img}" >/dev/null 2>&1 || { log "image absente : ${img}"; missing=1; }
+    done < <(images_for "${env}" "${sha}")
+    [[ "${found}" == 1 ]] || die "aucune image du compose n'utilise \${IMAGE_TAG} — voir infra/templates"
+    [[ "${missing}" == 1 ]]
+}
+
+build_for() {
+    local env="$1" sha="$2"
+    log "build ${env} ${sha}"
+    IMAGE_TAG="$(tag_for "${env}" "${sha}")" dc "${env}" build --pull >&2 || die "build ${sha} (${env}) en échec"
+}
+
+ensure_images() {
+    local env="$1" sha="$2"
+    missing_images "${env}" "${sha}" || return 0
+    if [[ "${BUILD_PER_ENV}" == 1 ]]; then
+        build_for "${env}" "${sha}"
+    else
+        die "images de ${sha} absentes — lancer d'abord « deploy.sh build ${sha} » (dans le checkout staging)"
+    fi
+}
+
+checkout() {
+    local sha="$1"
+    is_git || { log "pas un dépôt git — fichiers du projet laissés tels quels"; return 0; }
+    git -C "${PROJECT_DIR}" fetch --quiet origin || log "git fetch impossible — on continue avec les objets locaux"
+    git -C "${PROJECT_DIR}" checkout --quiet --detach "${sha}" || die "commit ${sha} introuvable dans ${PROJECT_DIR}"
+}
+
+health() {
+    local env="$1" deadline=$((SECONDS + HEALTH_TIMEOUT))
+    [[ -z "${HEALTH_CMD}" ]] && { log "pas de HEALTH_CMD — santé non vérifiée"; return 0; }
+    while (( SECONDS < deadline )); do
+        if dc "${env}" exec -T "${HEALTH_SERVICE}" sh -c "${HEALTH_CMD}" >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 3
+    done
+    return 1
+}
+
+prune_images() {
+    local keep=() img repo s
+    for env in prod staging; do
+        for s in "$(state_get "${env}" current)" "$(state_get "${env}" previous)"; do
+            keep+=("${s}" "${s}-prod" "${s}-staging")
+        done
+    done
+    # Repositories of this project's own images (those tagged with a SHA).
+    local sha; sha="$(state_get staging current)"
+    [[ -z "${sha}" ]] && return 0
+    while read -r img; do
+        repo="${img%:*}"
+        docker image ls "${repo}" --format '{{.Tag}} {{.CreatedAt}}' \
+            | grep -E '^[0-9a-f]{40}(-(staging|prod))? ' | sort -k2 -r | awk '{print $1}' \
+            | tail -n +"$((KEEP_IMAGES + 1))" | while read -r tag; do
+                [[ " ${keep[*]} " == *" ${tag} "* ]] && continue
+                docker image rm "${repo}:${tag}" >/dev/null 2>&1 && log "image supprimée ${repo}:${tag}"
+            done
+    done < <(images_for staging "${sha}")
+}
+
+# ── Commands ────────────────────────────────────────────────────────────
+cmd_build() {
+    local ref="${1:-origin/${STAGING_BRANCH}}" sha
+    if is_git; then
+        git -C "${PROJECT_DIR}" fetch --quiet origin
+        sha="$(git -C "${PROJECT_DIR}" rev-parse "${ref}^{commit}")"
+        git -C "${PROJECT_DIR}" checkout --quiet --detach "${sha}"
+    else
+        [[ "${ref}" =~ ^[0-9a-f]{40}$ ]] || die "hors git, build exige un SHA explicite"
+        sha="${ref}"
+    fi
+    build_for staging "${sha}"
+    echo "${sha}"
+}
+
+cmd_up() {
+    local env="${1:?env}" sha="${2:?sha}" previous
+    previous="$(state_get "${env}" current)"
+    checkout "${sha}"
+    ensure_images "${env}" "${sha}"
+    local tag; tag="$(tag_for "${env}" "${sha}")"
+
+    log "déploiement ${env} ${sha} (précédent : ${previous:-aucun})"
+
+    if [[ "${env}" == prod && -n "${BACKUP_SERVICE}" && "${SKIP_BACKUP:-0}" != 1 ]]; then
+        log "sauvegarde avant migration"
+        IMAGE_TAG="${tag}" dc "${env}" run --rm -T -e BACKUP_LABEL="pre-deploy-${sha:0:12}" "${BACKUP_SERVICE}" sh -c "${BACKUP_CMD}" \
+            || die "sauvegarde en échec — déploiement annulé (SKIP_BACKUP=1 pour forcer)"
+    fi
+
+    if [[ -n "${MIGRATE_CMD}" ]]; then
+        log "migrations"
+        if ! IMAGE_TAG="${tag}" dc "${env}" run --rm -T "${MIGRATE_SERVICE:-${HEALTH_SERVICE}}" sh -c "${MIGRATE_CMD}"; then
+            die "migrations en échec — la version ${previous:-précédente} tourne toujours, rien n'a été basculé"
+        fi
+    fi
+
+    IMAGE_TAG="${tag}" dc "${env}" up -d --no-build --remove-orphans
+
+    if IMAGE_TAG="${tag}" health "${env}"; then
+        state_set "${env}" previous "${previous}"
+        state_set "${env}" current "${sha}"
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${sha}" >> "${APP_STATE}/${env}/history"
+        rm -f "${APP_STATE}/${env}/failed"
+        log "OK ${env} = ${sha}"
+        prune_images || true
+        return 0
+    fi
+
+    state_set "${env}" failed "${sha}"
+    if [[ -n "${previous}" ]]; then
+        log "santé KO — retour automatique à ${previous}"
+        checkout "${previous}"
+        IMAGE_TAG="$(tag_for "${env}" "${previous}")" dc "${env}" up -d --no-build --remove-orphans || true
+        log "les migrations éventuelles de ${sha} ne sont PAS annulées ; si nécessaire : infra/bin/restore.sh (dernière sauvegarde pre-deploy)"
+    fi
+    die "${env} ${sha} ne répond pas à « ${HEALTH_CMD} » après ${HEALTH_TIMEOUT}s"
+}
+
+cmd_watch() {
+    local branch="${1:-${STAGING_BRANCH}}" target
+    is_git || die "watch exige un checkout git"
+    git -C "${PROJECT_DIR}" fetch --quiet origin
+    target="$(git -C "${PROJECT_DIR}" rev-parse "origin/${branch}^{commit}")"
+    [[ "${target}" == "$(state_get staging current)" ]] && exit 0
+    [[ "${target}" == "$(state_get staging failed)" ]] && exit 0   # pas de boucle sur un commit cassé
+    log "nouvelle version sur ${branch} : ${target}"
+    cmd_build "${target}" >/dev/null
+    cmd_up staging "${target}"
+}
+
+cmd_promote() {
+    local sha="" yes=0 arg
+    for arg in "$@"; do
+        case "${arg}" in
+            -y|--yes) yes=1 ;;
+            *) sha="${arg}" ;;
+        esac
+    done
+    sha="${sha:-$(state_get staging current)}"
+    [[ -n "${sha}" ]] || die "aucune version en staging à promouvoir"
+    if [[ "${sha}" != "$(state_get staging current)" ]]; then
+        log "ATTENTION : ${sha} n'est pas la version actuellement en staging ($(state_get staging current))"
+    fi
+    echo "Production : $(state_get prod current || true) → ${sha}"
+    if [[ "${yes}" != 1 ]]; then
+        read -r -p "Déployer en PRODUCTION ? Tapez « oui » : " answer
+        [[ "${answer}" == "oui" ]] || die "promotion annulée"
+    fi
+    cmd_up prod "${sha}"
+}
+
+cmd_rollback() {
+    local env="${1:?env}" previous
+    previous="$(state_get "${env}" previous)"
+    [[ -n "${previous}" ]] || die "aucune version précédente connue pour ${env}"
+    MIGRATE_CMD="" SKIP_BACKUP=1 cmd_up "${env}" "${previous}"
+}
+
+cmd_status() {
+    for env in staging prod; do
+        echo "── ${env} : $(state_get "${env}" current || true)  (précédent : $(state_get "${env}" previous || true))"
+        [[ -n "$(state_get "${env}" failed)" ]] && echo "   dernier échec : $(state_get "${env}" failed)"
+        [[ -f "$(env_file_for "${env}")" ]] && dc "${env}" ps --format 'table {{.Name}}\t{{.Status}}' 2>/dev/null || true
+    done
+}
+
+main() {
+    local cmd="${1:-}"; shift || true
+    case "${cmd}" in
+        build) lock; cmd_build "$@" ;;
+        up) lock; cmd_up "$@" ;;
+        watch) lock; cmd_watch "$@" ;;
+        promote) lock; cmd_promote "$@" ;;
+        rollback) lock; cmd_rollback "$@" ;;
+        status) cmd_status ;;
+        *) sed -n '2,25p' "$0"; exit 2 ;;
+    esac
+}
+
+main "$@"

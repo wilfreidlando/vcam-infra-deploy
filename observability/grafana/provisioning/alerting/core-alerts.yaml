@@ -1,0 +1,123 @@
+# ADR-0059 — alert rules shipped as code. Contact point: e-mail to
+# GRAFANA_ALERT_EMAIL (Grafana needs GF_SMTP_* to actually send — see
+# docs/operations/observabilite.md).
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: core-oncall
+    receivers:
+      - uid: core-oncall-email
+        type: email
+        settings:
+          addresses: ${GRAFANA_ALERT_EMAIL}
+          singleEmail: true
+
+policies:
+  - orgId: 1
+    receiver: core-oncall
+    group_by: ['alertname']
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+
+groups:
+  - orgId: 1
+    name: core-system
+    folder: Core System
+    interval: 1m
+    rules:
+      - uid: core-down
+        title: Core injoignable
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: Prometheus n'arrive plus à scraper /metrics (app arrêtée ou base indisponible).
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { refId: A, expr: 'max(core_up{deployment="prod"})', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: lt, params: [1] } }] }
+
+      - uid: core-outbox-lag
+        title: Relais outbox bloqué
+        condition: C
+        for: 5m
+        annotations:
+          summary: Un événement attend depuis plus de 5 minutes — aucun webhook ni callback ne part. Vérifier le conteneur scheduler (events:relay).
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model: { refId: A, expr: 'max(core_outbox_oldest_unpublished_age_seconds{deployment="prod"})', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [300] } }] }
+
+      - uid: core-webhook-dlq
+        title: Nouvelles livraisons webhook en DLQ
+        condition: C
+        for: 0m
+        annotations:
+          summary: Des livraisons webhook ont épuisé leurs tentatives ; à rejouer depuis la console (Webhooks → DLQ) une fois l'endpoint corrigé.
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 900, to: 0 }
+            model: { refId: A, expr: 'sum(delta(core_webhook_deliveries{deployment="prod",status="dead"}[15m]))', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [0] } }] }
+
+      - uid: core-5xx-rate
+        title: Taux d'erreurs 5xx élevé
+        condition: C
+        for: 5m
+        annotations:
+          summary: Plus de 5 % des requêtes répondent 5xx sur 5 minutes.
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model: { refId: A, expr: 'sum(rate(core_http_requests_total{deployment="prod",status=~"5.."}[5m])) / clamp_min(sum(rate(core_http_requests_total{deployment="prod"}[5m])), 1e-9)', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [0.05] } }] }
+
+      - uid: core-provider-callback-rejected
+        title: Callbacks provider rejetés
+        condition: C
+        for: 0m
+        annotations:
+          summary: Des callbacks MyCoolPay/WAHA ont été rejetés (IP, signature ou secret invalide) — tentative de fraude ou configuration provider à revoir.
+        data:
+          - refId: A
+            datasourceUid: loki
+            relativeTimeRange: { from: 900, to: 0 }
+            model:
+              refId: A
+              queryType: instant
+              expr: 'sum(count_over_time({app="core-system", deployment="prod", service="app"} |~ "my-coolpay\\.webhook\\.(invalid_signature|untrusted_ip|unknown_application)|whatsapp-waha\\.webhook\\.invalid_secret" [15m]))'
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [0] } }] }
+
+      - uid: core-queue-backlog
+        title: File Horizon en retard
+        condition: C
+        for: 10m
+        annotations:
+          summary: Plus de 500 jobs en attente sur une file pendant 10 minutes — vérifier le conteneur horizon.
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model: { refId: A, expr: 'max(core_queue_size{deployment="prod"})', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [500] } }] }
