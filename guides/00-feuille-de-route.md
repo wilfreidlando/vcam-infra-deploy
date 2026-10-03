@@ -18,7 +18,7 @@ détaillé. On peut s'arrêter entre deux phases : rien ne reste à moitié fait
 git clone -b claude/zen-gates-lewzx5 <dépôt core-system> core && cd core
 infra/tests/run-all.sh                 # ≈ 129 vérifications de la plateforme
 
-git clone -b vps-standard <dépôt app> app && cd app
+cd .. && git clone -b vps-standard <dépôt app> app && cd app
 tests/Infra/stack-test.sh              # 28 vérifications : la pile de production de l'app
 PLATFORM_DIR=../core tests/Infra/deploy-test.sh   # 44 vérifications : dev/staging/prod, migration de la base, restauration
 ```
