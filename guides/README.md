@@ -6,6 +6,7 @@ revenir en arrière.
 
 | # | Guide | Risque pour les sites existants | Durée |
 | --- | --- | --- | --- |
+| 0 | [**Feuille de route** : l'ordre complet, serveur puis Core puis WILMANAGER](00-feuille-de-route.md) | — | — |
 | 1 | [Inventaire des sous-domaines](01-inventaire-sous-domaines.md) | aucun (lecture seule) | 15 min |
 | 2 | [DNS wildcard](02-dns-wildcard.md) | aucun si l'on suit l'ordre | 15 min + propagation |
 | 3 | [Installer la plateforme sur le serveur](03-installer-plateforme.md) | aucun | 30 min |
