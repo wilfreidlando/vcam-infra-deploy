@@ -185,16 +185,20 @@ check_hosts() {
 # Refuses to deploy while a volume of this environment is used by a
 # container that is not part of it — typically the previous installation of
 # the project, still running: two databases on the same data directory
-# corrupt it. Containers of this environment are named <app>-<env>-…
+# corrupt it. A container is part of the environment when it carries its
+# compose project AND is one of the current services (an old stack may reuse
+# the project name with other service names, e.g. cpf_dev_db vs db).
 volumes_in_use_elsewhere() {
-    local env="$1" tag="$2" vol c name found=""
+    local env="$1" tag="$2" vol c project service found="" services
+    services=" $(IMAGE_TAG="${tag}" dc "${env}" config --services 2>/dev/null | tr '\n' ' ') "
     while read -r vol; do
         [[ -z "${vol}" ]] && continue
         while read -r c; do
             [[ -z "${c}" ]] && continue
-            name="$(docker inspect -f '{{.Name}}' "${c}")"; name="${name#/}"
-            [[ "${name}" == "${APP_NAME}-${env}-"* ]] && continue
-            found+=" ${vol} (utilisé par ${name})"
+            project="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "${c}")"
+            service="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "${c}")"
+            [[ "${project}" == "${APP_NAME}-${env}" && "${services}" == *" ${service} "* ]] && continue
+            found+=" ${vol} (utilisé par $(docker inspect -f '{{.Name}}' "${c}" | sed 's#^/##'))"
         done < <(docker ps -q --filter "volume=${vol}")
     done < <(IMAGE_TAG="${tag}" dc "${env}" config 2>/dev/null \
         | awk '/^volumes:/ {v = 1; next} /^[^ ]/ {v = 0} v && $1 == "name:" {print $2}')

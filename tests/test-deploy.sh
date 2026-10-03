@@ -115,6 +115,12 @@ check_not "déploiement refusé : un conteneur étranger utilise un volume du pr
     sh -c "cd '${WORK}/staging' && '${DEPLOY}' up staging '$(cat "${STATE_DIR}/vpstest-demo/staging/current")'"
 check "cause expliquée dans le journal" grep -q "vpstest-demo-staging_data (utilisé par vpstest-ancienne-base)" "${STATE_DIR}/vpstest-demo/deploy.log"
 docker rm -f vpstest-ancienne-base >/dev/null
+# Ancienne pile portant le MÊME nom de projet compose, avec d'autres services.
+docker run -d --name vpstest-ancien-db --label com.docker.compose.project=vpstest-demo-staging \
+    --label com.docker.compose.service=ancien_db -v vpstest-demo-staging_data:/var/lib/data busybox sleep 600 >/dev/null
+check_not "refus aussi pour une ancienne pile du même nom de projet (autre service)" \
+    sh -c "cd '${WORK}/staging' && '${DEPLOY}' up staging '$(cat "${STATE_DIR}/vpstest-demo/staging/current")'"
+docker rm -f vpstest-ancien-db >/dev/null
 check "ancienne installation arrêtée : le déploiement passe" sh -c "cd '${WORK}/staging' && '${DEPLOY}' up staging '$(cat "${STATE_DIR}/vpstest-demo/staging/current")'"
 
 step "nginx-proxy en erreur"
