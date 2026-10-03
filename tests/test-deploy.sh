@@ -38,6 +38,9 @@ services:
     container_name: vpstest-demo-${ENV_NAME}-app
     environment:
       VIRTUAL_HOST: ${ENV_NAME}.demo.vpstest.test
+    volumes: [ data:/data ]
+volumes:
+  data:
 YAML
 cat > "${ORIGIN}/platform.env" <<'ENV'
 APP_NAME=vpstest-demo
@@ -78,6 +81,7 @@ check "v2 en staging" test "$(page staging)" = v2
 commit_version v3 broken
 check_not "déploiement de v3 refusé (santé KO)" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
 check "retour automatique : v2 toujours en staging" test "$(page staging)" = v2
+check "retour automatique confirmé en ligne (journal)" grep -q "retour automatique réussi" "${STATE_DIR}/vpstest-demo/deploy.log"
 (cd "${WORK}/staging" && "${DEPLOY}" watch >/dev/null 2>&1)
 check "pas de nouvelle tentative sur le commit cassé" test "$(cat "${STATE_DIR}/vpstest-demo/staging/failed")" = "$(git -C "${ORIGIN}" rev-parse HEAD)"
 
@@ -104,6 +108,14 @@ check "checkout staging remis sur la version en ligne" test \
     "$(git -C "${WORK}/staging" rev-parse HEAD)" = "$(cat "${STATE_DIR}/vpstest-demo/staging/current")"
 check "commit marqué en échec : watch ne le reconstruit pas en boucle" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
 docker rm -f vpstest-intrus >/dev/null
+
+step "Volume encore utilisé par une ancienne installation"
+docker run -d --name vpstest-ancienne-base -v vpstest-demo-staging_data:/var/lib/data busybox sleep 600 >/dev/null
+check_not "déploiement refusé : un conteneur étranger utilise un volume du projet" \
+    sh -c "cd '${WORK}/staging' && '${DEPLOY}' up staging '$(cat "${STATE_DIR}/vpstest-demo/staging/current")'"
+check "cause expliquée dans le journal" grep -q "vpstest-demo-staging_data (utilisé par vpstest-ancienne-base)" "${STATE_DIR}/vpstest-demo/deploy.log"
+docker rm -f vpstest-ancienne-base >/dev/null
+check "ancienne installation arrêtée : le déploiement passe" sh -c "cd '${WORK}/staging' && '${DEPLOY}' up staging '$(cat "${STATE_DIR}/vpstest-demo/staging/current")'"
 
 step "nginx-proxy en erreur"
 docker run -d --name vpstest-dp-proxy -v /var/run/docker.sock:/tmp/docker.sock:ro nginxproxy/nginx-proxy:1.7 >/dev/null

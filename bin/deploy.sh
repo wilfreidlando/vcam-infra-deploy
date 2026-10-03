@@ -182,6 +182,27 @@ check_hosts() {
     return 1
 }
 
+# Refuses to deploy while a volume of this environment is used by a
+# container that is not part of it — typically the previous installation of
+# the project, still running: two databases on the same data directory
+# corrupt it. Containers of this environment are named <app>-<env>-…
+volumes_in_use_elsewhere() {
+    local env="$1" tag="$2" vol c name found=""
+    while read -r vol; do
+        [[ -z "${vol}" ]] && continue
+        while read -r c; do
+            [[ -z "${c}" ]] && continue
+            name="$(docker inspect -f '{{.Name}}' "${c}")"; name="${name#/}"
+            [[ "${name}" == "${APP_NAME}-${env}-"* ]] && continue
+            found+=" ${vol} (utilisé par ${name})"
+        done < <(docker ps -q --filter "volume=${vol}")
+    done < <(IMAGE_TAG="${tag}" dc "${env}" config 2>/dev/null \
+        | awk '/^volumes:/ {v = 1; next} /^[^ ]/ {v = 0} v && $1 == "name:" {print $2}')
+    [[ -z "${found}" ]] && return 1
+    log "volume(s) en cours d'utilisation hors de ${APP_NAME}-${env} :${found}"
+    return 0
+}
+
 # nginx-proxy regenerates its config at every container change. If the
 # result is invalid, nginx keeps the OLD config and ignores every later
 # change on the whole VPS — refuse to deploy into that state, and treat a
@@ -259,6 +280,10 @@ cmd_up() {
         die "noms d'hôte déjà utilisés par un autre projet (voir ci-dessus) — rien n'a été modifié. Inventaire : infra/bin/vps-hosts.sh"
     fi
 
+    if volumes_in_use_elsewhere "${env}" "${tag}"; then
+        die "arrêter d'abord l'ancienne installation qui utilise ces volumes (deux bases sur les mêmes données les corrompent) — rien n'a été modifié"
+    fi
+
     log "déploiement ${env} ${sha} (précédent : ${previous:-aucun})"
 
     if [[ "${env}" == prod && -n "${BACKUP_SERVICE}" && "${SKIP_BACKUP:-0}" != 1 ]]; then
@@ -292,6 +317,11 @@ cmd_up() {
         log "santé KO — retour automatique à ${previous}"
         checkout "${previous}"
         IMAGE_TAG="$(tag_for "${env}" "${previous}")" dc "${env}" up -d --no-build --remove-orphans || true
+        if IMAGE_TAG="$(tag_for "${env}" "${previous}")" health "${env}"; then
+            log "retour automatique réussi : ${env} = ${previous}, en ligne"
+        else
+            log "ATTENTION : la version précédente ${previous} ne répond pas non plus — intervention requise (deploy.sh status, docker compose logs)"
+        fi
         log "les migrations éventuelles de ${sha} ne sont PAS annulées ; si nécessaire : infra/bin/restore.sh (dernière sauvegarde pre-deploy)"
     fi
     die "${env} ${sha} ne répond pas à « ${HEALTH_CMD} » après ${HEALTH_TIMEOUT}s"
