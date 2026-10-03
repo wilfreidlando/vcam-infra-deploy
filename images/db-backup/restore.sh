@@ -1,11 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 # Restores one backup into the database (ADR-0064). Called by
 # deploy/restore.sh, which stops the application first.
 #
 #   restore.sh <file in /backups>        local copy
 #   restore.sh s3://<bucket>/<key>       downloaded first
 set -eu
-# busybox ash supports it: a failing mysqldump must fail the backup.
+# A failing dump must fail the backup, not upload an empty file.
 set -o pipefail
 
 src="${1:?usage: restore.sh <file|s3://bucket/key>}"
@@ -34,7 +34,8 @@ plain="$(mktemp)"
 trap 'rm -f "${passfile}" "${plain}"' EXIT
 printf '%s' "${BACKUP_PASSPHRASE}" > "${passfile}"
 
-gpg --batch --quiet --yes --decrypt --passphrase-file "${passfile}" --output "${plain}" "${local_file}"
+# A wrong passphrase fails here ("bad decrypt"), before the database is touched.
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "file:${passfile}" -in "${local_file}" -out "${plain}"
 
 case "${BACKUP_ENGINE:-postgres}" in
     postgres)
@@ -43,7 +44,7 @@ case "${BACKUP_ENGINE:-postgres}" in
         ;;
     mysql)
         echo "restore: ${local_file} → ${MYSQL_DATABASE}"
-        gunzip -c "${plain}" | MYSQL_PWD="${MYSQL_PASSWORD}" mysql --host="${MYSQL_HOST}" \
+        gunzip -c "${plain}" | MYSQL_PWD="${MYSQL_PASSWORD}" mariadb --skip-ssl-verify-server-cert --host="${MYSQL_HOST}" \
             --port="${MYSQL_PORT:-3306}" --user="${MYSQL_USER}" "${MYSQL_DATABASE}"
         ;;
     *)

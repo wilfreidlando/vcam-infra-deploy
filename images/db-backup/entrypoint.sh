@@ -1,12 +1,20 @@
-#!/bin/sh
-# Installs the cron schedule, then runs the given command (crond by default).
+#!/bin/bash
+# `schedule` (default): runs backup.sh every day at BACKUP_TIME (UTC, HH:MM).
+# Anything else is executed as is (backup.sh, restore.sh, sh…).
 set -eu
 
-: "${BACKUP_CRON:=30 2 * * *}"
+if [ "${1:-schedule}" != "schedule" ]; then
+    exec "$@"
+fi
 
-mkdir -p /etc/crontabs
-# Environment is not inherited by crond jobs: snapshot it for backup.sh.
-export -p | grep -E ' (PG|MYSQL_|BACKUP_|AWS_|TZ)' > /etc/backup.env || true
-echo "${BACKUP_CRON} . /etc/backup.env && /usr/local/bin/backup.sh >> /proc/1/fd/1 2>&1" > /etc/crontabs/root
+: "${BACKUP_TIME:=02:30}"
+echo "db-backup: daily backup at ${BACKUP_TIME} UTC (${BACKUP_NAME:-app}, ${BACKUP_ENGINE:-postgres})"
 
-exec "$@"
+while true; do
+    now="$(date -u +%s)"
+    next="$(date -u -d "today ${BACKUP_TIME}" +%s)"
+    [ "${next}" -le "${now}" ] && next="$(date -u -d "tomorrow ${BACKUP_TIME}" +%s)"
+    sleep "$((next - now))"
+    # A failed backup is logged (and visible in Grafana) but never stops the agent.
+    backup.sh || echo "db-backup: BACKUP FAILED at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >&2
+done

@@ -52,13 +52,22 @@ source "${PROJECT_DIR}/platform.env"
 # Next.js NEXT_PUBLIC_*): each environment then gets its own image built
 # from the same commit, tagged <sha>-<env>. Default 0: one image, promoted.
 : "${BUILD_PER_ENV:=0}"
+: "${NGINX_PROXY_CONTAINER:=nginx-proxy}"
 
 APP_STATE="${STATE_DIR}/${APP_NAME}"
 mkdir -p "${APP_STATE}/prod" "${APP_STATE}/staging"
 LOG="${APP_STATE}/deploy.log"
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ${APP_NAME}: $*" | tee -a "${LOG}" >&2; }
-die() { log "ERREUR — $*"; exit 1; }
+die() {
+    log "ERREUR — $*"
+    # Failure before the switch: put the checkout back on the version that runs.
+    if [[ -n "${REVERT_CHECKOUT:-}" ]]; then
+        local back="${REVERT_CHECKOUT}"; REVERT_CHECKOUT=""
+        git -C "${PROJECT_DIR}" checkout --quiet --detach "${back}" 2>/dev/null || true
+    fi
+    exit 1
+}
 
 env_file_for() {
     case "$1" in
@@ -130,6 +139,32 @@ checkout() {
     git -C "${PROJECT_DIR}" checkout --quiet --detach "${sha}" || die "commit ${sha} introuvable dans ${PROJECT_DIR}"
 }
 
+# Refuses to deploy when a host name of this project is already claimed by
+# another project (exactly or through its wildcard): nginx-proxy would not
+# complain, it would split the traffic between the two applications.
+check_hosts() {
+    local env="$1" tag="$2" names
+    names="$(IMAGE_TAG="${tag}" dc "${env}" config --format json 2>/dev/null \
+        | grep -o '"VIRTUAL_HOST": *"[^"]*"' | cut -d'"' -f4 | paste -sd, - || true)"
+    [[ -z "${names}" ]] && return 0
+    local out
+    out="$("$(dirname "${BASH_SOURCE[0]}")/vps-hosts.sh" --check "${names}" --project "${APP_NAME}-${env}" 2>&1)" && return 0
+    log "${out}"
+    return 1
+}
+
+# nginx-proxy regenerates its config at every container change. If the
+# result is invalid, nginx keeps the OLD config and ignores every later
+# change on the whole VPS — refuse to deploy into that state, and treat a
+# deploy that causes it as a failed deploy. No-op without that container.
+proxy_config_ok() {
+    docker container inspect "${NGINX_PROXY_CONTAINER}" >/dev/null 2>&1 || return 0
+    local out
+    out="$(docker exec "${NGINX_PROXY_CONTAINER}" nginx -t 2>&1)" && return 0
+    log "nginx-proxy refuse sa configuration : $(grep -m1 emerg <<< "${out}")"
+    return 1
+}
+
 health() {
     local env="$1" deadline=$((SECONDS + HEALTH_TIMEOUT))
     [[ -z "${HEALTH_CMD}" ]] && { log "pas de HEALTH_CMD — santé non vérifiée"; return 0; }
@@ -182,8 +217,14 @@ cmd_up() {
     local env="${1:?env}" sha="${2:?sha}" previous
     previous="$(state_get "${env}" current)"
     checkout "${sha}"
+    is_git && REVERT_CHECKOUT="${previous}"
     ensure_images "${env}" "${sha}"
     local tag; tag="$(tag_for "${env}" "${sha}")"
+    proxy_config_ok || die "nginx-proxy est déjà en erreur — aucun déploiement ne serait pris en compte. Corriger d'abord (infra/bin/vps-audit.sh, infra/bin/vps-hosts.sh)"
+    if ! check_hosts "${env}" "${tag}"; then
+        state_set "${env}" failed "${sha}"
+        die "noms d'hôte déjà utilisés par un autre projet (voir ci-dessus) — rien n'a été modifié. Inventaire : infra/bin/vps-hosts.sh"
+    fi
 
     log "déploiement ${env} ${sha} (précédent : ${previous:-aucun})"
 
@@ -200,9 +241,10 @@ cmd_up() {
         fi
     fi
 
+    REVERT_CHECKOUT=""   # switching now: from here on, the rollback below handles the checkout
     IMAGE_TAG="${tag}" dc "${env}" up -d --no-build --remove-orphans
 
-    if IMAGE_TAG="${tag}" health "${env}"; then
+    if IMAGE_TAG="${tag}" health "${env}" && { sleep 3; proxy_config_ok; }; then
         state_set "${env}" previous "${previous}"
         state_set "${env}" current "${sha}"
         echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${sha}" >> "${APP_STATE}/${env}/history"

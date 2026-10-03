@@ -17,6 +17,9 @@ Contenu du dossier :
 | [`bin/deploy.sh`](bin/deploy.sh) | Déploiement standard : build, staging automatique, promotion manuelle en production, retour arrière automatique |
 | [`bin/vps-audit.sh`](bin/vps-audit.sh) | Audit **en lecture seule** de tous les conteneurs du serveur par rapport à ce standard |
 | [`bin/restore.sh`](bin/restore.sh) | Restauration d'une sauvegarde dans un environnement |
+| [`bin/vps-hosts.sh`](bin/vps-hosts.sh) | Inventaire de tous les sous-domaines du serveur, détection et blocage des collisions |
+| [`guides/`](guides/README.md) | **Guides pas à pas** de mise en place, dans l'ordre |
+| [`tests/`](tests/README.md) | Tests réels de toute la plateforme, rejouables sur un poste avec Docker |
 | [`templates/`](templates) | Modèles prêts à copier : Laravel, web générique, frontend (SPA et Next.js) |
 | [`images/db-backup/`](images/db-backup) | Agent de sauvegarde PostgreSQL / MySQL → MEGA S4 (ou tout S3) |
 | [`observability/`](observability) | Grafana + Loki + Tempo + Prometheus mutualisés (backends) |
@@ -127,6 +130,20 @@ son certificat Let's Encrypt, au premier démarrage du conteneur.
 - **Limite Let's Encrypt** : 50 nouveaux certificats par semaine pour le domaine. Elle
   ne gêne pas un usage normal, mais évitez de créer et supprimer des sous-domaines en
   boucle.
+
+**Collisions** : nginx-proxy ne refuse jamais un nom déjà pris.
+- Deux projets avec le même `VIRTUAL_HOST` : il répartit les visiteurs entre les
+  deux.
+- Le même nom avec une casse différente : sa configuration devient invalide, et plus
+  aucun changement de site n'est appliqué sur tout le serveur.
+
+La plateforme s'en protège :
+- `bin/vps-hosts.sh` fait l'inventaire, répond « libre ou pris ? » et sert de garde ;
+- `deploy.sh` refuse un nom déjà pris, et refuse aussi de déployer quand nginx-proxy
+  est en erreur ;
+- l'audit signale les deux cas en CRITIQUE.
+
+Mode d'emploi : [guide 1](guides/01-inventaire-sous-domaines.md).
 
 **Convention de nommage, des noms « plats » (un seul niveau) :**
 
@@ -350,12 +367,12 @@ déployer** si elle échoue.
 
 ```bash
 # 1. télécharger la dernière sauvegarde de production depuis MEGA, puis :
-docker cp <fichier>.dump.gpg "$(docker ps -q -f label=com.docker.compose.project=<projet>-staging -f label=com.docker.compose.service=backup)":/backups/
+docker cp <fichier>.dump.enc "$(docker ps -q -f label=com.docker.compose.project=<projet>-staging -f label=com.docker.compose.service=backup)":/backups/
 # 2. restaurer dans le staging, avec la phrase de passe de PRODUCTION donnée
 #    ponctuellement (jamais écrite dans .env.staging) :
 cd /app/<projet>/staging
 read -rs RESTORE_PASSPHRASE && export RESTORE_PASSPHRASE
-/app/vps-platform/infra/bin/restore.sh staging <fichier>.dump.gpg
+/app/vps-platform/infra/bin/restore.sh staging <fichier>.dump.enc
 ```
 
 Cela restaure la production dans le staging. Attention aux données personnelles : le

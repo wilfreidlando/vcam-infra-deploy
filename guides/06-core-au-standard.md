@@ -1,0 +1,159 @@
+# 6. Passer le Core au standard : staging + production
+
+**Résultat** :
+- `core-system-staging.visibilitycam.com` : copie isolée du Core, mise à jour
+  automatiquement (guide 7) ;
+- `core-system.visibilitycam.com` : production, mise à jour **uniquement** par
+  promotion manuelle de l'image validée en staging.
+
+**Coupure de la production** : quelques secondes, au moment de la promotion
+(étape 6). Les noms des conteneurs, le réseau `core-system-internal` et les volumes
+(donc la base) **ne changent pas**.
+
+Remplacez `core-system.visibilitycam.com` par le nom actuel du Core s'il est
+différent : c'est la valeur de `VIRTUAL_HOST` dans son `.env` actuel.
+
+## Prérequis
+
+- Guides 1 à 4 faits : inventaire, DNS wildcard, plateforme installée, MEGA S4 testé.
+- Le nom du staging est libre :
+  ```bash
+  $ /app/vps-platform/infra/bin/vps-hosts.sh --free core-system-staging.visibilitycam.com
+  ```
+- Retrouver le dossier actuel du Core :
+  ```bash
+  $ docker inspect core-system-app --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'
+  ```
+  Ce chemin est appelé `<ANCIEN>` ci-dessous.
+
+## Étape 1 — Filet de sécurité (avant toute chose)
+
+```bash
+$ docker exec core-system-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' \
+    > /root/core-avant-standard-$(date +%F).dump
+$ ls -lh /root/core-avant-standard-*.dump          # doit faire plus que quelques Ko
+$ cp <ANCIEN>/.env /root/core-env-avant-standard
+```
+
+## Étape 2 — Dossiers
+
+```bash
+$ mkdir -p /app/core-system
+$ mv <ANCIEN> /app/core-system/prod                       # le checkout actuel devient « prod »
+$ git clone <url du dépôt core-system> /app/core-system/staging
+$ cd /app/core-system/prod && git fetch && git status     # doit être propre (pas de fichiers modifiés)
+```
+
+Déplacer le dossier n'arrête pas les conteneurs. Le nom du projet Docker
+(`core-system-prod`) est écrit dans `compose.prod.yaml`, il ne dépend pas du
+dossier.
+
+## Étape 3 — Compléter le `.env` de production
+
+Ouvrir `/app/core-system/prod/.env` et ajouter la section « VPS standard » de
+`.env.production.example` (en fin de fichier). Valeurs à générer :
+
+```bash
+$ openssl rand -hex 32          # → TRUSTED_PROXY_TOKEN
+$ openssl rand -base64 32       # → BACKUP_PASSPHRASE (+ gestionnaire de mots de passe !)
+```
+
+Les variables `BACKUP_S3_*` et `AWS_*` viennent du guide 4.
+
+Garder **inchangés** :
+- `APP_KEY` : la changer rendrait illisibles les secrets chiffrés en base ;
+- `DB_*` ;
+- `VIRTUAL_HOST`.
+
+Ne pas définir `IMAGE_TAG` : la plateforme le gère.
+
+## Étape 4 — Créer le `.env.staging`
+
+```bash
+$ cd /app/core-system/staging
+$ cp .env.staging.example .env.staging
+$ nano .env.staging
+```
+
+| Variable | Valeur |
+| --- | --- |
+| `APP_KEY` | **nouvelle** : `echo "base64:$(openssl rand -base64 32)"` |
+| `DB_PASSWORD`, `TRUSTED_PROXY_TOKEN`, `BACKUP_PASSPHRASE` | **nouvelles**, jamais celles de la production |
+| `CORE_ENVIRONMENT` | `sandbox` |
+| `WAHA_*` | une session WhatsApp de **test** (un numéro dédié), jamais celle des clients |
+| Clés S3 | facultatives : sans `BACKUP_S3_BUCKET`, copies locales seulement |
+
+Les applications MyCoolPay ne se configurent pas ici. Elles s'enregistrent dans la
+console du staging, avec les clés **sandbox** de MyCoolPay (étape 5).
+
+## Étape 5 — Premier staging
+
+```bash
+$ cd /app/core-system/staging
+$ make staging-deploy          # construit l'image du dernier commit de main, la déploie, vérifie la santé
+$ make deploy-status
+```
+
+Puis préparer le staging :
+
+```bash
+$ docker exec -it core-system-staging-app php artisan identity:create-operator \
+    vous@visibilitycam.com "Votre nom" platform_admin    # mot de passe affiché une fois
+```
+
+Dans `https://core-system-staging.visibilitycam.com/admin` : créer une organisation
+et un projet, puis enregistrer l'application MyCoolPay **sandbox**.
+
+**Recette** : un paiement sandbox, une notification de test, un webhook. Ne passez à
+l'étape 6 que si tout est bon.
+
+## Étape 6 — Promotion en production
+
+En heure creuse :
+
+```bash
+$ cd /app/core-system/prod
+$ make prod-promote            # tape « oui » pour confirmer
+```
+
+Le script :
+1. fait une sauvegarde chiffrée (envoyée sur MEGA) ;
+2. applique les migrations avec la nouvelle image ;
+3. recrée les conteneurs ;
+4. vérifie `/health/ready` pendant 2 minutes ;
+5. revient automatiquement à la version précédente en cas d'échec.
+
+Si le script s'arrête avec « noms d'hôte déjà utilisés par un autre projet », c'est
+la protection du guide 1. Rien n'a été modifié : corriger le nom en cause, puis
+relancer.
+
+## Étape 7 — Vérifier
+
+```bash
+$ make deploy-status
+$ curl -fsS https://core-system.visibilitycam.com/health/ready
+$ /app/vps-platform/infra/bin/vps-audit.sh | sed -n '/■ core-system-prod/,/^$/p'    # aucune ligne CRITIQUE ou ATTENTION
+```
+
+Puis, dans la console admin de production : connexion, liste des paiements, détail
+d'un paiement.
+
+## Ancienne observabilité
+
+Si l'ancienne stack d'observabilité tournait dans le projet `core-system-prod`,
+l'étape 6 a retiré ses conteneurs. Après vérification, supprimer ses anciens
+volumes :
+
+```bash
+$ docker volume ls | grep core-system-prod_ | grep -E 'loki|tempo|prometheus|grafana|alloy'
+$ docker volume rm <ces volumes>
+```
+
+## En cas de problème
+
+| Situation | Action |
+| --- | --- |
+| La promotion échoue avant la bascule (sauvegarde, migration) | Rien n'a basculé. Lire l'erreur, corriger, relancer |
+| Le retour automatique a eu lieu | La production tourne sur l'ancienne version. Les migrations éventuelles sont restées |
+| Il faut revenir aux données d'avant | `cd /app/core-system/prod && /app/vps-platform/infra/bin/restore.sh prod <fichier pre-deploy-…>` |
+| Ultime recours | `docker exec -i core-system-postgres sh -c 'pg_restore --clean --if-exists -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /root/core-avant-standard-<date>.dump` |

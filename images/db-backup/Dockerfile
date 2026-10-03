@@ -1,14 +1,28 @@
 # VPS standard database backup agent (infra/README.md, ADR-0064), usable by
-# every project on the server: PostgreSQL (any version ≤ 18 — pg_dump reads
-# older servers) or MySQL/MariaDB, dumped → encrypted with gpg (AES-256) →
-# kept on a local volume + copied to any S3-compatible storage (MEGA S4,
-# Cloudflare R2, Backblaze B2…). Configuration: environment only (README).
-FROM postgres:18-alpine
+# every project on the server: dump → encrypted (openssl AES-256) → kept on
+# a local volume + copied to any S3-compatible storage (MEGA S4, R2, B2…).
+#
+# Built ONLY from official images — no apt/apk at build time, so it builds
+# identically anywhere and never breaks on a package mirror:
+#   ENGINE=postgres (default)  base postgres:18  → pg_dump/pg_restore (reads servers ≤ 18), openssl
+#   ENGINE=mysql               base mariadb:11   → mariadb-dump/mariadb (MariaDB and MySQL), openssl
+# plus the AWS CLI v2 copied from the official amazon/aws-cli image.
+#
+#   docker build -t vps/db-backup:1 .                              (PostgreSQL)
+#   docker build --build-arg BASE=mariadb:11 -t vps/db-backup-mysql:1 .
+ARG BASE=postgres:18
+ARG AWS_CLI=amazon/aws-cli:2.37.9
 
-RUN apk add --no-cache aws-cli gnupg tzdata mariadb-client
+FROM ${AWS_CLI} AS aws
+
+FROM ${BASE}
+COPY --from=aws /usr/local/aws-cli /usr/local/aws-cli
+RUN ln -sf /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws \
+    && aws --version
 
 COPY backup.sh restore.sh entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/backup.sh /usr/local/bin/restore.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/backup.sh /usr/local/bin/restore.sh /usr/local/bin/entrypoint.sh \
+    && mkdir -p /backups
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["crond", "-f", "-l", "8"]
+CMD ["schedule"]

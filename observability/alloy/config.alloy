@@ -35,7 +35,8 @@ discovery.relabel "opted_in" {
   }
   rule {
     source_labels = ["__meta_docker_network_name"]
-    regex         = "observability"
+    // `observability` unless overridden (infra/tests run an isolated copy).
+    regex         = coalesce(sys.env("OBS_NETWORK"), "observability")
     action        = "keep"
   }
 

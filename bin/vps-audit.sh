@@ -126,6 +126,27 @@ for id in "${ids[@]}"; do
         report INFO "${project}" "${name}" "non branché sur l'observabilité (labels observability.*)"
 done
 
+# ── nginx-proxy configuration (read-only `nginx -t`) ─────────────────────
+# A broken generated config (e.g. the same name declared twice with a
+# different case → "duplicate upstream") makes every reload fail: no new
+# site and no change is applied on the whole VPS until it is fixed.
+proxy="${NGINX_PROXY_CONTAINER:-nginx-proxy}"
+if docker container inspect "${proxy}" >/dev/null 2>&1; then
+    if ! proxy_test="$(docker exec "${proxy}" nginx -t 2>&1)"; then
+        report CRITIQUE "(hôte)" "${proxy}" "configuration refusée — plus aucun changement de site n'est appliqué : $(grep -m1 emerg <<< "${proxy_test}" | sed 's/.*\[emerg\] [0-9#]*: //')"
+    fi
+fi
+
+# ── Host-name collisions (infra/bin/vps-hosts.sh) ────────────────────────
+hosts_script="$(dirname "${BASH_SOURCE[0]}")/vps-hosts.sh"
+if [[ -x "${hosts_script}" ]]; then
+    while read -r host; do
+        [[ -z "${host}" ]] && continue
+        owners="$("${hosts_script}" --csv | awk -F, -v h="${host}" '$1 == h {print $2}' | sort -u | paste -sd' ' -)"
+        report CRITIQUE "(sous-domaines)" "${host}" "revendiqué par plusieurs projets (${owners}) — nginx-proxy répartit le trafic entre eux"
+    done < <("${hosts_script}" --csv | tail -n +2 | cut -d, -f1,2 | sort -u | cut -d, -f1 | sort | uniq -d)
+fi
+
 # ── Report ──────────────────────────────────────────────────────────────
 echo "Audit du VPS — $(hostname) — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "Conteneurs : ${#ids[@]} · Docker : $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo '?')"

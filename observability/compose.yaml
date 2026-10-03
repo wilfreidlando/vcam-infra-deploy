@@ -25,13 +25,15 @@ x-limits: &small
 services:
   alloy:
     image: grafana/alloy:v1.10.2
-    container_name: observability-alloy
+    container_name: ${OBS_PREFIX:-observability}-alloy
     restart: unless-stopped
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
       - --storage.path=/var/lib/alloy/data
       - /etc/alloy/config.alloy
+    environment:
+      OBS_NETWORK: ${OBS_NETWORK:-observability}
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       # Read-only: discovers opted-in containers, tails their stdout.
@@ -48,7 +50,7 @@ services:
 
   loki:
     image: grafana/loki:3.5.5
-    container_name: observability-loki
+    container_name: ${OBS_PREFIX:-observability}-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/config.yaml
     volumes:
@@ -64,7 +66,7 @@ services:
 
   tempo:
     image: grafana/tempo:2.8.2
-    container_name: observability-tempo
+    container_name: ${OBS_PREFIX:-observability}-tempo
     restart: unless-stopped
     command: -config.file=/etc/tempo/config.yaml
     volumes:
@@ -76,7 +78,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.5.0
-    container_name: observability-prometheus
+    container_name: ${OBS_PREFIX:-observability}-prometheus
     restart: unless-stopped
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -94,7 +96,7 @@ services:
 
   grafana:
     image: grafana/grafana:12.1.1
-    container_name: observability-grafana
+    container_name: ${OBS_PREFIX:-observability}-grafana
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -136,11 +138,11 @@ volumes:
 networks:
   # Loki/Tempo/Prometheus are reachable only from this project.
   internal:
-    name: observability-internal
+    name: ${OBS_PREFIX:-observability}-internal
   # Shared with the applications: they reach Alloy here, Alloy scrapes them here.
   observability:
-    name: observability
+    name: ${OBS_NETWORK:-observability}
     external: true
   nginx-proxy:
-    name: nginx-proxy
+    name: ${NGINX_PROXY_NETWORK:-nginx-proxy}
     external: true
