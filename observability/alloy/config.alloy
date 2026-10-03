@@ -7,9 +7,11 @@
 //   observability.metrics.port=<port>  optional — scrape http://<container>:<port><path>
 //   observability.metrics.path=<path>  optional — default /metrics
 //
-// The container must also be attached to the external `observability`
-// network: Alloy scrapes it there, and the application sends its traces to
-// http://observability-alloy:4318 there.
+// Logs are read through the Docker socket: no network is needed, so a
+// container that must stay private (PHP-FPM speaks unauthenticated FastCGI)
+// still has its logs collected. Metrics and traces need the external
+// `observability` network: Alloy scrapes there, and the application sends
+// its traces to http://observability-alloy:4318 there.
 //
 //  1. Logs: stdout of each opted-in container → Loki, labelled by app,
 //     deployment, service and level. Laravel JSON lines (Monolog
@@ -22,21 +24,15 @@ discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
-// Common to logs and metrics: opted-in containers, seen once — on the
-// shared network (a container on several networks is listed once per
-// network by the Docker API).
+// Common to logs and metrics: opted-in containers. A container on several
+// networks is listed once per network by the Docker API; loki.source.docker
+// tails it once all the same (verified: 2 networks → no duplicate line).
 discovery.relabel "opted_in" {
   targets = discovery.docker.containers.targets
 
   rule {
     source_labels = ["__meta_docker_container_label_observability_enable"]
     regex         = "true"
-    action        = "keep"
-  }
-  rule {
-    source_labels = ["__meta_docker_network_name"]
-    // `observability` unless overridden (infra/tests run an isolated copy).
-    regex         = coalesce(sys.env("OBS_NETWORK"), "observability")
     action        = "keep"
   }
 
@@ -120,6 +116,13 @@ discovery.relabel "metrics" {
   rule {
     source_labels = ["__meta_docker_container_label_observability_metrics_port"]
     regex         = ".+"
+    action        = "keep"
+  }
+  // Scrape on the shared network only — once, and where Alloy can reach it.
+  rule {
+    source_labels = ["__meta_docker_network_name"]
+    // `observability` unless overridden (infra/tests run an isolated copy).
+    regex         = coalesce(sys.env("OBS_NETWORK"), "observability")
     action        = "keep"
   }
   rule {

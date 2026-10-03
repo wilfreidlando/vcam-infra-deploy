@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Shared observability (infra/observability), isolated copy: an opted-in
 # container's logs, metrics and traces arrive with the right labels; a
-# container without labels is ignored; Grafana provisions its folders,
+# container without labels is ignored; a private container (label, no shared
+# network — the PHP-FPM case) still has its logs collected, once even on two
+# networks, and is never scraped; Grafana provisions its folders,
 # dashboards and alert rules.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=lib.sh
@@ -28,14 +30,27 @@ docker run -d --name vpstest-obs-demo --network "${OBS_NETWORK}" \
 docker run -d --name vpstest-obs-ignored --network "${OBS_NETWORK}" -l com.docker.compose.project=secret-project \
     busybox sh -c 'while true; do echo ignored-line; sleep 2; done' >/dev/null
 
+# PHP-FPM case: labelled, kept OFF the shared network, on two private networks.
+docker network create vpstest-obs-priv1 >/dev/null
+docker network create vpstest-obs-priv2 >/dev/null
+docker run -d --name vpstest-obs-private --network vpstest-obs-priv1 \
+    -l observability.enable=true -l observability.app=demo-private -l observability.metrics.port=8080 \
+    busybox sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do echo "private-line-$i"; done; sleep 3600' >/dev/null
+docker network connect vpstest-obs-priv2 vpstest-obs-private
+
 loki() { graf "http://loki:3100/loki/api/v1/$1"; }
 prom() { graf "http://prometheus:9090/api/v1/$1"; }
 
 check "journaux reçus, labels app et deployment" wait_for 120 sh -c \
     "docker exec vpstest-obs-grafana wget -qO- 'http://loki:3100/loki/api/v1/query_range?query=%7Bapp%3D%22demo-laravel%22%2Cdeployment%3D%22staging%22%2Clevel%3D%22ERROR%22%7D&limit=1' | grep -q corr-123"
 check_not "conteneur sans label ignoré" sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://loki:3100/loki/api/v1/label/app/values' | grep -q secret-project"
+check "conteneur privé : journaux reçus sans réseau partagé" wait_for 120 sh -c \
+    "docker exec vpstest-obs-grafana wget -qO- 'http://loki:3100/loki/api/v1/query?query=sum(count_over_time(%7Bapp%3D%22demo-private%22%7D%5B15m%5D))' | grep -q '\"10\"\]'"
 check "métriques scrapées avec labels" wait_for 120 sh -c \
     "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=demo_up%7Bapp%3D%22demo-laravel%22%2Cdeployment%3D%22staging%22%7D' | grep -q '\"1\"'"
+
+check_not "conteneur privé jamais scrapé" sh -c \
+    "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=up%7Bapp%3D%22demo-private%22%7D' | grep -q demo-private"
 
 TID=5b8efff798038103d269b633813fc60c
 NOW="$(date +%s)"

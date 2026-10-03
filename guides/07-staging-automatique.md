@@ -25,6 +25,26 @@ Ce que fait `watch` à chaque passage :
   attend le commit suivant.
 - **Un déploiement est déjà en cours** : il sort sans rien faire (verrou).
 
+## Un environnement `dev` en plus (facultatif)
+
+Un projet peut avoir plus que staging et prod, par exemple un `dev` qui suit la
+branche `develop`. Dans son `platform.env` :
+
+```bash
+ENVIRONMENTS="dev staging prod"
+BRANCH_DEV=develop          # branche suivie par « watch dev »
+ENV_FILE_DEV=.env.dev       # valeur par défaut
+```
+
+Puis un clone de plus (`/app/mon-projet/dev`) et une ligne cron de plus :
+
+```cron
+*/2 * * * * cd /app/mon-projet/dev && /app/vps-platform/infra/bin/deploy.sh watch dev >> /var/log/vps-deploy.log 2>&1
+```
+
+`deploy.sh watch prod` est refusé : la production ne se déploie que par
+`deploy.sh promote`, avec l'image déjà validée en staging.
+
 ## Vérifier
 
 ```bash

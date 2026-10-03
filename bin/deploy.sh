@@ -14,10 +14,16 @@
 # Usage, from the project's checkout (staging checkout for build/watch,
 # production checkout for promote):
 #
-#   deploy.sh build [ref]          build images for ref (default origin/$STAGING_BRANCH)
-#   deploy.sh up <env> <sha>       deploy an already-built SHA to staging|prod
-#   deploy.sh watch [branch]       cron-friendly: build + deploy staging if the branch moved
+#   deploy.sh build [ref] [env]    build images for ref (default origin/<branch of env>, env default staging)
+#   deploy.sh up <env> <sha>       deploy an already-built SHA to an environment
+#   deploy.sh watch [env]          cron-friendly: build + deploy env (default staging) if its branch moved
 #   deploy.sh promote [sha] [-y]   deploy to prod the SHA currently on staging (or the given one)
+#
+# Environments: ENVIRONMENTS in platform.env (default "staging prod"), e.g.
+# "dev staging prod". Each has its env file (ENV_FILE_<ENV>, default .env for
+# prod, .env.<env> otherwise) and, for watch, its branch (BRANCH_<ENV>;
+# staging defaults to STAGING_BRANCH). Only prod is never watched: it is
+# reached by promotion only.
 #   deploy.sh rollback <env>       redeploy the previous SHA of that environment
 #   deploy.sh status               current/previous SHA and containers of each environment
 #
@@ -38,6 +44,7 @@ source "${PROJECT_DIR}/platform.env"
 : "${COMPOSE_FILE:=compose.yaml}"
 : "${ENV_FILE_PROD:=.env}"
 : "${ENV_FILE_STAGING:=.env.staging}"
+: "${ENVIRONMENTS:=staging prod}"
 : "${STAGING_BRANCH:=main}"
 : "${HEALTH_SERVICE:=app}"
 : "${HEALTH_CMD:=}"
@@ -55,7 +62,7 @@ source "${PROJECT_DIR}/platform.env"
 : "${NGINX_PROXY_CONTAINER:=nginx-proxy}"
 
 APP_STATE="${STATE_DIR}/${APP_NAME}"
-mkdir -p "${APP_STATE}/prod" "${APP_STATE}/staging"
+for _env in ${ENVIRONMENTS}; do mkdir -p "${APP_STATE}/${_env}"; done
 LOG="${APP_STATE}/deploy.log"
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ${APP_NAME}: $*" | tee -a "${LOG}" >&2; }
@@ -69,12 +76,24 @@ die() {
     exit 1
 }
 
+is_env() { [[ " ${ENVIRONMENTS} " == *" $1 "* ]]; }
+
 env_file_for() {
+    is_env "$1" || die "environnement inconnu « $1 » (${ENVIRONMENTS})"
+    local var="ENV_FILE_${1^^}"
     case "$1" in
         prod) echo "${ENV_FILE_PROD}" ;;
         staging) echo "${ENV_FILE_STAGING}" ;;
-        *) die "environnement inconnu « $1 » (staging|prod)" ;;
+        *) echo "${!var:-.env.$1}" ;;
     esac
+}
+
+branch_for() {
+    local var="BRANCH_${1^^}"
+    if [[ -n "${!var:-}" ]]; then echo "${!var}"
+    elif [[ "$1" == staging ]]; then echo "${STAGING_BRANCH}"
+    else die "aucune branche pour « $1 » : définir ${var} dans platform.env"
+    fi
 }
 
 # docker compose for one environment, images pinned to IMAGE_TAG.
@@ -124,7 +143,12 @@ missing_images() {
 build_for() {
     local env="$1" sha="$2"
     log "build ${env} ${sha}"
-    IMAGE_TAG="$(tag_for "${env}" "${sha}")" dc "${env}" build --pull >&2 || die "build ${sha} (${env}) en échec"
+    # --pull refreshes base images; when the registry refuses (Docker Hub rate
+    # limit, outage), the base images already on the server are used instead.
+    if ! IMAGE_TAG="$(tag_for "${env}" "${sha}")" dc "${env}" build --pull >&2; then
+        log "build avec --pull en échec (registre indisponible ou quota ?) — nouvel essai avec les images de base locales"
+        IMAGE_TAG="$(tag_for "${env}" "${sha}")" dc "${env}" build >&2 || die "build ${sha} (${env}) en échec"
+    fi
 }
 
 ensure_images() {
@@ -133,7 +157,7 @@ ensure_images() {
     if [[ "${BUILD_PER_ENV}" == 1 ]]; then
         build_for "${env}" "${sha}"
     else
-        die "images de ${sha} absentes — lancer d'abord « deploy.sh build ${sha} » (dans le checkout staging)"
+        die "images de ${sha} absentes — lancer d'abord « deploy.sh build ${sha} » (dans le checkout de staging)"
     fi
 }
 
@@ -184,28 +208,32 @@ health() {
 
 prune_images() {
     local keep=() img repo s
-    for env in prod staging; do
+    local e
+    for env in ${ENVIRONMENTS}; do
         for s in "$(state_get "${env}" current)" "$(state_get "${env}" previous)"; do
-            keep+=("${s}" "${s}-prod" "${s}-staging")
+            keep+=("${s}")
+            for e in ${ENVIRONMENTS}; do keep+=("${s}-${e}"); done
         done
     done
     # Repositories of this project's own images (those tagged with a SHA).
-    local sha; sha="$(state_get staging current)"
+    local sha="" e
+    for e in ${ENVIRONMENTS}; do [[ -z "${sha}" ]] && sha="$(state_get "${e}" current)"; done
     [[ -z "${sha}" ]] && return 0
     while read -r img; do
         repo="${img%:*}"
         docker image ls "${repo}" --format '{{.Tag}} {{.CreatedAt}}' \
-            | grep -E '^[0-9a-f]{40}(-(staging|prod))? ' | sort -k2 -r | awk '{print $1}' \
+            | grep -E '^[0-9a-f]{40}(-[a-z0-9]+)? ' | sort -k2 -r | awk '{print $1}' \
             | tail -n +"$((KEEP_IMAGES + 1))" | while read -r tag; do
                 [[ " ${keep[*]} " == *" ${tag} "* ]] && continue
                 docker image rm "${repo}:${tag}" >/dev/null 2>&1 && log "image supprimée ${repo}:${tag}"
             done
-    done < <(images_for staging "${sha}")
+    done < <(for e in ${ENVIRONMENTS}; do images_for "${e}" "${sha}"; done | sort -u)
 }
 
 # ── Commands ────────────────────────────────────────────────────────────
 cmd_build() {
-    local ref="${1:-origin/${STAGING_BRANCH}}" sha
+    local env="${2:-staging}"
+    local ref="${1:-origin/$(branch_for "${env}")}" sha
     if is_git; then
         git -C "${PROJECT_DIR}" fetch --quiet origin
         sha="$(git -C "${PROJECT_DIR}" rev-parse "${ref}^{commit}")"
@@ -214,7 +242,7 @@ cmd_build() {
         [[ "${ref}" =~ ^[0-9a-f]{40}$ ]] || die "hors git, build exige un SHA explicite"
         sha="${ref}"
     fi
-    build_for staging "${sha}"
+    build_for "${env}" "${sha}"
     echo "${sha}"
 }
 
@@ -270,15 +298,20 @@ cmd_up() {
 }
 
 cmd_watch() {
-    local branch="${1:-${STAGING_BRANCH}}" target
+    # watch [env] — or, for compatibility, watch [branch] (staging).
+    local env=staging branch target
+    if [[ -n "${1:-}" ]] && is_env "$1"; then env="$1"; branch="$(branch_for "${env}")"
+    else branch="${1:-$(branch_for staging)}"
+    fi
+    [[ "${env}" == prod ]] && die "la production n'est jamais déployée automatiquement : deploy.sh promote"
     is_git || die "watch exige un checkout git"
     git -C "${PROJECT_DIR}" fetch --quiet origin
     target="$(git -C "${PROJECT_DIR}" rev-parse "origin/${branch}^{commit}")"
-    [[ "${target}" == "$(state_get staging current)" ]] && exit 0
-    [[ "${target}" == "$(state_get staging failed)" ]] && exit 0   # pas de boucle sur un commit cassé
-    log "nouvelle version sur ${branch} : ${target}"
-    cmd_build "${target}" >/dev/null
-    cmd_up staging "${target}"
+    [[ "${target}" == "$(state_get "${env}" current)" ]] && exit 0
+    [[ "${target}" == "$(state_get "${env}" failed)" ]] && exit 0   # pas de boucle sur un commit cassé
+    log "nouvelle version sur ${branch} (${env}) : ${target}"
+    cmd_build "${target}" "${env}" >/dev/null
+    cmd_up "${env}" "${target}"
 }
 
 cmd_promote() {
@@ -310,7 +343,7 @@ cmd_rollback() {
 }
 
 cmd_status() {
-    for env in staging prod; do
+    for env in ${ENVIRONMENTS}; do
         echo "── ${env} : $(state_get "${env}" current || true)  (précédent : $(state_get "${env}" previous || true))"
         [[ -n "$(state_get "${env}" failed)" ]] && echo "   dernier échec : $(state_get "${env}" failed)"
         [[ -f "$(env_file_for "${env}")" ]] && dc "${env}" ps --format 'table {{.Name}}\t{{.Status}}' 2>/dev/null || true

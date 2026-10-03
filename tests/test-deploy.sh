@@ -125,4 +125,20 @@ check "image <sha>-staging construite" docker image inspect "vpstest-demo:${sha}
 check "image <sha>-prod construite depuis le même commit" docker image inspect "vpstest-demo:${sha}-prod"
 check "v4 en production" test "$(page prod)" = v4
 
+step "Trois environnements : dev (branche develop) → staging (main) → prod"
+git -C "${ORIGIN}" checkout -q -b develop
+commit_version dev-v1
+git -C "${ORIGIN}" checkout -q main
+git clone -q "${ORIGIN}" "${WORK}/dev"
+for env in dev staging prod; do
+    printf 'ENVIRONMENTS="dev staging prod"\nBRANCH_DEV=develop\n' >> "${WORK}/${env}/platform.env"
+    echo "ENV_NAME=dev" > "${WORK}/${env}/.env.dev"
+done
+(cd "${WORK}/dev" && "${DEPLOY}" watch dev >/dev/null 2>&1)
+check "dev suit develop : dev-v1 en dev" test "$(page dev)" = dev-v1
+check "le staging n'a pas bougé (v4)" test "$(page staging)" = v4
+check "projets compose distincts par environnement" docker inspect vpstest-demo-dev-app --format '{{index .Config.Labels "com.docker.compose.project"}}'
+check_not "la production ne se déploie jamais en watch" sh -c "cd '${WORK}/prod' && '${DEPLOY}' watch prod"
+check "status liste les trois environnements" sh -c "cd '${WORK}/prod' && '${DEPLOY}' status | grep -c '^── ' | grep -qx 3"
+
 docker image ls vpstest-demo -q | xargs -r docker rmi -f >/dev/null 2>&1 || true

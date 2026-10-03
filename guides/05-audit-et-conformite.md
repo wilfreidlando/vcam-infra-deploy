@@ -66,9 +66,10 @@ redémarrer le conteneur en boucle (`OOMKilled`) ; dans ce cas, l'augmenter.
 
 ## Étape 4 — Brancher les backends sur l'observabilité
 
-Pour chaque backend (Laravel ou autre), ajouter le réseau `observability` et les
-labels `observability.*` (`infra/observability/README.md`). Les frontends n'en ont
-pas besoin.
+Pour chaque backend (Laravel ou autre), ajouter les labels `observability.*`
+(`infra/observability/README.md`). Le label suffit pour les journaux ; le réseau
+`observability` n'est nécessaire que pour les métriques et les traces. Jamais de
+PHP-FPM, de base ni de Redis sur ce réseau. Les frontends n'en ont pas besoin.
 
 ## Étape 5 — Relancer l'audit chaque mois
 

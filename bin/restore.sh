@@ -8,7 +8,7 @@
 # again. Asks for confirmation; prod requires typing the project name.
 set -euo pipefail
 
-env="${1:?usage: restore.sh <staging|prod> <backup>}"
+env="${1:?usage: restore.sh <env> <backup>}"
 src="${2:?usage: restore.sh <staging|prod> <backup>}"
 
 [[ -f platform.env ]] || { echo "restore: lancer depuis la racine du projet (platform.env)" >&2; exit 2; }
@@ -21,8 +21,9 @@ source platform.env
 case "${env}" in
     prod) envfile="${ENV_FILE_PROD}" ;;
     staging) envfile="${ENV_FILE_STAGING}" ;;
-    *) echo "restore: environnement inconnu" >&2; exit 2 ;;
+    *) var="ENV_FILE_${env^^}"; envfile="${!var:-.env.${env}}" ;;
 esac
+[[ -f "${envfile}" ]] || { echo "restore: ${envfile} absent" >&2; exit 2; }
 
 IMAGE_TAG="$(cat "${STATE_DIR}/${APP_NAME}/${env}/current" 2>/dev/null || echo latest)"
 export IMAGE_TAG

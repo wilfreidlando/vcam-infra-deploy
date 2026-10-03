@@ -82,9 +82,12 @@ networks:
     external: true
 ```
 
-Le conteneur **doit** être sur le réseau `observability`, même pour les seuls
-journaux : c'est ce réseau qui permet à Alloy de le voir une seule fois. Ne
-branchez jamais la base de données ou Redis sur ce réseau.
+Les **journaux** sont lus par le socket Docker : le label suffit, aucun réseau
+n'est requis (un conteneur sur plusieurs réseaux n'est collecté qu'une fois —
+vérifié). Les **métriques** et les **traces** exigent le réseau `observability`.
+Ne branchez jamais la base de données, Redis ni un conteneur **PHP-FPM** (FastCGI
+sur le port 9000, sans authentification : quiconque le joint exécute du PHP) sur
+ce réseau partagé : mettez-leur le label seul.
 
 ### 2. Journaux : JSON sur la sortie standard (aucune dépendance)
 
