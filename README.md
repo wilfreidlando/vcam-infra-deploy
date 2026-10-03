@@ -1,6 +1,6 @@
 # Standard d'hébergement du VPS
 
-Ce dossier définit **comment tout projet est hébergé sur le VPS**, quel que soit son
+Ce dépôt définit **comment tout projet est hébergé sur le VPS**, quel que soit son
 langage (Laravel, Node, React, Angular, Next.js…). Une seule exigence : le projet
 tourne dans Docker. En échange, il obtient automatiquement :
 - HTTPS ;
@@ -17,10 +17,10 @@ tourne dans Docker. En échange, il obtient automatiquement :
 | **Développeur** et je veux mettre mon projet en ligne | [Démarrage rapide](docs/04-demarrage-rapide-dev.md), puis les [schémas](docs/01-schemas.md) |
 | **Nouveau** et je veux comprendre comment le serveur fonctionne | [Schémas](docs/01-schemas.md) et [glossaire](docs/03-glossaire.md) |
 | **La personne qui installe** la plateforme | les [guides](guides/README.md), dans l'ordre |
-| **Responsable technique** | ce document, [résilience et évolutivité](docs/02-resilience-evolutivite.md), [ADR-0064](../docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md) |
+| **Responsable technique** | ce document, [résilience et évolutivité](docs/02-resilience-evolutivite.md), [ADR-0064](docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md) |
 | **En plein incident** | § 11 ci-dessous, puis la [reprise après sinistre](guides/12-reprise-apres-sinistre.md) si le serveur est perdu |
 
-## Contenu du dossier
+## Contenu du dépôt
 
 | Dossier | Contenu |
 | --- | --- |
@@ -194,8 +194,8 @@ wildcard d'un coup.
 ```
 /app/
 ├── nginx-proxy-conf/          existant — inchangé
-├── vps-platform/              ce dossier (dépôt plateforme)
-│   └── infra/observability/.env
+├── vps-platform/              clone de ce dépôt (vcam-infra-deployment)
+│   └── observability/.env
 ├── core-system/
 │   ├── prod/                  checkout git — .env              (promotion uniquement)
 │   └── staging/               checkout git — .env.staging      (build + déploiement auto)
@@ -227,12 +227,12 @@ graph LR
 
 | Étape | Commande (depuis le checkout concerné) |
 | --- | --- |
-| Staging automatique | cron : `cd /app/<projet>/staging && /app/vps-platform/infra/bin/deploy.sh watch` |
+| Staging automatique | cron : `cd /app/<projet>/staging && /app/vps-platform/bin/deploy.sh watch` |
 | Staging manuel, d'une branche précise | `deploy.sh build origin/ma-branche` puis `deploy.sh up staging <sha>` |
 | Production | `cd /app/<projet>/prod && deploy.sh promote` (demande de taper « oui ») |
 | Retour arrière | `deploy.sh rollback prod` (ou `staging`) |
 | État | `deploy.sh status` |
-| Restauration | `infra/bin/restore.sh prod <fichier>` |
+| Restauration | `bin/restore.sh prod <fichier>` |
 
 **Deux garanties :**
 - **On ne livre en production que ce que le staging a validé**, octet pour octet.
@@ -250,7 +250,7 @@ l'utiliser, la supprimer une version plus tard).
 **Maintenant (sans CI)** : une ligne de cron sur le serveur, `crontab -e` en root.
 
 ```cron
-*/2 * * * * cd /app/core-system/staging && /app/vps-platform/infra/bin/deploy.sh watch >> /var/log/vps-deploy.log 2>&1
+*/2 * * * * cd /app/core-system/staging && /app/vps-platform/bin/deploy.sh watch >> /var/log/vps-deploy.log 2>&1
 ```
 
 `watch` ne fait rien si `main` n'a pas bougé. Il ne réessaie pas en boucle un commit
@@ -269,8 +269,8 @@ deploy_staging:
   rules: [{ if: '$CI_COMMIT_BRANCH == "main"' }]
   script:
     - cd /app/$CI_PROJECT_NAME/staging
-    - /app/vps-platform/infra/bin/deploy.sh build $CI_COMMIT_SHA
-    - /app/vps-platform/infra/bin/deploy.sh up staging $CI_COMMIT_SHA
+    - /app/vps-platform/bin/deploy.sh build $CI_COMMIT_SHA
+    - /app/vps-platform/bin/deploy.sh up staging $CI_COMMIT_SHA
 
 deploy_production:
   stage: production
@@ -278,7 +278,7 @@ deploy_production:
   rules: [{ if: '$CI_COMMIT_BRANCH == "main"', when: manual }]   # bouton dans GitLab
   script:
     - cd /app/$CI_PROJECT_NAME/prod
-    - /app/vps-platform/infra/bin/deploy.sh promote $CI_COMMIT_SHA --yes
+    - /app/vps-platform/bin/deploy.sh promote $CI_COMMIT_SHA --yes
 ```
 
 ---
@@ -302,8 +302,8 @@ deploy_production:
    mkdir -p /app/<projet> && cd /app/<projet>
    git clone <dépôt> staging && git clone <dépôt> prod
    # déposer .env.staging dans staging/ et .env dans prod/
-   cd staging && /app/vps-platform/infra/bin/deploy.sh watch      # premier staging
-   cd ../prod && /app/vps-platform/infra/bin/deploy.sh promote    # première production
+   cd staging && /app/vps-platform/bin/deploy.sh watch      # premier staging
+   cd ../prod && /app/vps-platform/bin/deploy.sh promote    # première production
    ```
 5. Ajouter la ligne cron de staging automatique (§ 5).
 6. Ajouter `https://<projet>.visibilitycam.com/<health>` à la surveillance externe.
@@ -316,7 +316,7 @@ deploy_production:
 
 1. **Lancer l'audit** (lecture seule, aucun effet sur les sites) :
    ```bash
-   /app/vps-platform/infra/bin/vps-audit.sh
+   /app/vps-platform/bin/vps-audit.sh
    ```
 2. **Corriger dans le compose du projet**, en commençant par les CRITIQUE :
 
@@ -346,7 +346,7 @@ deploy_production:
 ## 8. Réglages de l'hôte (une fois)
 
 - **Rotation des journaux et live-restore pour tous les conteneurs** :
-  `infra/host/apply-daemon-config.sh`. Le script :
+  `host/apply-daemon-config.sh`. Le script :
   1. fusionne avec la configuration existante, sans rien écraser ;
   2. la valide ;
   3. active live-restore **avant** de redémarrer Docker, pour que les conteneurs
@@ -383,7 +383,7 @@ docker cp <fichier>.dump.enc "$(docker ps -q -f label=com.docker.compose.project
 #    ponctuellement (jamais écrite dans .env.staging) :
 cd /app/<projet>/staging
 read -rs RESTORE_PASSPHRASE && export RESTORE_PASSPHRASE
-/app/vps-platform/infra/bin/restore.sh staging <fichier>.dump.enc
+/app/vps-platform/bin/restore.sh staging <fichier>.dump.enc
 ```
 
 Cela restaure la production dans le staging. Attention aux données personnelles : le
@@ -411,5 +411,5 @@ staging contient alors des données réelles. Le réinitialiser ensuite si besoi
 | Un site ne répond plus sans déploiement | `deploy.sh status`, puis `docker compose -p <projet>-prod logs --tail 200 app` ; Grafana → Applications |
 | Erreur 502 de nginx-proxy | Le conteneur web du projet est arrêté ou en échec : `docker ps -a \| grep <projet>` |
 | Disque plein | `vps-audit.sh` (constats journaux), `docker system df`, `docker image prune -f`, `docker builder prune -f` |
-| Données corrompues ou supprimées | `infra/bin/restore.sh prod <sauvegarde>` (la dernière `pre-deploy-*` si c'est arrivé après un déploiement) |
+| Données corrompues ou supprimées | `bin/restore.sh prod <sauvegarde>` (la dernière `pre-deploy-*` si c'est arrivé après un déploiement) |
 | Tous les sites tombés | `systemctl status docker` ; `docker ps -a` ; redémarrer nginx-proxy en premier : `cd /app/nginx-proxy-conf && docker compose up -d` |

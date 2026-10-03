@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Applies infra/host/daemon.json to the Docker daemon WITHOUT stopping the
-# running sites (infra/README.md § Hôte). Safe order:
+# Applies host/daemon.json to the Docker daemon WITHOUT stopping the
+# running sites (README.md § Hôte). Safe order:
 #
 #   1. back up /etc/docker/daemon.json, merge our keys into it (never drop
 #      existing settings), validate the result with dockerd itself;

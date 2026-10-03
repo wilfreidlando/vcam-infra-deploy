@@ -18,8 +18,8 @@ l'image d'ensemble est dans les [schémas](01-schemas.md).
 Sur le serveur :
 
 ```bash
-/app/vps-platform/infra/bin/vps-hosts.sh --free mon-projet.visibilitycam.com
-/app/vps-platform/infra/bin/vps-hosts.sh --free mon-projet-staging.visibilitycam.com
+/app/vps-platform/bin/vps-hosts.sh --free mon-projet.visibilitycam.com
+/app/vps-platform/bin/vps-hosts.sh --free mon-projet-staging.visibilitycam.com
 ```
 
 Les deux doivent répondre `libre`. Sinon, choisir un autre nom : en minuscules,
@@ -27,7 +27,7 @@ sans point.
 
 ## 2. Ajouter 3 fichiers à votre dépôt
 
-Selon votre projet, copier depuis `infra/templates/` :
+Selon votre projet, copier depuis `templates/` :
 
 | Mon projet est… | Fichiers à copier | Renommer en |
 | --- | --- | --- |
@@ -63,14 +63,14 @@ cp prod/.env.example prod/.env                   # puis le remplir (valeurs de P
 
 **Règle d'or** : jamais les mêmes secrets en staging et en production. Les
 variables propres à la plateforme (`DEPLOYMENT`, `APP_PUBLIC_HOST`, `BACKUP_*`…) sont
-expliquées dans `infra/templates/env.platform.example`.
+expliquées dans `templates/env.platform.example`.
 
 ## 4. Premier déploiement
 
 ```bash
-cd /app/mon-projet/staging && /app/vps-platform/infra/bin/deploy.sh watch    # build + staging
+cd /app/mon-projet/staging && /app/vps-platform/bin/deploy.sh watch    # build + staging
 # vérifier https://mon-projet-staging.visibilitycam.com
-cd /app/mon-projet/prod && /app/vps-platform/infra/bin/deploy.sh promote     # production (taper « oui »)
+cd /app/mon-projet/prod && /app/vps-platform/bin/deploy.sh promote     # production (taper « oui »)
 ```
 
 Si `deploy.sh` refuse, il dit pourquoi : nom déjà pris, image absente, contrôle de
@@ -85,13 +85,13 @@ arrive en staging en moins de 2 minutes.
 
 | Je veux… | Commande (sur le serveur) |
 | --- | --- |
-| Voir ce qui tourne | `cd /app/mon-projet/prod && /app/vps-platform/infra/bin/deploy.sh status` |
+| Voir ce qui tourne | `cd /app/mon-projet/prod && /app/vps-platform/bin/deploy.sh status` |
 | Mettre en production | `cd /app/mon-projet/prod && …/deploy.sh promote` |
 | Annuler la dernière mise en production | `cd /app/mon-projet/prod && …/deploy.sh rollback prod` |
 | Voir les journaux | Grafana → *Applications*, ou `docker logs <conteneur> --tail 100` |
 | Déployer une autre branche en staging | `cd /app/mon-projet/staging && …/deploy.sh build origin/ma-branche`, puis `…/deploy.sh up staging <sha affiché>` |
 | Sauvegarder maintenant | `docker compose -p mon-projet-prod -f compose.prod.yaml --env-file .env run --rm backup backup.sh` |
-| Vérifier mon projet | `/app/vps-platform/infra/bin/vps-audit.sh`, puis lire la section de mon projet |
+| Vérifier mon projet | `/app/vps-platform/bin/vps-audit.sh`, puis lire la section de mon projet |
 
 ## Ce qu'il ne faut jamais faire
 

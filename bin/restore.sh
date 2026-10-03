@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Restores a database backup into one environment of a project (infra/README.md).
+# Restores a database backup into one environment of a project (README.md).
 #
 #   restore.sh <staging|prod> <backup file in the backups volume | s3://bucket/key>
 #

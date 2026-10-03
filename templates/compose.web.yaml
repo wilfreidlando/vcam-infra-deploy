@@ -1,5 +1,5 @@
 # VPS standard — any web stack (Node, Next.js, Python, Go, static…)
-# (infra/README.md). One container serving HTTP on APP_PORT, published by
+# (README.md). One container serving HTTP on APP_PORT, published by
 # nginx-proxy; add a database from compose.laravel.yaml if needed.
 
 x-defaults: &defaults

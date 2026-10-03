@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# VPS standard deployment tool (infra/README.md, ADR-0064) — the same
+# VPS standard deployment tool (README.md, ADR-0064) — the same
 # protocol for every Docker project on the server, whatever its stack:
 #
 #   build an image once per commit (tag = commit SHA)
@@ -8,7 +8,7 @@
 #     → automatic rollback if the health check fails
 #
 # The project describes itself in a committed `platform.env` at its root
-# (see infra/templates/platform.env). Secrets stay in the per-environment
+# (see templates/platform.env). Secrets stay in the per-environment
 # env files (.env, .env.staging), never committed.
 #
 # Usage, from the project's checkout (staging checkout for build/watch,
@@ -34,7 +34,7 @@ set -euo pipefail
 # ── Configuration ───────────────────────────────────────────────────────
 PROJECT_DIR="$(pwd)"
 if [[ ! -f "${PROJECT_DIR}/platform.env" ]]; then
-    echo "deploy: no platform.env in ${PROJECT_DIR} — run from the project's root (infra/templates/platform.env)" >&2
+    echo "deploy: no platform.env in ${PROJECT_DIR} — run from the project's root (templates/platform.env)" >&2
     exit 2
 fi
 # shellcheck disable=SC1091
@@ -136,7 +136,7 @@ missing_images() {
         found=1
         docker image inspect "${img}" >/dev/null 2>&1 || { log "image absente : ${img}"; missing=1; }
     done < <(images_for "${env}" "${sha}")
-    [[ "${found}" == 1 ]] || die "aucune image du compose n'utilise \${IMAGE_TAG} — voir infra/templates"
+    [[ "${found}" == 1 ]] || die "aucune image du compose n'utilise \${IMAGE_TAG} — voir templates"
     [[ "${missing}" == 1 ]]
 }
 
@@ -278,10 +278,10 @@ cmd_up() {
     is_git && REVERT_CHECKOUT="${previous}"
     ensure_images "${env}" "${sha}"
     local tag; tag="$(tag_for "${env}" "${sha}")"
-    proxy_config_ok || die "nginx-proxy est déjà en erreur — aucun déploiement ne serait pris en compte. Corriger d'abord (infra/bin/vps-audit.sh, infra/bin/vps-hosts.sh)"
+    proxy_config_ok || die "nginx-proxy est déjà en erreur — aucun déploiement ne serait pris en compte. Corriger d'abord (bin/vps-audit.sh, bin/vps-hosts.sh)"
     if ! check_hosts "${env}" "${tag}"; then
         state_set "${env}" failed "${sha}"
-        die "noms d'hôte déjà utilisés par un autre projet (voir ci-dessus) — rien n'a été modifié. Inventaire : infra/bin/vps-hosts.sh"
+        die "noms d'hôte déjà utilisés par un autre projet (voir ci-dessus) — rien n'a été modifié. Inventaire : bin/vps-hosts.sh"
     fi
 
     if volumes_in_use_elsewhere "${env}" "${tag}"; then
@@ -326,7 +326,7 @@ cmd_up() {
         else
             log "ATTENTION : la version précédente ${previous} ne répond pas non plus — intervention requise (deploy.sh status, docker compose logs)"
         fi
-        log "les migrations éventuelles de ${sha} ne sont PAS annulées ; si nécessaire : infra/bin/restore.sh (dernière sauvegarde pre-deploy)"
+        log "les migrations éventuelles de ${sha} ne sont PAS annulées ; si nécessaire : bin/restore.sh (dernière sauvegarde pre-deploy)"
     fi
     die "${env} ${sha} ne répond pas à « ${HEALTH_CMD} » après ${HEALTH_TIMEOUT}s"
 }

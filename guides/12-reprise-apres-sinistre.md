@@ -65,7 +65,7 @@ de l'observabilité est perdu ; ce n'est pas grave.
 $ mkdir -p /app/<projet> && cd /app/<projet>
 $ git clone <dépôt> staging && git clone <dépôt> prod
 # recopier .env (prod) et .env.staging (staging) depuis le coffre
-$ cd staging && /app/vps-platform/infra/bin/deploy.sh build origin/main
+$ cd staging && /app/vps-platform/bin/deploy.sh build origin/main
 ```
 
 Noter le SHA affiché. C'est le dernier commit de `main`, normalement celui qui
@@ -82,8 +82,8 @@ $ docker compose -p <projet>-prod -f compose.prod.yaml --env-file .env up -d <se
 $ docker compose -p <projet>-prod -f compose.prod.yaml --env-file .env run --rm backup \
     sh -c 'aws ${BACKUP_S3_ENDPOINT:+--endpoint-url $BACKUP_S3_ENDPOINT} s3 ls s3://$BACKUP_S3_BUCKET/$BACKUP_S3_PREFIX/$BACKUP_NAME/ | tail -5'
 #   → choisir la plus récente
-$ /app/vps-platform/infra/bin/restore.sh prod s3://<bucket>/backups/<nom>/<fichier>.dump.enc
-$ SKIP_BACKUP=1 /app/vps-platform/infra/bin/deploy.sh up prod <sha de l'étape 5>
+$ /app/vps-platform/bin/restore.sh prod s3://<bucket>/backups/<nom>/<fichier>.dump.enc
+$ SKIP_BACKUP=1 /app/vps-platform/bin/deploy.sh up prod <sha de l'étape 5>
 ```
 
 `deploy.sh up prod` démarre l'application sur les données restaurées et applique
@@ -93,8 +93,8 @@ juste après une restauration.
 ## Étape 7 — Vérifier et rebrancher
 
 ```bash
-$ /app/vps-platform/infra/bin/vps-hosts.sh         # tous les noms attendus, aucune collision
-$ /app/vps-platform/infra/bin/vps-audit.sh         # aucune ligne CRITIQUE
+$ /app/vps-platform/bin/vps-hosts.sh         # tous les noms attendus, aucune collision
+$ /app/vps-platform/bin/vps-audit.sh         # aucune ligne CRITIQUE
 $ curl -fsS https://<chaque site>/<route de santé>
 ```
 

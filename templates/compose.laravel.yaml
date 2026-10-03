@@ -1,9 +1,9 @@
-# VPS standard — Laravel project (infra/README.md). Copy as compose.prod.yaml,
+# VPS standard — Laravel project (README.md). Copy as compose.prod.yaml,
 # replace « mon-saas », adapt the Dockerfile target / commands. Used for BOTH
-# staging and production by infra/bin/deploy.sh (project name and env file
+# staging and production by bin/deploy.sh (project name and env file
 # differ, nothing else).
 #
-# The rules this file applies (checked by infra/bin/vps-audit.sh):
+# The rules this file applies (checked by bin/vps-audit.sh):
 #   - no `ports:` — traffic only through nginx-proxy (VIRTUAL_HOST on the web
 #     container ONLY; the env file says APP_PUBLIC_HOST, because every
 #     container loads it and workers must not claim the name too)
@@ -96,7 +96,7 @@ services:
 
   backup:
     <<: *defaults
-    build: { context: /app/vps-platform/infra/images/db-backup }   # chemin du dépôt plateforme sur le VPS
+    build: { context: /app/vps-platform/images/db-backup }   # chemin du dépôt plateforme sur le VPS
     image: vps/db-backup:1
     env_file: [ "${ENV_FILE:-.env}" ]        # BACKUP_PASSPHRASE, BACKUP_S3_*, AWS_*
     environment:

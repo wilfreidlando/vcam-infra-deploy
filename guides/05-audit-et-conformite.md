@@ -3,7 +3,7 @@
 ## Étape 1 — Lancer l'audit (lecture seule)
 
 ```bash
-$ /app/vps-platform/infra/bin/vps-audit.sh | tee /app/audit-$(date +%F).txt
+$ /app/vps-platform/bin/vps-audit.sh | tee /app/audit-$(date +%F).txt
 ```
 
 Le script ne modifie, ne redémarre et n'affiche aucune valeur secrète. Il classe les
@@ -25,8 +25,8 @@ constats par projet :
 
 ## Étape 3 — Corriger un projet
 
-Le tableau « constat → correction » est dans `infra/README.md` § 7. Les blocs YAML
-à copier sont dans `infra/templates/`. Procédure pour un projet :
+Le tableau « constat → correction » est dans `README.md` § 7. Les blocs YAML
+à copier sont dans `templates/`. Procédure pour un projet :
 
 ```bash
 $ cd /app/<projet>                       # dossier du projet sur le serveur
@@ -35,7 +35,7 @@ $ cp docker-compose.yml docker-compose.yml.avant-standard
 $ nano docker-compose.yml                # appliquer les corrections
 $ docker compose -p <NOM> config -q      # vérifie la syntaxe, ne lance rien
 $ docker compose -p <NOM> up -d          # recrée seulement les conteneurs modifiés
-$ /app/vps-platform/infra/bin/vps-audit.sh | sed -n '/■ <NOM>/,/^$/p'
+$ /app/vps-platform/bin/vps-audit.sh | sed -n '/■ <NOM>/,/^$/p'
 ```
 
 **Garder le même nom de projet compose (`-p <NOM>`).** Les volumes de données en
@@ -67,7 +67,7 @@ redémarrer le conteneur en boucle (`OOMKilled`) ; dans ce cas, l'augmenter.
 ## Étape 4 — Brancher les backends sur l'observabilité
 
 Pour chaque backend (Laravel ou autre), ajouter les labels `observability.*`
-(`infra/observability/README.md`). Le label suffit pour les journaux ; le réseau
+(`observability/README.md`). Le label suffit pour les journaux ; le réseau
 `observability` n'est nécessaire que pour les métriques et les traces. Jamais de
 PHP-FPM, de base ni de Redis sur ce réseau. Les frontends n'en ont pas besoin.
 

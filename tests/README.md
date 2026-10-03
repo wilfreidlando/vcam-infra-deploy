@@ -1,6 +1,6 @@
 # Tests de la plateforme
 
-Ces tests vérifient **pour de vrai** que les outils d'`infra/` fonctionnent : de
+Ces tests vérifient **pour de vrai** que les outils de ce dépôt fonctionnent : de
 vrais conteneurs, de vraies bases, le vrai nginx-proxy 1.7, un vrai stockage S3.
 Aucune simulation de code. Ce sont les tests qui ont servi à valider la plateforme
 avant livraison : **129 vérifications**. Ils ont trouvé quatre défauts réels, depuis
@@ -17,9 +17,10 @@ corrigés (voir ADR-0064).
 ## Lancer
 
 ```bash
-infra/tests/run-all.sh                 # tout (≈ 15 min la première fois : images à télécharger)
-infra/tests/run-all.sh hosts deploy    # seulement certains tests
-KEEP=1 infra/tests/test-deploy.sh      # garder les conteneurs après le test, pour inspecter
+CORE_DIR=../vcam-core-system tests/run-all.sh   # tout (≈ 15 min la première fois : images à télécharger)
+tests/run-all.sh                 # sans CORE_DIR : tout sauf test-platform (ignoré)
+tests/run-all.sh hosts deploy    # seulement certains tests
+KEEP=1 tests/test-deploy.sh      # garder les conteneurs après le test, pour inspecter
 ```
 
 Chaque test affiche une ligne verte ✓ ou rouge ✗ par vérification, puis un résumé.
@@ -54,16 +55,21 @@ Un code de sortie différent de 0 signale un échec.
   serveur : guides 2 et 10.
 - **Votre compte MEGA S4** : le protocole S3 est testé avec SeaweedFS ; l'accès réel
   se vérifie avec le guide 4, étape 2.
-- **Le redémarrage de Docker sous systemd** (`infra/host/apply-daemon-config.sh`) :
+- **Le redémarrage de Docker sous systemd** (`host/apply-daemon-config.sh`) :
   la fusion et la validation de `daemon.json` ont été vérifiées, pas le redémarrage
   lui-même (guide 9).
 
-## `test-platform.sh` : image du Core
+## `test-platform.sh` : le Core
+
+`test-platform.sh` déploie le vrai Core : `CORE_DIR` doit désigner un clone du
+dépôt du Core (`vcam-core-system`).
+
+### Image du Core
 
 Par défaut, `test-platform.sh` construit **la vraie image de production** du Core
-(`Dockerfile`, cible `production`) à partir du **dernier commit**. Commitez avant de
-le lancer.
+(`Dockerfile`, cible `production`) à partir du **dernier commit de `CORE_DIR`**.
+Commitez avant de le lancer.
 
 Si votre réseau bloque les dépôts de paquets (`apt`), utilisez
 `CORE_TEST_IMAGE=dev`. Le test prend alors une image PHP de développement, avec le
-code et le `vendor/` de votre copie de travail.
+code et le `vendor/` de `CORE_DIR` (lancer `composer install` dedans d'abord).

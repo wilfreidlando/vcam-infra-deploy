@@ -32,7 +32,7 @@ Depuis le dossier de la plateforme (guide 3), ou depuis une copie de ce dépôt 
 serveur :
 
 ```bash
-$ infra/bin/vps-hosts.sh
+$ bin/vps-hosts.sh
 ```
 
 Le script lit tous les conteneurs du serveur (arrêtés compris) et les certificats
@@ -44,7 +44,7 @@ détenus par nginx-proxy. Il ne modifie rien. Il affiche :
 - les **certificats sans conteneur**, souvent d'anciens sites.
 
 Si votre conteneur nginx-proxy ne s'appelle pas `nginx-proxy` :
-`NGINX_PROXY_CONTAINER=<nom> infra/bin/vps-hosts.sh`.
+`NGINX_PROXY_CONTAINER=<nom> bin/vps-hosts.sh`.
 
 ## Étape 2 — Compléter avec l'historique public des certificats
 
@@ -54,7 +54,7 @@ HTTPS**, y compris ceux qui ne sont plus sur ce serveur ou qui sont hébergés
 ailleurs :
 
 ```bash
-$ infra/bin/vps-hosts.sh --ct visibilitycam.com
+$ bin/vps-hosts.sh --ct visibilitycam.com
 ```
 
 Le script interroge crt.sh, un service public parfois lent. S'il ne répond pas,
@@ -72,7 +72,7 @@ Exportez-la : tout enregistrement explicite y est un nom pris.
 ## Étape 3 — Garder le registre
 
 ```bash
-$ infra/bin/vps-hosts.sh --csv > /app/registre-sous-domaines-$(date +%F).csv
+$ bin/vps-hosts.sh --csv > /app/registre-sous-domaines-$(date +%F).csv
 ```
 
 Ouvrez-le dans un tableur, ajoutez une colonne « responsable » et une colonne
@@ -81,7 +81,7 @@ Ouvrez-le dans un tableur, ajoutez une colonne « responsable » et une colonne
 ## Étape 4 — Avant de créer un nouveau sous-domaine
 
 ```bash
-$ infra/bin/vps-hosts.sh --free monprojet.visibilitycam.com
+$ bin/vps-hosts.sh --free monprojet.visibilitycam.com
 libre : monprojet.visibilitycam.com          # → vous pouvez l'utiliser
 ```
 
@@ -101,7 +101,7 @@ signale aussi les collisions en CRITIQUE.
    ```bash
    $ docker rm -f <conteneur>       # un conteneur arrêté qui ne sert plus
    ```
-3. Relancer `infra/bin/vps-hosts.sh` : la section COLLISIONS doit disparaître.
+3. Relancer `bin/vps-hosts.sh` : la section COLLISIONS doit disparaître.
 
 ## Règles de nommage pour la suite
 

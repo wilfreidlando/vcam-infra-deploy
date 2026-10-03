@@ -8,7 +8,7 @@ Planifiée par `crond` dans le conteneur, rien à installer sur l'hôte.
 
 ```yaml
   backup:
-    build: { context: <chemin vers infra/images/db-backup> }   # MySQL/MariaDB : ajouter args: { BASE: "mariadb:11" }
+    build: { context: <chemin vers images/db-backup> }   # MySQL/MariaDB : ajouter args: { BASE: "mariadb:11" }
     image: vps/db-backup:1                                      # MySQL/MariaDB : vps/db-backup-mysql:1
     restart: unless-stopped
     environment:
@@ -46,7 +46,7 @@ docker compose exec backup restore.sh s3://bucket/backups/mon-saas-prod/<fichier
 ```
 
 Testé contre de vrais serveurs PostgreSQL 18, MySQL 8.4 et MariaDB 11 et un
-stockage S3 : `infra/tests/test-backup.sh`.
+stockage S3 : `tests/test-backup.sh`.
 
 Déchiffrer une copie à la main (hors de l'agent) :
 
@@ -56,4 +56,4 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in <fichier>.dump.enc -out dum
 ```
 
 **Une sauvegarde jamais restaurée n'est pas une sauvegarde** : restaurez une
-copie dans le staging une fois par mois (`infra/README.md`, § Protocole).
+copie dans le staging une fois par mois (`README.md`, § Protocole).

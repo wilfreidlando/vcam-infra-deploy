@@ -1,4 +1,4 @@
-# VPS standard — Next.js (server rendering) (infra/README.md).
+# VPS standard — Next.js (server rendering) (README.md).
 # Requires `output: 'standalone'` in next.config.(js|mjs|ts).
 #
 # NEXT_PUBLIC_* values are baked into the bundle at BUILD time: declare them

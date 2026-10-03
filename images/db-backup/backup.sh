@@ -8,7 +8,7 @@
 #   2. encrypted with BACKUP_PASSPHRASE (openssl AES-256-CBC, PBKDF2 600k
 #      iterations, random salt) — the S3 provider never sees the data in
 #      clear. openssl rather than gpg: gpg needs a gpg-agent that some
-#      base images lack (found by infra/tests/test-backup.sh).
+#      base images lack (found by tests/test-backup.sh).
 #   3. kept in /backups (last BACKUP_LOCAL_KEEP files)
 #   4. copied to s3://BACKUP_S3_BUCKET/BACKUP_S3_PREFIX/BACKUP_NAME/ when
 #      BACKUP_S3_BUCKET is set; remote copies older than

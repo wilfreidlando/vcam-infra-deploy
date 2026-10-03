@@ -2,8 +2,8 @@
 # The whole platform, as on the VPS, in an isolated copy:
 #
 #   nginx-proxy 1.7 (same settings as the VPS: TRUST_DOWNSTREAM_PROXY=true)
-#   └─ the Core in production AND staging, deployed by infra/bin/deploy.sh
-#      from a git clone of this repository (compose.prod.yaml, real
+#   └─ the Core in production AND staging, deployed by bin/deploy.sh
+#      from a git clone of the Core repository (compose.prod.yaml, real
 #      migrations against PostgreSQL 18, Valkey, the backup agent)
 #   └─ a multi-tenant SaaS answering any *.monsaas.test sub-domain
 #
@@ -11,6 +11,7 @@
 # the production migration, forged X-Forwarded-For refused from a neighbour
 # container, wildcard sub-domains, audit clean for the Core.
 #
+#   CORE_DIR=<clone of vcam-core-system>   required: the Core to deploy
 #   CORE_TEST_IMAGE=build (default)  build the real production image (Dockerfile)
 #   CORE_TEST_IMAGE=dev              use a PHP dev image with this checkout's
 #                                    code + vendor — for machines whose
@@ -24,6 +25,10 @@
 source "$(dirname "$0")/lib.sh"
 trap finish EXIT
 require_docker
+: "${CORE_DIR:?CORE_DIR = chemin du clone du dépôt du Core (vcam-core-system)}"
+CORE_DIR="$(cd "${CORE_DIR}" && pwd)"
+[[ -f "${CORE_DIR}/compose.prod.yaml" && -f "${CORE_DIR}/platform.env" ]] \
+    || { red "CORE_DIR=${CORE_DIR} n'est pas un clone du Core (compose.prod.yaml, platform.env)"; exit 2; }
 
 export NGINX_PROXY_NETWORK=vpstest-nginx-proxy OBS_NETWORK=vpstest-observability
 export STATE_DIR="${WORK}/state"
@@ -41,13 +46,13 @@ docker run -d --name vpstest-nginx-proxy --network "${NGINX_PROXY_NETWORK}" -p 1
     nginxproxy/nginx-proxy:1.7 >/dev/null
 check "nginx-proxy démarré" wait_for 30 curl -s -o /dev/null "${PROXY}/"
 
-step "Checkouts staging et prod (clone git de ce dépôt, HEAD = $(git -C "${REPO_DIR}" rev-parse --short HEAD))"
-SHA="$(git -C "${REPO_DIR}" rev-parse HEAD)"
-if [[ -n "$(git -C "${REPO_DIR}" status --porcelain -- compose.prod.yaml docker infra platform.env)" ]]; then
-    red "  ! fichiers d'infra modifiés non commités : le test utilise le dernier commit"
+step "Checkouts staging et prod (clone git du Core, HEAD = $(git -C "${CORE_DIR}" rev-parse --short HEAD))"
+SHA="$(git -C "${CORE_DIR}" rev-parse HEAD)"
+if [[ -n "$(git -C "${CORE_DIR}" status --porcelain -- compose.prod.yaml docker platform.env)" ]]; then
+    red "  ! fichiers de déploiement du Core modifiés non commités : le test utilise le dernier commit"
 fi
 for env in staging prod; do
-    git clone -q "${REPO_DIR}" "${WORK}/${env}"
+    git clone -q "${CORE_DIR}" "${WORK}/${env}"
     sed -i 's/^APP_NAME=.*/APP_NAME=vpstest-core/' "${WORK}/${env}/platform.env"
 done
 
@@ -63,7 +68,7 @@ make_env() {  # make_env <example> <target> <prefix> <host> <deployment>
         -e "s#^OTEL_EXPORTER_OTLP_ENDPOINT=.*#OTEL_EXPORTER_OTLP_ENDPOINT=#" \
         -e "s#^SESSION_SECURE_COOKIE=.*#SESSION_SECURE_COOKIE=false#" \
         "$1" > "$2"
-    printf 'CORE_IMAGE=vpstest-core\nNGINX_PROXY_NETWORK=%s\nOBS_NETWORK=%s\n' "${NGINX_PROXY_NETWORK}" "${OBS_NETWORK}" >> "$2"
+    printf 'CORE_IMAGE=vpstest-core\nNGINX_PROXY_NETWORK=%s\nOBS_NETWORK=%s\nPLATFORM_DIR=%s\n' "${NGINX_PROXY_NETWORK}" "${OBS_NETWORK}" "${INFRA_DIR}" >> "$2"
 }
 make_env "${WORK}/staging/.env.staging.example" "${WORK}/staging/.env.staging" vpstest-core-staging "${STAGING_HOST}" staging
 make_env "${WORK}/prod/.env.production.example" "${WORK}/prod/.env" vpstest-core "${PROD_HOST}" prod
@@ -83,7 +88,7 @@ x-dev: &dev
   working_dir: /var/www/html
   volumes:
     - ${WORK}/${env}:/var/www/html
-    - ${REPO_DIR}/vendor:/var/www/html/vendor:ro
+    - ${CORE_DIR}/vendor:/var/www/html/vendor:ro
   environment:
     PHP_EXTENSION_BCMATH: "1"
     PHP_EXTENSION_GMP: "1"

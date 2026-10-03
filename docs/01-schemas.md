@@ -111,7 +111,7 @@ apparaît deux fois sur le schéma pour cette raison : il est à la fois sur
 - Sur `nginx-proxy`, seulement le conteneur **web** de chaque projet.
 - Sur `observability`, seulement les conteneurs applicatifs qu'on veut observer.
   Jamais les bases.
-- L'audit (`infra/bin/vps-audit.sh`) vérifie ces règles.
+- L'audit (`bin/vps-audit.sh`) vérifie ces règles.
 
 ---
 
@@ -182,7 +182,7 @@ flowchart TB
 
 | Élément | Rôle | Règle |
 | --- | --- | --- |
-| `compose.prod.yaml` | Décrit les conteneurs. **Le même fichier** pour staging et production | modèle dans `infra/templates/` |
+| `compose.prod.yaml` | Décrit les conteneurs. **Le même fichier** pour staging et production | modèle dans `templates/` |
 | `platform.env` | Dit à `deploy.sh` comment déployer : nom, contrôle de santé, migrations, sauvegarde | commité |
 | `.env` / `.env.staging` | Secrets et réglages de chaque environnement | **jamais commités** ; jamais les mêmes secrets en staging et en production |
 | Image `<projet>:<sha>` | Le code figé d'un commit précis | construite une fois, en staging |
@@ -285,7 +285,7 @@ flowchart LR
 - **Sans la phrase de passe, aucune restauration n'est possible.** Elle doit être
   conservée hors du serveur.
 - Une sauvegarde ne compte que si l'on a déjà réussi à la restaurer : une fois par
-  mois, restaurer la production dans le staging (`infra/README.md` § 9).
+  mois, restaurer la production dans le staging (`README.md` § 9).
 
 ---
 

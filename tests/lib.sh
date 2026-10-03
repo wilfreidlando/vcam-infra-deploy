@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Shared helpers for infra/tests. Everything a test creates is named
+# Shared helpers for tests. Everything a test creates is named
 # vpstest-* (containers, networks, volumes, images) and removed at the end:
 # the tests never touch anything else on the machine. Requires Docker only.
 set -euo pipefail
 
+# Racine du dépôt plateforme (bin/, images/, observability/…).
 INFRA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO_DIR="$(cd "${INFRA_DIR}/.." && pwd)"
-export REPO_DIR
+export INFRA_DIR
 WORK="$(mktemp -d -t vpstest-XXXXXX)"
 PASS=0
 FAIL=0

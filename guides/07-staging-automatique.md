@@ -13,7 +13,7 @@ $ crontab -e
 Ajouter, pour le Core (une ligne par projet suivant le standard) :
 
 ```cron
-*/2 * * * * cd /app/core-system/staging && /app/vps-platform/infra/bin/deploy.sh watch >> /var/log/vps-deploy.log 2>&1
+*/2 * * * * cd /app/core-system/staging && /app/vps-platform/bin/deploy.sh watch >> /var/log/vps-deploy.log 2>&1
 ```
 
 Ce que fait `watch` à chaque passage :
@@ -39,7 +39,7 @@ ENV_FILE_DEV=.env.dev       # valeur par défaut
 Puis un clone de plus (`/app/mon-projet/dev`) et une ligne cron de plus :
 
 ```cron
-*/2 * * * * cd /app/mon-projet/dev && /app/vps-platform/infra/bin/deploy.sh watch dev >> /var/log/vps-deploy.log 2>&1
+*/2 * * * * cd /app/mon-projet/dev && /app/vps-platform/bin/deploy.sh watch dev >> /var/log/vps-deploy.log 2>&1
 ```
 
 `deploy.sh watch prod` est refusé : la production ne se déploie que par
@@ -73,7 +73,7 @@ CONF
 ## Plus tard : GitLab CI
 
 Quand le projet sera sur GitLab, le runner déjà installé sur le serveur remplace la
-ligne cron. Le job est dans `infra/README.md` § 5 : un bouton manuel pour la
+ligne cron. Le job est dans `README.md` § 5 : un bouton manuel pour la
 production, automatique pour le staging. **Supprimer alors la ligne cron**, pour ne
 pas avoir deux déclencheurs.
 

@@ -15,12 +15,13 @@ détaillé. On peut s'arrêter entre deux phases : rien ne reste à moitié fait
 ## A. Vérifier sur un poste (Docker, ou WSL2 sous Windows)
 
 ```bash
-git clone -b claude/zen-gates-lewzx5 <dépôt core-system> core && cd core
-infra/tests/run-all.sh                 # ≈ 129 vérifications de la plateforme
+git clone https://github.com/wilfreidlando/vcam-infra-deployment.git vps-platform
+git clone -b claude/zen-gates-lewzx5 https://github.com/wilfreidlando/vcam-core-system.git core
+git clone -b vps-standard <dépôt de WILMANAGER> app
 
-cd .. && git clone -b vps-standard <dépôt app> app && cd app
-tests/Infra/stack-test.sh              # 28 vérifications : la pile de production de l'app
-PLATFORM_DIR=../core tests/Infra/deploy-test.sh   # 44 vérifications : dev/staging/prod, migration de la base, restauration
+cd vps-platform && CORE_DIR=../core tests/run-all.sh       # ≈ 129 vérifications de la plateforme (Core déployé compris)
+cd ../app && tests/Infra/stack-test.sh                    # 28 vérifications : la pile de production de l'app
+PLATFORM_DIR=../vps-platform tests/Infra/deploy-test.sh   # 44 vérifications : dev/staging/prod, migration de la base, restauration
 ```
 
 Tout doit finir en vert. Un échec dit précisément ce qui ne va pas. Si c'est un
@@ -32,7 +33,7 @@ Tout doit finir en vert. Un échec dit précisément ce qui ne va pas. Si c'est 
 | --- | --- | --- |
 | B1 | Inventorier les sous-domaines existants | [1](01-inventaire-sous-domaines.md) |
 | B2 | DNS wildcard `*.visibilitycam.com` | [2](02-dns-wildcard.md) |
-| B3 | Installer la plateforme dans `/app/vps-platform` + l'observabilité | [3](03-installer-plateforme.md) |
+| B3 | Cloner ce dépôt dans `/app/vps-platform` et installer l'observabilité | [3](03-installer-plateforme.md) |
 | B4 | Sauvegardes vers MEGA S4 | [4](04-sauvegardes-mega-s4.md) |
 | B5 | Rotation des journaux Docker (en heure creuse) | [9](09-rotation-journaux-hote.md) |
 | B6 | Surveillance externe | [8](08-surveillance-externe.md) |
@@ -42,7 +43,7 @@ Tout doit finir en vert. Un échec dit précisément ce qui ne va pas. Si c'est 
 
 | # | Action | Guide |
 | --- | --- | --- |
-| C1 | Fusionner la PR du Core (`claude/zen-gates-lewzx5` → `main`) | — |
+| C1 | Fusionner la PR du Core (`claude/zen-gates-lewzx5` → `main`). Le Core n'embarque plus la plateforme : ses commandes `make` utilisent `/app/vps-platform` | — |
 | C2 | Staging + production au standard | [6](06-core-au-standard.md) |
 | C3 | Staging automatique (cron, ou GitLab plus tard) | [7](07-staging-automatique.md) |
 
@@ -69,6 +70,6 @@ version ne répond pas. Chaque étape a son retour arrière décrit dans le guid
 
 | # | Action |
 | --- | --- |
-| E1 | `/app/vps-platform/infra/bin/vps-audit.sh` : traiter les CRITIQUE des autres projets ([5](05-audit-et-conformite.md)) |
+| E1 | `/app/vps-platform/bin/vps-audit.sh` : traiter les CRITIQUE des autres projets ([5](05-audit-et-conformite.md)) |
 | E2 | Planifier la montée de WILMANAGER en Laravel 12 et la mise à jour des paquets vulnérables (README de l'app, « Points connus ») |
 | E3 | Les autres apps (React, Next.js, Angular, Laravel) : [démarrage rapide](../docs/04-demarrage-rapide-dev.md), au fil de l'eau |

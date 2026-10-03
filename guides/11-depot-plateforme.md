@@ -1,36 +1,46 @@
-# 11. Sortir `infra/` dans son propre dépôt
+# 11. Mettre à jour la plateforme sur le serveur
 
-`infra/` sert tout le serveur, pas seulement le Core. Le mettre dans son propre
-dépôt (`vps-platform`) permet de le versionner, de le donner à toute l'équipe et de
-le cloner sur le serveur dans `/app/vps-platform`.
+La plateforme (ce dépôt, `https://github.com/wilfreidlando/vcam-infra-deployment`) est clonée sur le
+serveur dans `/app/vps-platform`. Les projets s'en servent ainsi :
 
-## Avec l'historique (recommandé)
+| Ce qu'un projet utilise | Comment |
+| --- | --- |
+| `deploy.sh`, `restore.sh`, `vps-hosts.sh`, `vps-audit.sh` | appelés par chemin : `/app/vps-platform/bin/…` |
+| l'image de sauvegarde | construite depuis `${PLATFORM_DIR:-/app/vps-platform}/images/db-backup` (le `compose.prod.yaml` de chaque projet) |
+| l'observabilité | projet Docker à part, démarré depuis `/app/vps-platform/observability` |
 
-Depuis un poste, dans un clone du dépôt du Core :
+Les projets (Core, WILMANAGER…) n'embarquent plus aucune copie de la plateforme.
+
+## Avant de mettre à jour
+
+Sur un poste, depuis un clone de ce dépôt :
 
 ```bash
-git subtree split --prefix=infra -b vps-platform-export     # branche contenant seulement infra/, avec son historique
-mkdir ../vps-platform && cd ../vps-platform
-git init -b main
-git pull ../<dossier du core> vps-platform-export
-git remote add origin <url GitLab du nouveau dépôt vps-platform>
-git push -u origin main
+tests/run-all.sh          # tout doit être vert
 ```
 
-Le nouveau dépôt a `bin/`, `templates/`, `tests/`… **à la racine**. Sur le serveur,
-deux options :
-- le cloner dans `/app/vps-platform/infra`, pour garder les chemins
-  `/app/vps-platform/infra/bin/...` de la documentation ;
-- le cloner dans `/app/vps-platform`, puis remplacer `/app/vps-platform/infra/` par
-  `/app/vps-platform/` dans les commandes et la ligne cron.
+## Mettre à jour
 
-## Ensuite
+```bash
+$ cd /app/vps-platform
+$ git fetch && git log --oneline HEAD..origin/main     # ce qui va changer
+$ git pull --ff-only
+```
 
-- **Dans le dépôt du Core** :
-  - garder `infra/` tant que `compose.prod.yaml` et le `Makefile` y font référence
-    (sauvegarde, `deploy.sh`) ;
-  - ou les faire pointer vers `/app/vps-platform` et supprimer `infra/`. Décision à
-    prendre quand le dépôt plateforme vivra sa vie.
-- **Tests** : `tests/run-all.sh` fonctionne aussi à la racine du nouveau dépôt.
-  Seul `test-platform.sh` a besoin du code du Core, qu'il trouve dans le dépôt
-  parent ; dans le dépôt séparé, le garder dans le dépôt du Core.
+- **Outils** (`bin/`) : pris en compte au prochain déploiement. Rien à redémarrer.
+- **Image de sauvegarde** (`images/db-backup`) : reconstruite au prochain build de
+  chaque projet.
+- **Observabilité** (`observability/`) : seulement si ce dossier a changé
+  (quelques secondes sans collecte, aucun effet sur les sites) :
+  ```bash
+  $ cd /app/vps-platform/observability && docker compose --env-file .env up -d
+  ```
+
+## Revenir en arrière
+
+```bash
+$ cd /app/vps-platform && git log --oneline -5
+$ git checkout <commit précédent>          # puis, si l'observabilité avait changé, la relancer comme ci-dessus
+```
+
+Revenir sur `main` ensuite avec `git checkout main && git pull --ff-only`.

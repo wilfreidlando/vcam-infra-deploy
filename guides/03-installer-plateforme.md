@@ -6,22 +6,14 @@ Ce guide installe :
 
 Il ne modifie ni nginx-proxy, ni les projets existants.
 
-## Étape 1 — Récupérer le dossier `infra/`
-
-Si `infra/` a été sorti dans son propre dépôt (guide 11) :
+## Étape 1 — Cloner la plateforme
 
 ```bash
-$ git clone <url du dépôt vps-platform> /app/vps-platform
+$ git clone https://github.com/wilfreidlando/vcam-infra-deployment.git /app/vps-platform
 ```
 
-Sinon, en attendant, depuis le dépôt du Core :
-
-```bash
-$ git clone <url du dépôt core-system> /app/vps-platform
-```
-
-Seul le dossier `infra/` de ce clone servira. Les chemins de la documentation
-(`/app/vps-platform/infra/bin/...`) fonctionnent dans les deux cas.
+Tous les chemins de la documentation partent de là : `/app/vps-platform/bin/deploy.sh`,
+`/app/vps-platform/observability/`… Mettre à jour plus tard : guide 11.
 
 Vérifier les prérequis :
 
@@ -42,7 +34,7 @@ Sans effet sur les autres projets : c'est un réseau vide de plus.
 ## Étape 3 — Configuration
 
 ```bash
-$ cd /app/vps-platform/infra/observability
+$ cd /app/vps-platform/observability
 $ cp .env.example .env
 $ nano .env
 ```
@@ -59,8 +51,8 @@ $ nano .env
 ## Étape 4 — Démarrer
 
 ```bash
-$ docker compose -f /app/vps-platform/infra/observability/compose.yaml \
-    --env-file /app/vps-platform/infra/observability/.env up -d
+$ docker compose -f /app/vps-platform/observability/compose.yaml \
+    --env-file /app/vps-platform/observability/.env up -d
 $ docker ps --filter name=observability- --format 'table {{.Names}}\t{{.Status}}'
 ```
 
@@ -73,7 +65,7 @@ Les 5 conteneurs doivent être `Up`.
 2. Se connecter avec `admin` et `GRAFANA_ADMIN_PASSWORD`.
 3. *Dashboards* doit montrer deux dossiers : **Applications** et **Core System**.
 4. Le tableau *Applications — journaux* est vide tant qu'aucun projet n'est
-   branché : c'est normal (guide 5 et `infra/observability/README.md`).
+   branché : c'est normal (guide 5 et `observability/README.md`).
 
 ## Consommation
 
@@ -84,7 +76,7 @@ métriques. Suivre avec `docker system df -v | grep observability`.
 ## Arrêter ou désinstaller
 
 ```bash
-$ cd /app/vps-platform/infra/observability
+$ cd /app/vps-platform/observability
 $ docker compose --env-file .env down        # arrêt (données gardées)
 $ docker compose --env-file .env down -v     # + suppression des données
 ```

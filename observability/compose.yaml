@@ -8,7 +8,7 @@
 # opts in with `observability.enable=true` — see README.md.
 #
 #   docker network create observability   # once (deploy/bootstrap.sh does it)
-#   docker compose -f infra/observability/compose.yaml --env-file infra/observability/.env up -d
+#   docker compose -f observability/compose.yaml --env-file observability/.env up -d
 #
 # Grafana is published through the existing nginx-proxy at GRAFANA_HOST,
 # behind its own login. Nothing else is reachable from the Internet:

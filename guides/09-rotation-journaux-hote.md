@@ -7,7 +7,7 @@ aussi à tous les autres.
 
 ## Ce que fait le script
 
-`infra/host/apply-daemon-config.sh` :
+`host/apply-daemon-config.sh` :
 1. sauvegarde `/etc/docker/daemon.json` ;
 2. y **ajoute** la rotation (20 Mo × 5 fichiers par conteneur) et `live-restore`,
    sans rien supprimer de l'existant ;
@@ -26,7 +26,7 @@ pendant le redémarrage du démon.
 
 ```bash
 $ apt install -y jq
-$ /app/vps-platform/infra/host/apply-daemon-config.sh       # affiche la nouvelle config, demande « oui »
+$ /app/vps-platform/host/apply-daemon-config.sh       # affiche la nouvelle config, demande « oui »
 $ docker info --format 'log-driver={{.LoggingDriver}} live-restore={{.LiveRestoreEnabled}}'
 log-driver=json-file live-restore=true
 $ curl -sI https://<un site> | head -1                       # les sites répondent toujours

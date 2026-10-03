@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# infra/bin/deploy.sh on a throw-away project (busybox httpd, local git
+# bin/deploy.sh on a throw-away project (busybox httpd, local git
 # remote): staging deploy, idle watch, promotion of the SAME image, broken
 # version auto-rolled back, no retry loop on a broken commit, manual
 # rollback, BUILD_PER_ENV mode, concurrent-run lock.

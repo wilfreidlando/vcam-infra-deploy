@@ -17,14 +17,14 @@ revenir en arrière.
 | 8 | [Surveillance externe](08-surveillance-externe.md) | aucun | 10 min |
 | 9 | [Rotation des journaux Docker](09-rotation-journaux-hote.md) | quelques secondes possibles, en heure creuse | 10 min |
 | 10 | [Apps à sous-domaines automatiques (multi-tenant)](10-sous-domaines-automatiques.md) | aucun | selon l'app |
-| 11 | [Sortir `infra/` dans son propre dépôt](11-depot-plateforme.md) | aucun | 15 min |
+| 11 | [Mettre à jour la plateforme sur le serveur](11-depot-plateforme.md) | aucun (outils) ; quelques secondes (observabilité) | 5 min |
 | 12 | [Reprise après sinistre (serveur perdu)](12-reprise-apres-sinistre.md) | — | 2-4 h ; **la partie « à préparer avant » est à faire dès maintenant** |
 
 Pour comprendre l'ensemble avant de commencer : [schémas](../docs/01-schemas.md) et
 [glossaire](../docs/03-glossaire.md).
 
 Avant de toucher au serveur, tout peut être essayé sur un poste avec Docker :
-[`infra/tests/`](../tests/README.md).
+[`tests/`](../tests/README.md).
 
 **Conventions des guides :**
 - `$` désigne une commande à lancer **sur le serveur**, en root ou avec sudo, sauf

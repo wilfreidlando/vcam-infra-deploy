@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host-name inventory and collision guard (infra/bin/vps-hosts.sh), on
+# Host-name inventory and collision guard (bin/vps-hosts.sh), on
 # simulated projects: duplicate name across projects, case differences,
 # stopped container still holding a name, orphan certificate, SaaS wildcard.
 # shellcheck source-path=SCRIPTDIR

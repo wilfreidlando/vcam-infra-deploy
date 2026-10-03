@@ -31,7 +31,7 @@ est déjà.
 Selon l'interface, le nom s'écrit `*` ou `*.visibilitycam.com`.
 
 **Sur Cloudflare** : mettre le nuage en **gris** (« DNS only »). Le nuage orange
-change le comportement des sites (voir `infra/README.md` § 3) : ne l'activer que
+change le comportement des sites (voir `README.md` § 3) : ne l'activer que
 projet par projet, plus tard.
 
 **Faut-il déplacer le domaine chez Cloudflare ?** Pas pour le wildcard : tous les

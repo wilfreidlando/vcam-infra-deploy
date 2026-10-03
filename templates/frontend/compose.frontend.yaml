@@ -1,5 +1,5 @@
 # VPS standard — frontend (React / Angular / Vue SPA, or Next.js)
-# (infra/README.md). No observability, no database: one container behind
+# (README.md). No observability, no database: one container behind
 # nginx-proxy. Copy as compose.prod.yaml, keep ONE of the two `app` variants.
 
 x-defaults: &defaults

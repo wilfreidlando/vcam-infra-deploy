@@ -1,6 +1,6 @@
 # 4. Sauvegardes vers MEGA S4
 
-L'agent `infra/images/db-backup` envoie chaque nuit une copie **chiffrée** de chaque
+L'agent `images/db-backup` envoie chaque nuit une copie **chiffrée** de chaque
 base vers un stockage compatible S3. MEGA S4 en est un. Ce guide prépare MEGA S4 et
 vérifie qu'un envoi réel fonctionne depuis le serveur, avant de brancher les
 projets.
@@ -61,7 +61,7 @@ BACKUP_LOCAL_KEEP=7
 ```
 
 Le service `backup` à ajouter au compose de chaque projet est décrit dans
-`infra/images/db-backup/README.md`. Il est déjà présent dans le Core. Pour une base
+`images/db-backup/README.md`. Il est déjà présent dans le Core. Pour une base
 MySQL ou MariaDB, construire l'image avec `BASE=mariadb:11` et mettre
 `BACKUP_ENGINE=mysql`, avec les variables `MYSQL_*`.
 
@@ -81,12 +81,12 @@ Le fichier doit apparaître dans la console MEGA, sous `backups/<projet>/`.
 
 Une sauvegarde n'est fiable qu'une fois restaurée avec succès. Restaurez la dernière
 sauvegarde de production dans le **staging** du même projet : la procédure est dans
-`infra/README.md` § 9. L'heure de sauvegarde planifiée apparaît dans
+`README.md` § 9. L'heure de sauvegarde planifiée apparaît dans
 `docker logs <projet>-backup`.
 
 ## Testé
 
-`infra/tests/test-backup.sh` passe 34 vérifications contre de vrais PostgreSQL 18,
+`tests/test-backup.sh` passe 34 vérifications contre de vrais PostgreSQL 18,
 MySQL 8.4 et MariaDB 11 et un stockage S3 (SeaweedFS) : chiffrement, envoi,
 rétention, rotation, phrase de passe erronée refusée, restauration avec les accents.
 L'étape 2 ci-dessus ajoute la vérification que seul le serveur peut faire : l'accès

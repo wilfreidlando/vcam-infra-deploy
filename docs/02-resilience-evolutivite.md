@@ -50,16 +50,16 @@ flowchart LR
 
 ### 2.1 Ajouter un projet (n'importe quand)
 
-Copier un modèle de `infra/templates/`, choisir un nom libre (`vps-hosts.sh
+Copier un modèle de `templates/`, choisir un nom libre (`vps-hosts.sh
 --free`), ajouter la ligne cron. **Aucune modification** de la plateforme ni des
-autres projets. Check-list : `infra/README.md` § 6.
+autres projets. Check-list : `README.md` § 6.
 
 ### 2.2 Palier 2 — sans nouveau serveur
 
 | Besoin | Comment |
 | --- | --- |
 | Perdre moins de données | Plusieurs sauvegardes par jour : un second conteneur `backup` avec un autre `BACKUP_TIME`. Pour une perte quasi nulle, l'archivage continu PostgreSQL (WAL) est à étudier |
-| Protection anti-DDoS, cacher l'IP | Cloudflare en mode proxy, projet par projet (`infra/README.md` § 3) |
+| Protection anti-DDoS, cacher l'IP | Cloudflare en mode proxy, projet par projet (`README.md` § 3) |
 | Plus de mémoire pour un projet | Monter ses limites dans son `.env` (`APP_MEMORY`…), puis redéployer |
 | Serveur trop petit | Agrandir le VPS chez l'hébergeur : rien à changer dans la plateforme |
 

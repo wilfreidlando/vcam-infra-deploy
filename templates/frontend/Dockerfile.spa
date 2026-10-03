@@ -1,5 +1,5 @@
 # VPS standard — single-page app (React/Vite, Create React App, Angular,
-# Vue…) built by Node, served by an unprivileged nginx (infra/README.md).
+# Vue…) built by Node, served by an unprivileged nginx (README.md).
 #
 # Runtime configuration: every PUBLIC_* environment variable of the
 # container is written to /env.js at start (window.__ENV__), so the SAME

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host-name inventory of the VPS (infra/README.md § Sous-domaines) — READ-ONLY.
+# Host-name inventory of the VPS (README.md § Sous-domaines) — READ-ONLY.
 #
 # nginx-proxy routes by the VIRTUAL_HOST variable of each container. Two
 # containers of different projects declaring the same name are NOT an

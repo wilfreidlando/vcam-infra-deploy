@@ -1,4 +1,4 @@
-# VPS standard database backup agent (infra/README.md, ADR-0064), usable by
+# VPS standard database backup agent (README.md, ADR-0064), usable by
 # every project on the server: dump → encrypted (openssl AES-256) → kept on
 # a local volume + copied to any S3-compatible storage (MEGA S4, R2, B2…).
 #

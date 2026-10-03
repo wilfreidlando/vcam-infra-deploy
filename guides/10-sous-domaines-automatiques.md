@@ -8,7 +8,7 @@ dès sa création dans l'application, **sans toucher au serveur**.
 | Besoin | Mécanisme | Statut |
 | --- | --- | --- |
 | Tous les sous-domaines arrivent sur le serveur | DNS wildcard `*.monsaas.com` | standard DNS |
-| nginx-proxy envoie tous les sous-domaines à l'app | `VIRTUAL_HOST=monsaas.com,*.monsaas.com` | **testé** avec nginx-proxy 1.7 (`infra/tests/test-hosts.sh`) : `client1`, `nouveau-client` et l'apex routés vers l'app, un autre site intact, nom inconnu en 503 |
+| nginx-proxy envoie tous les sous-domaines à l'app | `VIRTUAL_HOST=monsaas.com,*.monsaas.com` | **testé** avec nginx-proxy 1.7 (`tests/test-hosts.sh`) : `client1`, `nouveau-client` et l'apex routés vers l'app, un autre site intact, nom inconnu en 503 |
 | Un seul certificat couvre tous les clients | certificat **wildcard** Let's Encrypt par challenge **DNS-01** | pris en charge par acme-companion 2.5 : vérifié dans son code source (`letsencrypt_service` v2.5.2). Le certificat est publié sous `monsaas.com.crt`, que nginx-proxy utilise aussi pour les sous-domaines |
 | Un autre projet ne peut pas « voler » un sous-domaine client | `vps-hosts.sh` + `deploy.sh` | **testé** (`test-hosts.sh`, `test-deploy.sh`) |
 

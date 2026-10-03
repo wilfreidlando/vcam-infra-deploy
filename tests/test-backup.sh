@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backup agent (infra/images/db-backup), against REAL servers:
+# Backup agent (images/db-backup), against REAL servers:
 # PostgreSQL 18, MySQL 8.4, MariaDB 11 and an S3-compatible store
 # (SeaweedFS, standing in for MEGA S4). For each engine: backup → file is
 # encrypted → uploaded → retention deletes only expired backups → data

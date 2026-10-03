@@ -8,7 +8,7 @@ Une seule pile pour tous les projets du serveur, comme `nginx-proxy` :
 - **Prometheus** : les métriques ;
 - **Alloy** : le seul collecteur, qui découvre les conteneurs par leurs labels Docker.
 
-Décision : [ADR-0064](../../docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md).
+Décision : [ADR-0064](../docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md).
 
 ```mermaid
 graph LR
@@ -41,8 +41,8 @@ graph LR
 
 ```bash
 docker network create observability          # idempotent : ignorer « already exists »
-cp infra/observability/.env.example infra/observability/.env   # puis le remplir
-docker compose -f infra/observability/compose.yaml --env-file infra/observability/.env up -d
+cp observability/.env.example observability/.env   # puis le remplir
+docker compose -f observability/compose.yaml --env-file observability/.env up -d
 ```
 
 Aucune modification de nginx-proxy ni des autres projets : Grafana s'y déclare comme

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared observability (infra/observability), isolated copy: an opted-in
+# Shared observability (observability), isolated copy: an opted-in
 # container's logs, metrics and traces arrive with the right labels; a
 # container without labels is ignored; a private container (label, no shared
 # network — the PHP-FPM case) still has its logs collected, once even on two

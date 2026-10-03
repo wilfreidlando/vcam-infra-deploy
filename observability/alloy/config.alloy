@@ -121,7 +121,7 @@ discovery.relabel "metrics" {
   // Scrape on the shared network only — once, and where Alloy can reach it.
   rule {
     source_labels = ["__meta_docker_network_name"]
-    // `observability` unless overridden (infra/tests run an isolated copy).
+    // `observability` unless overridden (tests run an isolated copy).
     regex         = coalesce(sys.env("OBS_NETWORK"), "observability")
     action        = "keep"
   }

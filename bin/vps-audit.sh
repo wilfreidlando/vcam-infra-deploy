@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# VPS standard compliance audit (infra/README.md) — READ-ONLY.
+# VPS standard compliance audit (README.md) — READ-ONLY.
 #
 # Inspects every container on the host and the Docker daemon settings, and
 # reports what breaks the hosting standard, by severity:
@@ -42,7 +42,7 @@ if [[ -r "${daemon_json}" ]] && grep -q '"max-size"' "${daemon_json}"; then
     default_max_size="set"
 fi
 if [[ "${log_driver}" == "json-file" && -z "${default_max_size}" ]]; then
-    report ATTENTION "(hôte)" "dockerd" "journaux json-file sans rotation par défaut — le disque se remplit (infra/host/daemon.json)"
+    report ATTENTION "(hôte)" "dockerd" "journaux json-file sans rotation par défaut — le disque se remplit (host/daemon.json)"
 fi
 [[ "${live_restore}" == "true" ]] || report INFO "(hôte)" "dockerd" "live-restore désactivé — un redémarrage de Docker coupe tous les sites"
 
@@ -141,7 +141,7 @@ if docker container inspect "${proxy}" >/dev/null 2>&1; then
     fi
 fi
 
-# ── Host-name collisions (infra/bin/vps-hosts.sh) ────────────────────────
+# ── Host-name collisions (bin/vps-hosts.sh) ────────────────────────
 hosts_script="$(dirname "${BASH_SOURCE[0]}")/vps-hosts.sh"
 if [[ -x "${hosts_script}" ]]; then
     while read -r host; do
@@ -163,7 +163,7 @@ while IFS= read -r project; do
     echo
 done < <(printf '%s\n' "${!per_project[@]}" | sort)
 echo "Résumé : ${crit} CRITIQUE · ${warn} ATTENTION · ${info} INFO"
-echo "Corrections : infra/README.md, section « Corriger un projet existant »."
+echo "Corrections : README.md, section « Corriger un projet existant »."
 
 if [[ "${strict}" == 1 && "${crit}" -gt 0 ]]; then
     exit 1
