@@ -26,6 +26,8 @@ esac
 [[ -f "${envfile}" ]] || { echo "restore: ${envfile} absent" >&2; exit 2; }
 
 IMAGE_TAG="$(cat "${STATE_DIR}/${APP_NAME}/${env}/current" 2>/dev/null || echo latest)"
+# BUILD_PER_ENV=1 (platform.env): images tagged <sha>-<env>, as deploy.sh does.
+[[ "${BUILD_PER_ENV:-0}" == 1 && "${IMAGE_TAG}" != latest ]] && IMAGE_TAG="${IMAGE_TAG}-${env}"
 export IMAGE_TAG
 files=()
 IFS=':' read -ra parts <<< "${COMPOSE_FILE}"
