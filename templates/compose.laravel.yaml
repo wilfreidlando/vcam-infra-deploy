@@ -4,7 +4,9 @@
 # differ, nothing else).
 #
 # The rules this file applies (checked by infra/bin/vps-audit.sh):
-#   - no `ports:` — traffic only through nginx-proxy (VIRTUAL_HOST)
+#   - no `ports:` — traffic only through nginx-proxy (VIRTUAL_HOST on the web
+#     container ONLY; the env file says APP_PUBLIC_HOST, because every
+#     container loads it and workers must not claim the name too)
 #   - database/cache on the project's private network only
 #   - restart policy, memory limit, healthcheck, log rotation everywhere
 #   - images tagged by commit (IMAGE_TAG), never a moving `latest`
@@ -35,9 +37,9 @@ services:
     <<: *app
     # Serves HTTP on 8000 (FrankenPHP, Octane, or php-fpm + nginx in the image).
     environment:
-      VIRTUAL_HOST: ${VIRTUAL_HOST}
+      VIRTUAL_HOST: ${APP_PUBLIC_HOST}
       VIRTUAL_PORT: "8000"
-      LETSENCRYPT_HOST: ${VIRTUAL_HOST}
+      LETSENCRYPT_HOST: ${APP_PUBLIC_HOST}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     networks: [ default, observability, nginx-proxy ]
     labels:

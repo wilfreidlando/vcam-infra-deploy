@@ -62,7 +62,7 @@ cp prod/.env.example prod/.env                   # puis le remplir (valeurs de P
 ```
 
 **Règle d'or** : jamais les mêmes secrets en staging et en production. Les
-variables propres à la plateforme (`DEPLOYMENT`, `VIRTUAL_HOST`, `BACKUP_*`…) sont
+variables propres à la plateforme (`DEPLOYMENT`, `APP_PUBLIC_HOST`, `BACKUP_*`…) sont
 expliquées dans `infra/templates/env.platform.example`.
 
 ## 4. Premier déploiement
@@ -97,7 +97,11 @@ arrive en staging en moins de 2 minutes.
 
 - `docker compose up` à la main **sans** `-p <projet>-prod --env-file .env` : vous
   créeriez un second projet vide à côté du vrai.
-- Ajouter `ports:` à un service. Tout passe par `VIRTUAL_HOST`.
+- Ajouter `ports:` à un service. Tout passe par nginx-proxy.
+- Écrire `VIRTUAL_HOST=` dans un fichier `.env` : il serait chargé dans **tous** les
+  conteneurs du projet, et chacun se déclarerait comme site. Écrire
+  `APP_PUBLIC_HOST=` dans le `.env`, et `VIRTUAL_HOST: ${APP_PUBLIC_HOST}`
+  seulement sur le conteneur web du compose (c'est ce que font les modèles).
 - Mettre une base de données sur le réseau `nginx-proxy` ou `observability`.
 - Réutiliser un sous-domaine sans `vps-hosts.sh --free`.
 - Committer un `.env`.

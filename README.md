@@ -329,6 +329,7 @@ deploy_production:
 | Aucune limite mémoire | `deploy.resources.limits.memory` (partir de 2× la consommation observée : `docker stats`) |
 | Journaux sans rotation | Bloc `logging` des modèles, ou réglage global (§ 8) |
 | `VIRTUAL_HOST` sans `LETSENCRYPT_HOST` | Ajouter `LETSENCRYPT_HOST` (même valeur) et `LETSENCRYPT_EMAIL` |
+| `VIRTUAL_HOST` hérité sur un conteneur non exposé | La variable est dans un `env_file` partagé : la renommer (`APP_PUBLIC_HOST`) et ne mettre `VIRTUAL_HOST: ${APP_PUBLIC_HOST}` que sur le conteneur web |
 | Image `latest` | `image: <projet>:${IMAGE_TAG:-latest}` + `deploy.sh` |
 | Pas de healthcheck | Bloc `healthcheck` des modèles |
 

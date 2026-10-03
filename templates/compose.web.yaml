@@ -15,9 +15,9 @@ services:
     build: { context: . }
     env_file: [ "${ENV_FILE:-.env}" ]
     environment:
-      VIRTUAL_HOST: ${VIRTUAL_HOST}
+      VIRTUAL_HOST: ${APP_PUBLIC_HOST}
       VIRTUAL_PORT: "${APP_PORT:-3000}"
-      LETSENCRYPT_HOST: ${VIRTUAL_HOST}
+      LETSENCRYPT_HOST: ${APP_PUBLIC_HOST}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     labels:
       observability.enable: "true"

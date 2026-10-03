@@ -11,7 +11,8 @@
 (donc la base) **ne changent pas**.
 
 Remplacez `core-system.visibilitycam.com` par le nom actuel du Core s'il est
-différent : c'est la valeur de `VIRTUAL_HOST` dans son `.env` actuel.
+différent : c'est la valeur de `VIRTUAL_HOST` dans son `.env` actuel, à renommer
+en `CORE_PUBLIC_HOST` (étape 3).
 
 ## Prérequis
 
@@ -63,7 +64,10 @@ Les variables `BACKUP_S3_*` et `AWS_*` viennent du guide 4.
 Garder **inchangés** :
 - `APP_KEY` : la changer rendrait illisibles les secrets chiffrés en base ;
 - `DB_*` ;
-- `VIRTUAL_HOST`.
+- la valeur du nom public. **Renommer** seulement la ligne `VIRTUAL_HOST=…` en
+  `CORE_PUBLIC_HOST=…`, même valeur. Sinon, les conteneurs app, horizon, scheduler
+  et backup, qui chargent tout le `.env`, se déclareraient eux aussi à nginx-proxy.
+  L'ancien nom reste lu en secours, mais l'audit le signalera.
 
 Ne pas définir `IMAGE_TAG` : la plateforme le gère.
 

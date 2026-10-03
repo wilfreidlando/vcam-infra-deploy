@@ -117,7 +117,11 @@ for id in "${ids[@]}"; do
     [[ "${state}" == "exited" && ( "${restart}" == "no" || -z "${restart}" ) ]] && report INFO "${project}" "${name}" "conteneur arrêté — à supprimer s'il ne sert plus"
 
     if grep -qx VIRTUAL_HOST <<< "${envnames}"; then
-        grep -qx LETSENCRYPT_HOST <<< "${envnames}" || report ATTENTION "${project}" "${name}" "VIRTUAL_HOST sans LETSENCRYPT_HOST — site servi sans HTTPS valide"
+        if [[ " ${networks} " == *" ${NGINX_PROXY_NETWORK:-nginx-proxy} "* ]]; then
+            grep -qx LETSENCRYPT_HOST <<< "${envnames}" || report ATTENTION "${project}" "${name}" "VIRTUAL_HOST sans LETSENCRYPT_HOST — site servi sans HTTPS valide"
+        elif [[ "${state}" == "running" ]]; then
+            report ATTENTION "${project}" "${name}" "VIRTUAL_HOST hérité (env_file ?) sur un conteneur non exposé — risque de collision de casse ; le réserver au conteneur web"
+        fi
     fi
 
     [[ "${hc}" == "no" && "${state}" == "running" ]] && report INFO "${project}" "${name}" "pas de healthcheck"

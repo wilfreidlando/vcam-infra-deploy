@@ -59,7 +59,7 @@ make_env() {  # make_env <example> <target> <prefix> <host> <deployment>
         -e "s#^TRUSTED_PROXY_TOKEN=.*#TRUSTED_PROXY_TOKEN=token-$5#" \
         -e "s#^BACKUP_PASSPHRASE=.*#BACKUP_PASSPHRASE=passphrase-$5#" \
         -e "s#^STACK_PREFIX=.*#STACK_PREFIX=$3#" \
-        -e "s#^VIRTUAL_HOST=.*#VIRTUAL_HOST=$4#" \
+        -e "s#^CORE_PUBLIC_HOST=.*#CORE_PUBLIC_HOST=$4#" \
         -e "s#^OTEL_EXPORTER_OTLP_ENDPOINT=.*#OTEL_EXPORTER_OTLP_ENDPOINT=#" \
         -e "s#^SESSION_SECURE_COOKIE=.*#SESSION_SECURE_COOKIE=false#" \
         "$1" > "$2"
