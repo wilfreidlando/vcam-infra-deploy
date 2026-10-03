@@ -26,11 +26,17 @@ esac
 [[ -f "${envfile}" ]] || { echo "restore: ${envfile} absent" >&2; exit 2; }
 
 IMAGE_TAG="$(cat "${STATE_DIR}/${APP_NAME}/${env}/current" 2>/dev/null || echo latest)"
+[[ "${BUILD_PER_ENV:-0}" == 1 && "${IMAGE_TAG}" != latest ]] && IMAGE_TAG="${IMAGE_TAG}-${env}"
 export IMAGE_TAG
+# Same files as the running version: the environment's worktree created by
+# deploy.sh when it exists, otherwise this folder (fresh server).
+project="$(pwd)"
+dir="${STATE_DIR}/${APP_NAME}/src/${env}"
+[[ -d "${dir}" ]] || dir="${project}"
 files=()
 IFS=':' read -ra parts <<< "${COMPOSE_FILE}"
-for f in "${parts[@]}"; do files+=(-f "${f}"); done
-dc() { docker compose -p "${APP_NAME}-${env}" "${files[@]}" --env-file "${envfile}" "$@"; }
+for f in "${parts[@]}"; do files+=(-f "${dir}/${f}"); done
+dc() { docker compose -p "${APP_NAME}-${env}" --project-directory "${dir}" "${files[@]}" --env-file "${project}/${envfile}" "$@"; }
 
 echo "Restaurer ${src} dans ${APP_NAME}-${env} ? Les données actuelles seront REMPLACÉES."
 read -r -p "Tapez « ${APP_NAME}-${env} » pour confirmer : " answer
