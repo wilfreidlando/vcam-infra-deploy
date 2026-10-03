@@ -36,15 +36,48 @@ les noms non déclarés du domaine, y compris les futurs projets.
 
 ## Étape 2 — DNS et jeton d'API (Cloudflare)
 
-1. Ajouter `monsaas.com` dans Cloudflare et changer ses serveurs DNS chez le
-   registrar, comme Cloudflare l'indique.
-2. Créer les enregistrements, **nuage gris** (DNS only) :
-   - `A  monsaas.com    → IP du VPS`
-   - `A  *              → IP du VPS`
-3. *My Profile → API Tokens → Create Token → Edit zone DNS*. Permissions
-   `Zone · DNS · Edit` et `Zone · Zone · Read`, limité à la zone `monsaas.com`.
-   Noter le jeton, ainsi que le **Zone ID** affiché sur la page d'accueil du
-   domaine.
+**2.1 Mettre le domaine sur Cloudflare.** Suivre l'annexe du
+[guide 2](02-dns-wildcard.md#annexe--déplacer-le-dns-de-visibilitycamcom-chez-cloudflare-plus-tard-si-besoin),
+en remplaçant `visibilitycam.com` par `monsaas.com`. Pour un domaine neuf sans
+e-mails, c'est l'affaire de dix minutes.
+
+**2.2 Créer les deux enregistrements** : *DNS → Records → Add record*, nuage
+**gris** (DNS only) à chaque fois :
+
+| Type | Name | IPv4 address | Proxy status |
+| --- | --- | --- | --- |
+| `A` | `@` (le domaine lui-même, `monsaas.com`) | IP du VPS | DNS only |
+| `A` | `*` | IP du VPS | DNS only |
+
+**2.3 Créer le jeton d'API** (il permet à acme-companion de créer l'enregistrement
+TXT de validation, et rien d'autre) :
+
+1. Sur https://dash.cloudflare.com, cliquer sur l'icône de profil (en haut à
+   droite) → **My Profile** → onglet **API Tokens**.
+2. **Create Token**.
+3. Sur la ligne du modèle **Edit zone DNS**, cliquer **Use template**.
+4. **Token name** : `acme-monsaas` (pour le reconnaître plus tard).
+5. **Permissions** : la ligne `Zone · DNS · Edit` est déjà là. Cliquer
+   **+ Add more** et ajouter `Zone · Zone · Read`.
+6. **Zone Resources** : `Include` · `Specific zone` · `monsaas.com`. **Jamais** « All
+   zones » : le jeton ne doit rien pouvoir faire sur vos autres domaines.
+7. Laisser *Client IP Address Filtering* et *TTL* vides.
+8. **Continue to summary** → **Create Token**.
+9. Cloudflare affiche le jeton **une seule fois** : le copier dans le gestionnaire de
+   mots de passe (« Cloudflare — jeton DNS monsaas »). Cloudflare propose une
+   commande `curl … /verify` : la lancer ; la réponse doit contenir
+   `"status": "active"`.
+
+**2.4 Relever le Zone ID** : retourner sur la page du domaine (*Account Home* →
+`monsaas.com`). Sur la page **Overview**, colonne de droite, section **API** : copier
+la valeur **Zone ID** (32 caractères).
+
+Ces deux valeurs vont dans le `.env` du projet (étape 3) : `CF_DNS_API_TOKEN=<jeton>`
+et `CF_ZONE_ID=<Zone ID>`.
+
+**Retirer l'accès plus tard** : *My Profile → API Tokens*, menu `…` du jeton →
+**Delete**. Les certificats déjà émis restent valables ; seuls les renouvellements
+échoueront.
 
 ## Étape 3 — Le compose de l'app
 

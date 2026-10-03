@@ -7,13 +7,51 @@ projets.
 
 ## Étape 1 — Côté MEGA S4 (console web)
 
-1. Créer un **bucket** dédié, par exemple `visibilitycam-backups`. Un seul bucket
-   suffit pour tous les projets : chacun écrit dans son propre dossier.
-2. Créer une **clé d'accès** (Access key ID + Secret access key) réservée aux
-   sauvegardes. Si MEGA le permet, la limiter à ce bucket.
-3. Noter l'**endpoint S3** et la **région** affichés par la console, par exemple
-   `https://s3.eu-central-1.s4.mega.io` et `eu-central-1`. **Recopiez exactement**
-   ce qu'affiche votre console : la région dépend de votre compte.
+MEGA S4 est le stockage « objet » de MEGA, inclus dans les offres **Pro**. Les
+intitulés ci-dessous sont ceux de la console MEGA au moment de la rédaction ; s'ils
+ont un peu changé, cherchez les mêmes mots (*Object storage*, *Bucket*, *Access
+keys*).
+
+**1.1 Ouvrir la console S4**
+1. Se connecter sur https://mega.io (bouton *Log in*), avec le compte de l'entreprise.
+2. Dans le menu de gauche de l'application, cliquer sur **Object storage** (ou
+   **S4**). Si la rubrique n'apparaît pas, l'offre du compte n'inclut pas S4 : il
+   faut passer à une offre Pro, ou utiliser un autre stockage compatible S3
+   (Backblaze B2, Wasabi, Cloudflare R2…). La suite du guide est identique.
+
+**1.2 Créer le bucket**
+1. **Create bucket**.
+2. Nom : `visibilitycam-backups`. Minuscules, chiffres et tirets seulement ; le nom
+   doit être unique. S'il est pris, ajoutez un suffixe (`visibilitycam-backups-01`)
+   et utilisez ce nom partout ensuite.
+3. **Région** : choisir la plus proche du VPS (Europe, par exemple), et la noter.
+4. **Ne pas** activer d'accès public, ni « Object URL access » : les sauvegardes ne
+   doivent être lisibles par personne d'autre que l'agent.
+5. Valider. Un seul bucket suffit pour tous les projets : chacun écrit dans son
+   propre dossier.
+
+**1.3 Créer la clé d'accès**
+1. Dans la console S4 : **Access keys** → **Manage keys** (ou *Create access key*).
+2. Nom : `vps-backups`. Si la console permet de **limiter la clé à un bucket**,
+   choisir `visibilitycam-backups`.
+3. Valider. La console affiche :
+   - **Access key ID** → c'est `AWS_ACCESS_KEY_ID` (ou `BACKUP_S3_ACCESS_KEY_ID`) ;
+   - **Secret access key** → c'est `AWS_SECRET_ACCESS_KEY` (ou
+     `BACKUP_S3_SECRET_ACCESS_KEY`). Le **secret n'est montré qu'une fois** : le
+     copier tout de suite dans le gestionnaire de mots de passe (« MEGA S4 —
+     sauvegardes VPS »).
+
+**1.4 Relever l'endpoint et la région**
+Ils sont affichés dans les réglages du bucket (*Settings*) ou dans la liste des
+*Endpoints* de la console. Ils ont la forme :
+
+| Valeur | Exemple | Variable |
+| --- | --- | --- |
+| Endpoint S3 | `https://s3.eu-central-1.s4.mega.io` | `BACKUP_S3_ENDPOINT` |
+| Région | `eu-central-1` | `AWS_DEFAULT_REGION` (ou `BACKUP_S3_REGION`) |
+
+**Recopiez exactement** ce qu'affiche votre console : la région dépend du choix fait
+en 1.2. Endpoint et région doivent correspondre, sinon l'envoi est refusé.
 
 ## Étape 2 — Vérifier l'accès depuis le serveur (sans rien installer)
 
@@ -58,6 +96,17 @@ AWS_SECRET_ACCESS_KEY=<secret>
 AWS_DEFAULT_REGION=<région>
 BACKUP_RETENTION_DAYS=30
 BACKUP_LOCAL_KEEP=7
+```
+
+**Noms des variables selon le projet** : le Core (et les projets issus de
+`templates/compose.laravel.yaml`) lisent `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY` et `AWS_DEFAULT_REGION`. WILMANAGER garde ces noms pour son
+propre disque S3 Laravel ; pour les sauvegardes, il lit à la place :
+
+```dotenv
+BACKUP_S3_ACCESS_KEY_ID=<clé>
+BACKUP_S3_SECRET_ACCESS_KEY=<secret>
+BACKUP_S3_REGION=<région>
 ```
 
 Le service `backup` à ajouter au compose de chaque projet est décrit dans
