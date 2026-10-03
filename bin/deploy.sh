@@ -82,7 +82,12 @@ dc() {
     local env="$1"; shift
     local envfile; envfile="$(env_file_for "${env}")"
     [[ -f "${envfile}" ]] || die "fichier ${envfile} absent (copier l'exemple et le remplir)"
-    IMAGE_TAG="${IMAGE_TAG:-latest}" docker compose -p "${APP_NAME}-${env}" -f "${COMPOSE_FILE}" --env-file "${envfile}" "$@"
+    # COMPOSE_FILE may list several files separated by ':' (base + override),
+    # like Docker's own COMPOSE_FILE variable.
+    local files=() f
+    IFS=':' read -ra parts <<< "${COMPOSE_FILE}"
+    for f in "${parts[@]}"; do files+=(-f "${f}"); done
+    IMAGE_TAG="${IMAGE_TAG:-latest}" docker compose -p "${APP_NAME}-${env}" "${files[@]}" --env-file "${envfile}" "$@"
 }
 
 state_get() { cat "${APP_STATE}/$1/$2" 2>/dev/null || true; }

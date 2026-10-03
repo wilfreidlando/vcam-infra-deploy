@@ -26,15 +26,23 @@ esac
 
 IMAGE_TAG="$(cat "${STATE_DIR}/${APP_NAME}/${env}/current" 2>/dev/null || echo latest)"
 export IMAGE_TAG
-dc() { docker compose -p "${APP_NAME}-${env}" -f "${COMPOSE_FILE}" --env-file "${envfile}" "$@"; }
+files=()
+IFS=':' read -ra parts <<< "${COMPOSE_FILE}"
+for f in "${parts[@]}"; do files+=(-f "${f}"); done
+dc() { docker compose -p "${APP_NAME}-${env}" "${files[@]}" --env-file "${envfile}" "$@"; }
 
 echo "Restaurer ${src} dans ${APP_NAME}-${env} ? Les données actuelles seront REMPLACÉES."
 read -r -p "Tapez « ${APP_NAME}-${env} » pour confirmer : " answer
 [[ "${answer}" == "${APP_NAME}-${env}" ]] || { echo "annulé"; exit 1; }
 
-mapfile -t services < <(dc config --services | grep -vxE "${DB_SERVICE}|${BACKUP_SERVICE}")
-echo "arrêt : ${services[*]}"
-dc stop "${services[@]}"
+# Only the services that are running now are stopped, then restarted: on a
+# fresh server (disaster recovery) nothing runs yet and nothing is started.
+mapfile -t services < <(dc ps --services --status running | grep -vxE "${DB_SERVICE}|${BACKUP_SERVICE}" || true)
+if [[ ${#services[@]} -gt 0 ]]; then
+    echo "arrêt : ${services[*]}"
+    dc stop "${services[@]}"
+fi
+restart() { [[ ${#services[@]} -eq 0 ]] || dc up -d --no-build "${services[@]}"; }
 
 # RESTORE_PASSPHRASE: restore a backup encrypted with ANOTHER environment's
 # passphrase (production into staging) without storing it in .env.staging.
@@ -45,7 +53,7 @@ if dc run --rm -T "${extra[@]}" "${BACKUP_SERVICE}" restore.sh "${src}"; then
     echo "restauration OK — redémarrage"
 else
     echo "restauration en ÉCHEC — redémarrage de l'application sur les données existantes" >&2
-    dc up -d --no-build "${services[@]}"
+    restart
     exit 1
 fi
-dc up -d --no-build "${services[@]}"
+restart

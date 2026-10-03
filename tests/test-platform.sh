@@ -72,21 +72,41 @@ ok "fichiers d'environnement générés depuis .env.production.example / .env.st
 
 step "Image du Core (${CORE_TEST_IMAGE:-build})"
 if [[ "${CORE_TEST_IMAGE:-build}" == dev ]]; then
-    docker run -d --name vpstest-core-image-src --user root --entrypoint sleep thecodingmachine/php:8.4-v5-cli 600 >/dev/null
-    docker exec vpstest-core-image-src mkdir -p /var/www/html
-    tar -C "${REPO_DIR}" --exclude=./.env --exclude=./.env.staging --exclude=./node_modules --exclude=./.git \
-        --exclude='./storage/logs/*' --exclude='./storage/framework/cache/*' -cf - . \
-        | docker cp - vpstest-core-image-src:/var/www/html
-    docker exec vpstest-core-image-src sh -c 'chown -R docker:docker /var/www/html/storage /var/www/html/bootstrap/cache'
-    docker commit -q \
-        --change 'ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]' \
-        --change 'WORKDIR /var/www/html' --change 'USER docker' \
-        --change 'ENV PHP_EXTENSION_BCMATH=1 PHP_EXTENSION_GMP=1 PHP_EXTENSION_INTL=1 PHP_EXTENSION_PGSQL=1 PHP_EXTENSION_PDO_PGSQL=1 PHP_EXTENSION_REDIS=1 PHP_EXTENSION_PCNTL=1' \
-        --change 'CMD ["php","-d","variables_order=EGPCS","artisan","serve","--host=0.0.0.0","--port=8000","--no-reload"]' \
-        vpstest-core-image-src "vpstest-core:${SHA}" >/dev/null
-    docker rm -f vpstest-core-image-src >/dev/null
+    # No copy of the code into an image: the checkout's code is mounted and
+    # this working copy's vendor/ added read-only, through a compose override
+    # (COMPOSE_FILE=base:override, supported by deploy.sh).
+    docker tag thecodingmachine/php:8.4-v5-cli "vpstest-core:${SHA}"
+    for env in staging prod; do
+        cat > "${WORK}/${env}/compose.vpstest-dev.yaml" <<YAML
+x-dev: &dev
+  user: root
+  working_dir: /var/www/html
+  volumes:
+    - ${WORK}/${env}:/var/www/html
+    - ${REPO_DIR}/vendor:/var/www/html/vendor:ro
+  environment:
+    PHP_EXTENSION_BCMATH: "1"
+    PHP_EXTENSION_GMP: "1"
+    PHP_EXTENSION_INTL: "1"
+    PHP_EXTENSION_PGSQL: "1"
+    PHP_EXTENSION_PDO_PGSQL: "1"
+    PHP_EXTENSION_REDIS: "1"
+    PHP_EXTENSION_PCNTL: "1"
+    PHP_INI_VARIABLES_ORDER: EGPCS
+services:
+  app:
+    <<: *dev
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000", "--no-reload"]
+  horizon:
+    <<: *dev
+  scheduler:
+    <<: *dev
+YAML
+        sed -i 's/^COMPOSE_FILE=.*/COMPOSE_FILE=compose.prod.yaml:compose.vpstest-dev.yaml/' "${WORK}/${env}/platform.env"
+        mkdir -p "${WORK}/${env}/storage/framework/"{cache,sessions,views} "${WORK}/${env}/storage/logs" "${WORK}/${env}/bootstrap/cache"
+    done
     docker build -q -t vps/db-backup:1 "${INFRA_DIR}/images/db-backup" >/dev/null
-    check "image dev du Core taguée ${SHA:0:12}" docker image inspect "vpstest-core:${SHA}"
+    check "image dev du Core taguée ${SHA:0:12} (code monté, vendor en lecture seule)" docker image inspect "vpstest-core:${SHA}"
 else
     check "build de la vraie image de production" sh -c "cd '${WORK}/staging' && '${DEPLOY}' build '${SHA}'"
 fi
@@ -143,7 +163,8 @@ check "rollback sans version précédente refusé proprement" sh -c "! (cd '${WO
 audit="$(bash "${INFRA_DIR}/bin/vps-audit.sh" | sed -n '/^■ vpstest-core-prod$/,/^$/p')"
 check_not "audit : aucune ligne CRITIQUE pour le Core" grep -q CRITIQUE <<< "${audit}"
 check_not "audit : aucune ligne ATTENTION pour le Core" grep -q ATTENTION <<< "${audit}"
+grep -E 'CRITIQUE|ATTENTION' <<< "${audit}" | sed 's/^/      /' || true
 
 docker compose -p vpstest-core-prod -f "${WORK}/prod/compose.prod.yaml" --env-file "${WORK}/prod/.env" down -v >/dev/null 2>&1 || true
 docker compose -p vpstest-core-staging -f "${WORK}/staging/compose.prod.yaml" --env-file "${WORK}/staging/.env.staging" down -v >/dev/null 2>&1 || true
-docker image ls vpstest-core -q | xargs -r docker rmi -f >/dev/null 2>&1 || true
+docker image ls vpstest-core --format '{{.Repository}}:{{.Tag}}' | xargs -r docker rmi >/dev/null 2>&1 || true  # by tag: in dev mode the tag shares its ID with the base image

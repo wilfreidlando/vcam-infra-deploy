@@ -1,34 +1,44 @@
 # Standard d'hébergement du VPS
 
 Ce dossier définit **comment tout projet est hébergé sur le VPS**, quel que soit son
-langage (Laravel, Node, React, Angular, Next.js…) et la façon dont l'équipe travaille.
-Une seule exigence : le projet tourne dans Docker. En échange, il obtient
-automatiquement :
+langage (Laravel, Node, React, Angular, Next.js…). Une seule exigence : le projet
+tourne dans Docker. En échange, il obtient automatiquement :
 - HTTPS ;
-- un environnement de staging ;
+- un staging ;
 - un déploiement avec retour arrière ;
-- des sauvegardes chiffrées hors serveur ;
-- une supervision (pour les backends).
+- des sauvegardes chiffrées hors du serveur ;
+- une supervision (pour les backends) ;
+- une protection contre les collisions de sous-domaines.
 
-Contenu du dossier :
+## Par où commencer ?
+
+| Je suis… | Je lis |
+| --- | --- |
+| **Développeur** et je veux mettre mon projet en ligne | [Démarrage rapide](docs/04-demarrage-rapide-dev.md), puis les [schémas](docs/01-schemas.md) |
+| **Nouveau** et je veux comprendre comment le serveur fonctionne | [Schémas](docs/01-schemas.md) et [glossaire](docs/03-glossaire.md) |
+| **La personne qui installe** la plateforme | les [guides](guides/README.md), dans l'ordre |
+| **Responsable technique** | ce document, [résilience et évolutivité](docs/02-resilience-evolutivite.md), [ADR-0064](../docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md) |
+| **En plein incident** | § 11 ci-dessous, puis la [reprise après sinistre](guides/12-reprise-apres-sinistre.md) si le serveur est perdu |
+
+## Contenu du dossier
 
 | Dossier | Contenu |
 | --- | --- |
-| [`bin/deploy.sh`](bin/deploy.sh) | Déploiement standard : build, staging automatique, promotion manuelle en production, retour arrière automatique |
-| [`bin/vps-audit.sh`](bin/vps-audit.sh) | Audit **en lecture seule** de tous les conteneurs du serveur par rapport à ce standard |
-| [`bin/restore.sh`](bin/restore.sh) | Restauration d'une sauvegarde dans un environnement |
-| [`bin/vps-hosts.sh`](bin/vps-hosts.sh) | Inventaire de tous les sous-domaines du serveur, détection et blocage des collisions |
+| [`docs/`](docs) | [Schémas de chaque élément](docs/01-schemas.md), [résilience et évolutivité](docs/02-resilience-evolutivite.md), [glossaire](docs/03-glossaire.md), [démarrage rapide](docs/04-demarrage-rapide-dev.md) |
 | [`guides/`](guides/README.md) | **Guides pas à pas** de mise en place, dans l'ordre |
-| [`tests/`](tests/README.md) | Tests réels de toute la plateforme, rejouables sur un poste avec Docker |
+| [`bin/deploy.sh`](bin/deploy.sh) | Déploiement standard : build, staging automatique, promotion manuelle en production, retour arrière automatique, refus en cas de collision |
+| [`bin/vps-audit.sh`](bin/vps-audit.sh) | Audit **en lecture seule** de tous les conteneurs du serveur |
+| [`bin/vps-hosts.sh`](bin/vps-hosts.sh) | Inventaire de tous les sous-domaines, contrôle « libre ou pris ? », garde contre les collisions |
+| [`bin/restore.sh`](bin/restore.sh) | Restauration d'une sauvegarde dans un environnement |
 | [`templates/`](templates) | Modèles prêts à copier : Laravel, web générique, frontend (SPA et Next.js) |
-| [`images/db-backup/`](images/db-backup) | Agent de sauvegarde PostgreSQL / MySQL → MEGA S4 (ou tout S3) |
+| [`images/db-backup/`](images/db-backup) | Agent de sauvegarde PostgreSQL / MySQL / MariaDB → MEGA S4 (ou tout S3) |
 | [`observability/`](observability) | Grafana + Loki + Tempo + Prometheus mutualisés (backends) |
 | [`host/`](host) | Réglages du démon Docker (rotation des journaux, live-restore) et procédure sans coupure |
+| [`tests/`](tests/README.md) | Tests **réels** de toute la plateforme, rejouables sur un poste avec Docker |
 
 > **Où vit ce dossier.** Il est né dans le dépôt `core-system`, mais il concerne
-> tout le serveur. Recommandé : l'extraire dans son propre dépôt (`vps-platform`)
-> cloné sur le serveur dans `/app/vps-platform`. Les exemples ci-dessous utilisent ce
-> chemin. Rien dans les scripts ne dépend de leur emplacement.
+> tout le serveur. Il peut vivre dans son propre dépôt (`vps-platform`), cloné sur
+> le serveur dans `/app/vps-platform` (guide 11). Les exemples utilisent ce chemin.
 
 ---
 
