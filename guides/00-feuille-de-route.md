@@ -20,7 +20,7 @@ infra/tests/run-all.sh                 # ≈ 129 vérifications de la plateforme
 
 git clone -b vps-standard <dépôt app> app && cd app
 tests/Infra/stack-test.sh              # 28 vérifications : la pile de production de l'app
-PLATFORM_DIR=../core tests/Infra/deploy-test.sh   # 40 vérifications : dev/staging/prod, migration de la base
+PLATFORM_DIR=../core tests/Infra/deploy-test.sh   # 44 vérifications : dev/staging/prod, migration de la base, restauration
 ```
 
 Tout doit finir en vert. Un échec dit précisément ce qui ne va pas. Si c'est un
