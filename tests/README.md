@@ -3,8 +3,8 @@
 Ces tests vérifient **pour de vrai** que les outils d'`infra/` fonctionnent : de
 vrais conteneurs, de vraies bases, le vrai nginx-proxy 1.7, un vrai stockage S3.
 Aucune simulation de code. Ce sont les tests qui ont servi à valider la plateforme
-avant livraison, et ils ont trouvé trois défauts réels, depuis corrigés (voir
-ADR-0064).
+avant livraison : **117 vérifications**. Ils ont trouvé quatre défauts réels, depuis
+corrigés (voir ADR-0064).
 
 ## Prérequis
 
@@ -29,7 +29,7 @@ Un code de sortie différent de 0 signale un échec.
 
 | Test | Ce qu'il vérifie | Résultat à la livraison | Durée |
 | --- | --- | --- | --- |
-| `test-hosts.sh` | Avec un vrai nginx-proxy 1.7 : routage d'un SaaS à sous-domaines wildcard ; collision de casse qui rend la configuration invalide pour tout le serveur, puis sa réparation ; inventaire (arrêtés, certificats orphelins, wildcard) ; garde de déploiement ; audit | 24/24 | 2 min |
+| `test-hosts.sh` | Avec un vrai nginx-proxy 1.7 : routage d'un SaaS à sous-domaines wildcard ; collision de casse qui rend la configuration invalide pour tout le serveur, puis sa réparation ; inventaire (arrêtés, certificats orphelins, wildcard) ; garde de déploiement ; audit | 24/24 | 1 min |
 | `test-deploy.sh` | `deploy.sh` sur un projet témoin : staging automatique, promotion de la même image, version cassée refusée avec retour automatique, pas de boucle, retour arrière manuel, verrou, refus en cas de collision de sous-domaine ou de nginx-proxy en erreur, mode `BUILD_PER_ENV` | 23/23 | 3 min |
 | `test-backup.sh` | Agent de sauvegarde contre de **vrais** PostgreSQL 18, MySQL 8.4 et MariaDB 11, et un stockage S3 (SeaweedFS, à la place de MEGA S4) : chiffrement, envoi, rétention, rotation, mauvaise phrase de passe refusée, restauration depuis S3 avec les accents | 34/34 | 5 min |
 | `test-observability.sh` | Stack Grafana mutualisée : journaux, métriques et traces d'un conteneur étiqueté ; un conteneur sans label est ignoré ; dossiers, tableaux de bord et alertes provisionnés | 9/9 | 3 min |
