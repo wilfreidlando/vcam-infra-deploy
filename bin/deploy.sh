@@ -11,8 +11,8 @@
 # (see infra/templates/platform.env). Secrets stay in the per-environment
 # env files (.env, .env.staging), never committed.
 #
-# Usage, from the project's ONE folder on the server (a git clone holding
-# platform.env and the env files of every environment):
+# Usage, from the project's checkout (staging checkout for build/watch,
+# production checkout for promote):
 #
 #   deploy.sh build [ref] [env]    build images for ref (default origin/<branch of env>, env default staging)
 #   deploy.sh up <env> <sha>       deploy an already-built SHA to an environment
@@ -26,12 +26,6 @@
 # reached by promotion only.
 #   deploy.sh rollback <env>       redeploy the previous SHA of that environment
 #   deploy.sh status               current/previous SHA and containers of each environment
-#
-# One folder, several environments: the folder itself is never checked out by
-# this script (only fetched). Each environment gets its own git worktree,
-# $STATE_DIR/<app>/src/<env>, at the commit it runs: deploying develop to dev
-# never touches the files (compose, mounted configs) prod is running from.
-# The env files stay in the folder and are linked into each worktree.
 #
 # Every action is logged to $STATE_DIR/<app>/deploy.log; one lock per app
 # means a build, a staging deploy and a promotion never overlap.
@@ -74,11 +68,10 @@ LOG="${APP_STATE}/deploy.log"
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ${APP_NAME}: $*" | tee -a "${LOG}" >&2; }
 die() {
     log "ERREUR — $*"
-    # Failure before the switch: put the environment's files back on the
-    # version that runs (REVERT_CHECKOUT = "<env> <sha>").
+    # Failure before the switch: put the checkout back on the version that runs.
     if [[ -n "${REVERT_CHECKOUT:-}" ]]; then
-        local back_env="${REVERT_CHECKOUT%% *}" back_sha="${REVERT_CHECKOUT#* }"; REVERT_CHECKOUT=""
-        git -C "$(src_for "${back_env}")" checkout --quiet --force --detach "${back_sha}" 2>/dev/null || true
+        local back="${REVERT_CHECKOUT}"; REVERT_CHECKOUT=""
+        git -C "${PROJECT_DIR}" checkout --quiet --detach "${back}" 2>/dev/null || true
     fi
     exit 1
 }
@@ -103,38 +96,23 @@ branch_for() {
     fi
 }
 
-is_git() { git -C "${PROJECT_DIR}" rev-parse --git-dir >/dev/null 2>&1; }
-
-# Where an environment's files are: its own git worktree, or the folder
-# itself outside git.
-src_for() {
-    if is_git; then echo "${APP_STATE}/src/$1"; else echo "${PROJECT_DIR}"; fi
-}
-
-# docker compose for one environment, images pinned to IMAGE_TAG, run from the
-# environment's worktree (relative paths: build context, mounted configs).
+# docker compose for one environment, images pinned to IMAGE_TAG.
 dc() {
     local env="$1"; shift
     local envfile; envfile="$(env_file_for "${env}")"
-    [[ -f "${PROJECT_DIR}/${envfile}" ]] || die "fichier ${envfile} absent de ${PROJECT_DIR} (copier l'exemple et le remplir)"
-    local dir; dir="$(src_for "${env}")"
-    [[ -d "${dir}" ]] || dir="${PROJECT_DIR}"   # not deployed yet (status)
-    if [[ "${dir}" != "${PROJECT_DIR}" ]]; then
-        # Compose files may name the env file relatively (env_file: .env.staging).
-        mkdir -p "$(dirname "${dir}/${envfile}")"
-        ln -sfn "${PROJECT_DIR}/${envfile}" "${dir}/${envfile}"
-    fi
+    [[ -f "${envfile}" ]] || die "fichier ${envfile} absent (copier l'exemple et le remplir)"
     # COMPOSE_FILE may list several files separated by ':' (base + override),
     # like Docker's own COMPOSE_FILE variable.
     local files=() f
     IFS=':' read -ra parts <<< "${COMPOSE_FILE}"
-    for f in "${parts[@]}"; do files+=(-f "${dir}/${f}"); done
-    IMAGE_TAG="${IMAGE_TAG:-latest}" docker compose -p "${APP_NAME}-${env}" --project-directory "${dir}" \
-        "${files[@]}" --env-file "${PROJECT_DIR}/${envfile}" "$@"
+    for f in "${parts[@]}"; do files+=(-f "${f}"); done
+    IMAGE_TAG="${IMAGE_TAG:-latest}" docker compose -p "${APP_NAME}-${env}" "${files[@]}" --env-file "${envfile}" "$@"
 }
 
 state_get() { cat "${APP_STATE}/$1/$2" 2>/dev/null || true; }
 state_set() { echo "$3" > "${APP_STATE}/$1/$2"; }
+
+is_git() { git -C "${PROJECT_DIR}" rev-parse --git-dir >/dev/null 2>&1; }
 
 lock() {
     exec 9>"${APP_STATE}/lock"
@@ -179,29 +157,15 @@ ensure_images() {
     if [[ "${BUILD_PER_ENV}" == 1 ]]; then
         build_for "${env}" "${sha}"
     else
-        die "images de ${sha} absentes — lancer d'abord « deploy.sh build ${sha} »"
+        die "images de ${sha} absentes — lancer d'abord « deploy.sh build ${sha} » (dans le checkout de staging)"
     fi
 }
 
-# Puts the environment's worktree on a commit (created on first use).
 checkout() {
-    local env="$1" sha="$2" wt common
+    local sha="$1"
     is_git || { log "pas un dépôt git — fichiers du projet laissés tels quels"; return 0; }
     git -C "${PROJECT_DIR}" fetch --quiet origin || log "git fetch impossible — on continue avec les objets locaux"
-    git -C "${PROJECT_DIR}" cat-file -e "${sha}^{commit}" 2>/dev/null || die "commit ${sha} introuvable dans ${PROJECT_DIR}"
-    wt="$(src_for "${env}")"
-    common="$(git -C "${PROJECT_DIR}" rev-parse --path-format=absolute --git-common-dir)"
-    if [[ -e "${wt}/.git" && "$(git -C "${wt}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" == "${common}" ]]; then
-        git -C "${wt}" checkout --quiet --force --detach "${sha}" || die "checkout ${sha} impossible dans ${wt}"
-    else
-        # Absent, or left by another clone of the project: (re)create it.
-        rm -rf "${wt}"
-        git -C "${PROJECT_DIR}" worktree prune
-        mkdir -p "$(dirname "${wt}")"
-        git -C "${PROJECT_DIR}" worktree add --quiet --force --detach "${wt}" "${sha}" \
-            || die "worktree ${wt} impossible à créer"
-        log "copie de travail ${env} créée : ${wt}"
-    fi
+    git -C "${PROJECT_DIR}" checkout --quiet --detach "${sha}" || die "commit ${sha} introuvable dans ${PROJECT_DIR}"
 }
 
 # Refuses to deploy when a host name of this project is already claimed by
@@ -272,8 +236,8 @@ cmd_build() {
     local ref="${1:-origin/$(branch_for "${env}")}" sha
     if is_git; then
         git -C "${PROJECT_DIR}" fetch --quiet origin
-        sha="$(git -C "${PROJECT_DIR}" rev-parse "${ref}^{commit}")" || die "référence ${ref} introuvable"
-        checkout "${env}" "${sha}"
+        sha="$(git -C "${PROJECT_DIR}" rev-parse "${ref}^{commit}")"
+        git -C "${PROJECT_DIR}" checkout --quiet --detach "${sha}"
     else
         [[ "${ref}" =~ ^[0-9a-f]{40}$ ]] || die "hors git, build exige un SHA explicite"
         sha="${ref}"
@@ -285,8 +249,8 @@ cmd_build() {
 cmd_up() {
     local env="${1:?env}" sha="${2:?sha}" previous
     previous="$(state_get "${env}" current)"
-    checkout "${env}" "${sha}"
-    [[ -n "${previous}" ]] && is_git && REVERT_CHECKOUT="${env} ${previous}"
+    checkout "${sha}"
+    is_git && REVERT_CHECKOUT="${previous}"
     ensure_images "${env}" "${sha}"
     local tag; tag="$(tag_for "${env}" "${sha}")"
     proxy_config_ok || die "nginx-proxy est déjà en erreur — aucun déploiement ne serait pris en compte. Corriger d'abord (infra/bin/vps-audit.sh, infra/bin/vps-hosts.sh)"
@@ -326,7 +290,7 @@ cmd_up() {
     state_set "${env}" failed "${sha}"
     if [[ -n "${previous}" ]]; then
         log "santé KO — retour automatique à ${previous}"
-        checkout "${env}" "${previous}"
+        checkout "${previous}"
         IMAGE_TAG="$(tag_for "${env}" "${previous}")" dc "${env}" up -d --no-build --remove-orphans || true
         log "les migrations éventuelles de ${sha} ne sont PAS annulées ; si nécessaire : infra/bin/restore.sh (dernière sauvegarde pre-deploy)"
     fi
@@ -382,7 +346,7 @@ cmd_status() {
     for env in ${ENVIRONMENTS}; do
         echo "── ${env} : $(state_get "${env}" current || true)  (précédent : $(state_get "${env}" previous || true))"
         [[ -n "$(state_get "${env}" failed)" ]] && echo "   dernier échec : $(state_get "${env}" failed)"
-        [[ -f "${PROJECT_DIR}/$(env_file_for "${env}")" ]] && dc "${env}" ps --format 'table {{.Name}}\t{{.Status}}' 2>/dev/null || true
+        [[ -f "$(env_file_for "${env}")" ]] && dc "${env}" ps --format 'table {{.Name}}\t{{.Status}}' 2>/dev/null || true
     done
 }
 
