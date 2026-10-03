@@ -19,6 +19,7 @@ s'éteint. La plateforme vise donc trois choses :
 | Mauvaise version en production, vue après coup | `make rollback ENV=prod` | une commande | `test-deploy` |
 | Migration qui abîme les données | sauvegarde automatique juste avant + `restore.sh` | temps de restauration | `test-backup` |
 | Deux projets sur le même sous-domaine | `deploy.sh` refuse, l'audit alerte | aucun (le déploiement fautif est bloqué) | `test-hosts`, `test-deploy` |
+| Deux bases sur les mêmes données (ancienne installation encore démarrée lors d'une migration) | `deploy.sh` refuse tant qu'un conteneur étranger utilise un volume du projet | aucun (le déploiement est bloqué, rien n'est créé) | `test-deploy` |
 | Configuration de nginx-proxy invalide | `deploy.sh` refuse de déployer dans cet état ; l'audit alerte | les sites existants tiennent ; aucun nouveau site tant que ce n'est pas corrigé | `test-hosts`, `test-deploy` |
 | Projet compromis (piraté) | réseaux privés : il n'atteint ni les bases ni les autres apps ; pas de socket Docker | limité à ce projet | `test-platform` |
 | Faux en-tête d'IP d'un conteneur voisin | jeton du sidecar (Core) | aucun | `test-platform` |

@@ -26,7 +26,7 @@ tourne dans Docker. En échange, il obtient automatiquement :
 | --- | --- |
 | [`docs/`](docs) | [Schémas de chaque élément](docs/01-schemas.md), [résilience et évolutivité](docs/02-resilience-evolutivite.md), [glossaire](docs/03-glossaire.md), [démarrage rapide](docs/04-demarrage-rapide-dev.md) |
 | [`guides/`](guides/README.md) | **Guides pas à pas** de mise en place, dans l'ordre |
-| [`bin/deploy.sh`](bin/deploy.sh) | Déploiement standard : build, staging automatique, promotion manuelle en production, retour arrière automatique, refus en cas de collision |
+| [`bin/deploy.sh`](bin/deploy.sh) | Déploiement standard : build, staging automatique, promotion manuelle en production, retour arrière automatique, refus en cas de collision de nom ou de volume encore utilisé par une autre installation |
 | [`bin/vps-audit.sh`](bin/vps-audit.sh) | Audit **en lecture seule** de tous les conteneurs du serveur |
 | [`bin/vps-hosts.sh`](bin/vps-hosts.sh) | Inventaire de tous les sous-domaines, contrôle « libre ou pris ? », garde contre les collisions |
 | [`bin/restore.sh`](bin/restore.sh) | Restauration d'une sauvegarde dans un environnement |

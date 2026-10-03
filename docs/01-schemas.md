@@ -229,7 +229,8 @@ sequenceDiagram
     D->>D: checkout du commit, l'image existe ?
     D->>P: configuration valide ? (nginx -t)
     D->>H: mes noms sont-ils déjà pris par un autre projet ?
-    alt nom pris ou proxy en erreur
+    D->>D: mes volumes sont-ils utilisés par un autre conteneur ?
+    alt nom pris, proxy en erreur ou volume occupé
         D-->>Ops: REFUS — rien n'a été modifié
     end
     D->>K: sauvegarde chiffrée (pre-deploy)
@@ -241,15 +242,17 @@ sequenceDiagram
     D->>C: contrôle de santé (jusqu'à 2 min)
     alt santé KO
         D->>C: retour automatique à la version précédente
-        D-->>Ops: ÉCHEC — ancienne version en ligne
+        D->>C: contrôle de santé de la version précédente
+        D-->>Ops: ÉCHEC — ancienne version en ligne (confirmé)
     else santé OK
         D-->>Ops: OK — version enregistrée
     end
 ```
 
 **À retenir**
-- Tout ce qui peut échouer **avant** la bascule (nom pris, proxy cassé, sauvegarde
-  ratée, migration ratée) laisse la production **intacte**.
+- Tout ce qui peut échouer **avant** la bascule (nom pris, proxy cassé, volume
+  encore utilisé par une ancienne installation, sauvegarde ratée, migration ratée)
+  laisse la production **intacte**.
 - Après la bascule, si l'application ne répond pas, **retour automatique**.
 - Seule limite : une migration déjà appliquée n'est pas annulée. D'où la sauvegarde
   prise juste avant.
