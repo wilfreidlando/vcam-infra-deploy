@@ -8,7 +8,7 @@ set -uo pipefail
 cd "$(dirname "$0")" || exit 2
 
 tests=("$@")
-[[ ${#tests[@]} -eq 0 ]] && tests=(hosts deploy backup observability platform)
+[[ ${#tests[@]} -eq 0 ]] && tests=(claude-guard hosts deploy inventory backup observability platform)
 
 failed=()
 skipped=()

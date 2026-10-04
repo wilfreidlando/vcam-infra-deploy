@@ -3,7 +3,7 @@
 Ces tests vérifient **pour de vrai** que les outils de ce dépôt fonctionnent : de
 vrais conteneurs, de vraies bases, le vrai nginx-proxy 1.7, un vrai stockage S3.
 Aucune simulation de code. Ce sont les tests qui ont servi à valider la plateforme
-avant livraison : **144 vérifications**. Ils ont trouvé quatre défauts réels, depuis
+avant livraison : **197 vérifications**. Ils tournent sur chaque pull request (CI GitHub, sauf `test-platform`, qui demande un clone du Core). Ils ont trouvé quatre défauts réels, depuis
 corrigés (voir ADR-0064).
 
 ## Prérequis
@@ -32,6 +32,8 @@ Un code de sortie différent de 0 signale un échec.
 | --- | --- | --- | --- |
 | `test-hosts.sh` | Avec un vrai nginx-proxy 1.7 : routage d'un SaaS à sous-domaines wildcard ; collision de casse qui rend la configuration invalide pour tout le serveur, puis sa réparation ; inventaire (arrêtés, certificats orphelins, wildcard) ; garde de déploiement ; audit | 24/24 | 1 min |
 | `test-deploy.sh` | `deploy.sh` sur un projet témoin : staging automatique, promotion de la même image, version cassée refusée avec retour automatique, pas de boucle, retour arrière manuel, verrou, refus en cas de collision de sous-domaine ou de nginx-proxy en erreur, mode `BUILD_PER_ENV`, trois environnements dev (branche `develop`) → staging → prod, refus quand un volume est utilisé par une ancienne installation (même sous le même nom de projet), retour automatique confirmé en ligne ; **contrôle avant déploiement** ([REX 2026-10-04](../docs/retours-experience/2026-10-04-premier-deploiement-skills-devops.md)) : `platform.env` lu dans le commit déployé, service inconnu refusé, origin HTTPS refusé sans attente de mot de passe, nom privé publié par un autre projet sur un réseau partagé, service renommé qui tient un volume | 48/48 | 4 min |
+| `test-inventory.sh` | `vps-inventory.sh` sur un serveur en miniature : projets compose, dossiers (dont un clone HTTPS avec jeton), versions déployées, base étrangère et nom générique « db » publiés sur le réseau partagé ; **aucun secret** dans le rapport (environnement, `.env`, URL git) ; lecture seule prouvée ; l'audit signale le nom en conflit | 16/16 | 1 min |
+| `test-claude-guard.sh` | Garde-fou du kit d'intervention assistée (guide 13), sans Docker : en phase inventaire, la lecture passe et toute écriture sur le serveur est refusée ; en phase application, les modifications passent (sous accord humain) mais jamais `down -v`, `volume rm`, `prune`, `rm -rf /app`, redémarrage, pare-feu, clés SSH, `DROP` ; les commandes locales ne sont pas concernées | 37/37 | 5 s |
 | `test-backup.sh` | Agent de sauvegarde contre de **vrais** PostgreSQL 18, MySQL 8.4 et MariaDB 11, et un stockage S3 (SeaweedFS, à la place de MEGA S4) : chiffrement, envoi, rétention, rotation, mauvaise phrase de passe refusée, restauration depuis S3 avec les accents | 34/34 | 5 min |
 | `test-observability.sh` | Stack Grafana mutualisée : journaux, métriques et traces d'un conteneur étiqueté ; un conteneur sans label est ignoré ; un conteneur privé (label seul, hors réseau partagé : cas PHP-FPM) a ses journaux, une seule fois, et n'est jamais scrapé ; dossiers, tableaux de bord et alertes provisionnés | 11/11 | 3 min |
 | `test-platform.sh` | **Le VPS en miniature** : nginx-proxy 1.7 (réglages du serveur), le Core en production **et** en staging déployés par `deploy.sh` depuis un clone git, routage par nom d'hôte, isolation des bases, sauvegarde avant migration, IP falsifiée refusée, SaaS à sous-domaines, audit propre | 27/27 | 5-10 min |

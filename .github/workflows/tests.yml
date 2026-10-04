@@ -1,0 +1,41 @@
+# Every change to the platform is checked before it can reach the server
+# (contrat, § 5): shellcheck on every script, then the real tests
+# (tests/README.md) on a machine with Docker. test-platform is not run here:
+# it needs a clone of the Core with its vendor/ (run it by hand, guide 0, phase A).
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          shellcheck -x bin/*.sh tests/*.sh host/*.sh images/db-backup/*.sh \
+            templates/intervention-claude/hooks/*.sh
+
+  tests:
+    needs: shellcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [ claude-guard, hosts, deploy, inventory, backup, observability ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker
+        run: docker version && docker compose version
+      - name: tests/test-${{ matrix.test }}.sh
+        run: tests/run-all.sh ${{ matrix.test }}

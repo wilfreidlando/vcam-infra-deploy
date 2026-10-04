@@ -16,7 +16,8 @@ personne ne vérifie finit par être oubliée. Les niveaux de vérification :
 | Niveau | Qui vérifie | Effet |
 | --- | --- | --- |
 | **BLOQUANT** | `deploy.sh`, avant tout changement (contrôle avant déploiement) | Le déploiement est refusé, **rien n'est modifié**, le message dit quoi corriger |
-| **CRITIQUE / ATTENTION / INFO** | `vps-audit.sh`, en lecture seule | Signalé dans le rapport d'audit |
+| **CRITIQUE / ATTENTION / INFO** | `vps-audit.sh`, en lecture seule (et l'inventaire `vps-inventory.sh`, qui l'inclut) | Signalé dans le rapport d'audit |
+| **CI** | GitHub Actions sur chaque pull request de la plateforme | Une modification de la plateforme ne se merge pas si un test échoue |
 | **MODÈLE** | Les modèles de `templates/` l'appliquent déjà | À vérifier en revue si l'on s'écarte du modèle |
 
 Le contrôle avant déploiement se lance aussi seul, **sans rien modifier**, sur
@@ -44,7 +45,7 @@ cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh check prod
 | --- | --- | --- | --- |
 | C1 | Le trafic entre **uniquement** par nginx-proxy (`VIRTUAL_HOST` + `LETSENCRYPT_HOST`, sur le seul conteneur web). Jamais de `ports:`. | Docker ouvre ses ports **avant** le pare-feu : un `ports:` publie sur Internet | Audit CRITIQUE |
 | C2 | Base, cache, file : sur le réseau **privé** du projet uniquement. Seul le conteneur web rejoint `nginx-proxy`. | Sur un réseau partagé, tous les projets du VPS peuvent s'y connecter | Audit CRITIQUE |
-| C3 | **Tous les services portent un nom propre au projet** : `<app>-web`, `<app>-db`, `<app>-redis`… Jamais `app`, `db`, `redis`, `web`. Les variables d'hôte (`DB_HOST`, `REDIS_HOST`…) utilisent ces noms. | Le conteneur web voit les noms de **tous** les projets branchés sur `nginx-proxy`. Si un autre y a laissé un `db`, Docker peut le choisir à la place du vôtre ([REX 2026-10-04](retours-experience/2026-10-04-premier-deploiement-skills-devops.md)) | **BLOQUANT** dès qu'un autre projet publie un de vos noms privés sur un réseau partagé |
+| C3 | **Tous les services portent un nom propre au projet** : `<app>-web`, `<app>-db`, `<app>-redis`… Jamais `app`, `db`, `redis`, `web`. Les variables d'hôte (`DB_HOST`, `REDIS_HOST`…) utilisent ces noms. | Le conteneur web voit les noms de **tous** les projets branchés sur `nginx-proxy`. Si un autre y a laissé un `db`, Docker peut le choisir à la place du vôtre ([REX 2026-10-04](retours-experience/2026-10-04-premier-deploiement-skills-devops.md)) | **BLOQUANT** dès qu'un autre projet publie un de vos noms privés sur un réseau partagé · Audit ATTENTION pour un nom générique publié par plusieurs projets |
 
 ### Santé et déploiement
 
@@ -92,7 +93,7 @@ non prévue**. Rien de ce qui suit ne touche la production avant l'étape 5.
 
 1. **Mesurer, en lecture seule.**
    ```bash
-   /app/vps-platform/bin/vps-audit.sh                          # tout le serveur
+   /app/vps-platform/bin/vps-inventory.sh > /root/inventaire.md  # tout le serveur, sans secret
    cd /app/<app>/prod && /app/vps-platform/bin/deploy.sh check prod   # ce projet
    ```
 2. **Corriger dans le dépôt**, en partant des modèles : d'abord les BLOQUANT et

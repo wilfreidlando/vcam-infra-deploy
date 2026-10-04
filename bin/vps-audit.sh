@@ -130,6 +130,29 @@ for id in "${ids[@]}"; do
         report INFO "${project}" "${name}" "non branché sur l'observabilité (labels observability.*)"
 done
 
+# ── Names published on shared networks (contrat, clause C3) ─────────────
+# A container on a shared network sees the DNS names of every project on
+# it. A generic name (db, app, redis…) published by two projects makes
+# resolution ambiguous: one project may reach the other's database.
+GENERIC_NAMES='^(app|web|db|database|postgres|postgresql|mysql|mariadb|redis|valkey|cache|queue|worker|scheduler|nginx|php|api)$'
+for net in ${SHARED_NETWORKS:-${NGINX_PROXY_NETWORK:-nginx-proxy} observability}; do
+    docker network inspect "${net}" >/dev/null 2>&1 || continue
+    declare -A name_owners=()
+    for c in $(docker network inspect -f '{{range .Containers}}{{.Name}} {{end}}' "${net}"); do
+        cproject="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "${c}" 2>/dev/null)"
+        for n in $(docker inspect -f "{{json (index .NetworkSettings.Networks \"${net}\")}}" "${c}" 2>/dev/null \
+                | grep -oE '"(Aliases|DNSNames)":\[[^]]*\]' | grep -oE '"[^"]*"' | tr -d '"' | sort -u); do
+            grep -qxE "${GENERIC_NAMES}" <<< "${n}" && name_owners["${n}"]+="${cproject:-${c}} "
+        done
+    done
+    for n in "${!name_owners[@]}"; do
+        owners="$(tr ' ' '\n' <<< "${name_owners[${n}]}" | grep -v '^$' | sort -u | paste -sd' ' -)"
+        [[ "$(wc -w <<< "${owners}")" -gt 1 ]] && \
+            report ATTENTION "(réseau ${net})" "nom « ${n} »" "publié par plusieurs projets (${owners}) — résolution ambiguë ; renommer les services (<app>-${n}, contrat C3)"
+    done
+    unset name_owners
+done
+
 # ── nginx-proxy configuration (read-only `nginx -t`) ─────────────────────
 # A broken generated config (e.g. the same name declared twice with a
 # different case → "duplicate upstream") makes every reload fail: no new

@@ -71,6 +71,7 @@ fi
 echo "backup: ${size} bytes written"
 
 # Local rotation: keep the newest BACKUP_LOCAL_KEEP files of this stack.
+# shellcheck disable=SC2012 # names are generated above (no spaces); ls -t gives the age order
 ls -1t /backups/"${BACKUP_NAME}"-*.dump.enc 2>/dev/null | tail -n +"$((BACKUP_LOCAL_KEEP + 1))" | xargs -r rm -f
 
 if [ -z "${BACKUP_S3_BUCKET:-}" ]; then
