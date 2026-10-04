@@ -2,7 +2,9 @@
 # bin/deploy.sh on a throw-away project (busybox httpd, local git
 # remote): staging deploy, idle watch, promotion of the SAME image, broken
 # version auto-rolled back, no retry loop on a broken commit, manual
-# rollback, BUILD_PER_ENV mode, concurrent-run lock.
+# rollback, BUILD_PER_ENV mode, concurrent-run lock, pre-flight (platform.env
+# read from the deployed commit, unknown services, HTTPS remote, private
+# names exposed on a shared network).
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
@@ -133,10 +135,70 @@ check_not "déploiement refusé tant que nginx-proxy refuse sa configuration" \
 check "cause expliquée dans le journal" grep -q "nginx-proxy est déjà en erreur" "${STATE_DIR}/vpstest-demo/deploy.log"
 docker rm -f vpstest-dp-proxy vpstest-dp-a vpstest-dp-b >/dev/null
 
+step "platform.env lu dans le commit déployé (incident skills-devops : « no such service: app »)"
+# Le même commit renomme le service ET met à jour platform.env : l'ancien
+# platform.env (service « app ») ne doit pas servir à déployer le nouveau.
+sed -i 's/^  app:$/  web:/' "${ORIGIN}/compose.yaml"
+sed -i 's/^HEALTH_SERVICE=app$/HEALTH_SERVICE=web/; s/^MIGRATE_SERVICE=app$/MIGRATE_SERVICE=web/' "${ORIGIN}/platform.env"
+git -C "${ORIGIN}" commit -qam "service app renommé web"
+# Le service tient un volume : l'ancien conteneur doit d'abord être arrêté
+# (sinon deux conteneurs sur les mêmes données) — refus expliqué, puis on suit
+# la procédure donnée par le message.
+check_not "service renommé : refusé tant que l'ancien conteneur tient le volume" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
+check "le message donne la procédure du renommage" grep -q "Cas d'un service renommé" "${STATE_DIR}/vpstest-demo/deploy.log"
+docker rm -f vpstest-demo-staging-app >/dev/null
+check "ancien conteneur arrêté : le commit est déployé avec le platform.env du commit" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
+check "staging sur ce commit" test "$(cat "${STATE_DIR}/vpstest-demo/staging/current")" = "$(git -C "${ORIGIN}" rev-parse HEAD)"
+
+step "Contrôle avant déploiement : platform.env incohérent"
+sed -i 's/^MIGRATE_SERVICE=web$/MIGRATE_SERVICE=absent/' "${ORIGIN}/platform.env"
+git -C "${ORIGIN}" commit -qam "MIGRATE_SERVICE pointe vers un service absent"
+before="$(cat "${STATE_DIR}/vpstest-demo/staging/current")"
+check_not "déploiement refusé : MIGRATE_SERVICE=absent" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
+check "cause expliquée dans le journal" grep -q "MIGRATE_SERVICE=absent, mais le compose n'a pas de service" "${STATE_DIR}/vpstest-demo/deploy.log"
+check "rien n'a changé en staging" test "$(cat "${STATE_DIR}/vpstest-demo/staging/current")" = "${before}"
+sed -i 's/^MIGRATE_SERVICE=absent$/MIGRATE_SERVICE=web/' "${ORIGIN}/platform.env"
+git -C "${ORIGIN}" commit -qam "MIGRATE_SERVICE corrigé"
+check "commit correctif : déployé" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
+
+step "Origin en HTTPS : échec expliqué, jamais d'attente d'un mot de passe"
+url="$(git -C "${WORK}/staging" remote get-url origin)"
+git -C "${WORK}/staging" remote set-url origin https://127.0.0.1:9/vpstest/demo.git
+check_not "watch échoue sans rester bloqué" timeout 30 sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch < /dev/null"
+check "le journal donne la correction (clé de déploiement)" grep -q "origin est en HTTPS" "${STATE_DIR}/vpstest-demo/deploy.log"
+git -C "${WORK}/staging" remote set-url origin "${url}"
+
+step "Noms privés exposés sur un réseau partagé (incident skills-devops : « db » d'un autre projet)"
+docker network create vpstest-shared >/dev/null
+NAMES="${WORK}/names"; mkdir -p "${NAMES}"
+cat > "${NAMES}/compose.yaml" <<'YAML'
+services:
+  web:
+    image: busybox
+    networks: [ default, shared ]
+  db:
+    image: busybox
+networks:
+  shared: { name: vpstest-shared, external: true }
+YAML
+printf 'APP_NAME=vpstest-names\nCOMPOSE_FILE=compose.yaml\nHEALTH_SERVICE=web\nHEALTH_CMD=true\n' > "${NAMES}/platform.env"
+: > "${NAMES}/.env.staging"
+check "aucun autre projet sur le réseau partagé : check OK" sh -c "cd '${NAMES}' && '${DEPLOY}' check staging"
+docker run -d --name vpstest-autre-db --network vpstest-shared --network-alias db busybox sleep 600 >/dev/null
+check_not "un autre projet publie « db » sur le réseau partagé : check refuse" sh -c "cd '${NAMES}' && '${DEPLOY}' check staging"
+check "le journal nomme le conflit et le conteneur" grep -q "nom « db » (service privé db) aussi publié sur le réseau partagé vpstest-shared par vpstest-autre-db" "${STATE_DIR}/vpstest-names/deploy.log"
+sed -i 's/^  db:$/  vpstest-names-db:/' "${NAMES}/compose.yaml"
+check "service renommé (nom propre au projet) : check OK malgré l'intrus" sh -c "cd '${NAMES}' && '${DEPLOY}' check staging"
+docker rm -f vpstest-autre-db >/dev/null; docker network rm vpstest-shared >/dev/null
+
 step "Mode BUILD_PER_ENV (Next.js)"
+# Réglage commité (platform.env n'est jamais modifié sur le serveur).
+echo "BUILD_PER_ENV=1" >> "${ORIGIN}/platform.env"
 commit_version v4
-for env in staging prod; do echo "BUILD_PER_ENV=1" >> "${WORK}/${env}/platform.env"; done
 (cd "${WORK}/staging" && "${DEPLOY}" watch >/dev/null 2>&1)
+# Première promotion depuis le renommage app → web : même procédure qu'en staging.
+check_not "prod : refusé tant que l'ancien conteneur « app » tient le volume" sh -c "cd '${WORK}/prod' && '${DEPLOY}' promote --yes"
+docker rm -f vpstest-demo-prod-app >/dev/null
 (cd "${WORK}/prod" && "${DEPLOY}" promote --yes >/dev/null 2>&1)
 sha="$(git -C "${ORIGIN}" rev-parse HEAD)"
 check "image <sha>-staging construite" docker image inspect "vpstest-demo:${sha}-staging"
@@ -144,14 +206,15 @@ check "image <sha>-prod construite depuis le même commit" docker image inspect 
 check "v4 en production" test "$(page prod)" = v4
 
 step "Trois environnements : dev (branche develop) → staging (main) → prod"
+printf 'ENVIRONMENTS="dev staging prod"\nBRANCH_DEV=develop\n' >> "${ORIGIN}/platform.env"
+git -C "${ORIGIN}" commit -qam "environnement dev"
+(cd "${WORK}/staging" && "${DEPLOY}" watch >/dev/null 2>&1)
+(cd "${WORK}/prod" && "${DEPLOY}" promote --yes >/dev/null 2>&1)
 git -C "${ORIGIN}" checkout -q -b develop
 commit_version dev-v1
 git -C "${ORIGIN}" checkout -q main
 git clone -q "${ORIGIN}" "${WORK}/dev"
-for env in dev staging prod; do
-    printf 'ENVIRONMENTS="dev staging prod"\nBRANCH_DEV=develop\n' >> "${WORK}/${env}/platform.env"
-    echo "ENV_NAME=dev" > "${WORK}/${env}/.env.dev"
-done
+for env in dev staging prod; do echo "ENV_NAME=dev" > "${WORK}/${env}/.env.dev"; done
 (cd "${WORK}/dev" && "${DEPLOY}" watch dev >/dev/null 2>&1)
 check "dev suit develop : dev-v1 en dev" test "$(page dev)" = dev-v1
 check "le staging n'a pas bougé (v4)" test "$(page staging)" = v4

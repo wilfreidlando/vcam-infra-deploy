@@ -26,6 +26,12 @@
 # reached by promotion only.
 #   deploy.sh rollback <env>       redeploy the previous SHA of that environment
 #   deploy.sh status               current/previous SHA and containers of each environment
+#   deploy.sh check [env]          pre-flight only (git access, platform.env ↔ compose,
+#                                  name collisions on shared networks) — changes nothing
+#
+# platform.env is read from the commit being deployed (re-read after every
+# checkout): a change to it takes effect with the commit that carries it.
+# Every deploy runs the pre-flight first and changes nothing if it fails.
 #
 # Every action is logged to $STATE_DIR/<app>/deploy.log; one lock per app
 # means a build, a staging deploy and a promotion never overlap.
@@ -33,13 +39,41 @@ set -euo pipefail
 
 # ── Configuration ───────────────────────────────────────────────────────
 PROJECT_DIR="$(pwd)"
-if [[ ! -f "${PROJECT_DIR}/platform.env" ]]; then
-    echo "deploy: no platform.env in ${PROJECT_DIR} — run from the project's root (templates/platform.env)" >&2
-    exit 2
-fi
-# shellcheck disable=SC1091
-source "${PROJECT_DIR}/platform.env"
+# Never wait for a password: under cron nobody types it (an HTTPS remote
+# would hang the deploy). Failures are explained by fetch_origin.
+export GIT_TERMINAL_PROMPT=0
+export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes}"
 
+# Keys a project sets in platform.env. Forgotten before every (re)load, so a
+# key removed from platform.env in the deployed commit does not survive from
+# the previous one. Host-level settings (STATE_DIR, NGINX_PROXY_*,
+# KEEP_IMAGES, SKIP_BACKUP) are not project keys and keep their value.
+PROJECT_KEYS="APP_NAME COMPOSE_FILE ENV_FILE_PROD ENV_FILE_STAGING ENVIRONMENTS STAGING_BRANCH
+    HEALTH_SERVICE HEALTH_CMD HEALTH_TIMEOUT MIGRATE_SERVICE MIGRATE_CMD
+    BACKUP_SERVICE BACKUP_CMD DB_SERVICE BUILD_PER_ENV"
+
+# Reads platform.env from the working tree: at start-up, then again after
+# each checkout (checkout()), so the services, commands and environments
+# used are always those of the commit being deployed — not those of the
+# commit that happened to be checked out before.
+load_config() {
+    if [[ ! -f "${PROJECT_DIR}/platform.env" ]]; then
+        echo "deploy: no platform.env in ${PROJECT_DIR} — run from the project's root (templates/platform.env)" >&2
+        exit 2
+    fi
+    local v previous_app="${APP_NAME:-}"
+    # shellcheck disable=SC2086
+    for v in ${PROJECT_KEYS} $(compgen -v | grep -E '^(BRANCH|ENV_FILE)_' || true); do unset "${v}"; done
+    # shellcheck disable=SC1091
+    source "${PROJECT_DIR}/platform.env"
+    load_defaults
+    if [[ -n "${previous_app}" && "${APP_NAME}" != "${previous_app}" ]]; then
+        echo "deploy: APP_NAME passe de ${previous_app} à ${APP_NAME} — un renommage n'est pas un déploiement (nouveaux projets Docker, nouveaux volumes). Voir README, « Renommer un projet »." >&2
+        exit 2
+    fi
+}
+
+load_defaults() {
 : "${APP_NAME:?platform.env must set APP_NAME}"
 : "${COMPOSE_FILE:=compose.yaml}"
 : "${ENV_FILE_PROD:=.env}"
@@ -60,10 +94,13 @@ source "${PROJECT_DIR}/platform.env"
 # from the same commit, tagged <sha>-<env>. Default 0: one image, promoted.
 : "${BUILD_PER_ENV:=0}"
 : "${NGINX_PROXY_CONTAINER:=nginx-proxy}"
-
 APP_STATE="${STATE_DIR}/${APP_NAME}"
+local _env
 for _env in ${ENVIRONMENTS}; do mkdir -p "${APP_STATE}/${_env}"; done
 LOG="${APP_STATE}/deploy.log"
+}
+
+load_config
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ${APP_NAME}: $*" | tee -a "${LOG}" >&2; }
 die() {
@@ -161,11 +198,97 @@ ensure_images() {
     fi
 }
 
+# git fetch, without ever prompting; on failure, says why and how to fix.
+fetch_origin() {
+    local err url
+    err="$(git -C "${PROJECT_DIR}" fetch --quiet origin 2>&1)" && return 0
+    url="$(git -C "${PROJECT_DIR}" remote get-url origin 2>/dev/null || echo '?')"
+    if [[ "${url}" == http* ]]; then
+        log "git fetch impossible : origin est en HTTPS (${url}) et GitHub demande un identifiant — personne ne le tape sous cron. Passer par la clé de déploiement du projet (guide 3, « clés de déploiement ») : git remote set-url origin git@github-${APP_NAME}:<compte>/<dépôt>.git"
+    else
+        log "git fetch impossible (${url}) : $(head -1 <<< "${err}") — clé de déploiement absente ou refusée, ou hôte inconnu (ssh -T git@<alias> une première fois, guide 3)"
+    fi
+    return 1
+}
+
 checkout() {
     local sha="$1"
     is_git || { log "pas un dépôt git — fichiers du projet laissés tels quels"; return 0; }
-    git -C "${PROJECT_DIR}" fetch --quiet origin || log "git fetch impossible — on continue avec les objets locaux"
+    fetch_origin || log "on continue avec les commits déjà présents localement"
     git -C "${PROJECT_DIR}" checkout --quiet --detach "${sha}" || die "commit ${sha} introuvable dans ${PROJECT_DIR}"
+    load_config
+}
+
+# Pre-flight: everything that can be known to fail BEFORE touching anything.
+# Prints one line per problem; returns 1 if there is any.
+preflight() {
+    local env="$1" tag="$2" problems=0 services var val cfg
+    cfg="$(IMAGE_TAG="${tag}" dc "${env}" config 2>&1)" || { log "compose invalide : $(tail -1 <<< "${cfg}")"; return 1; }
+    services=" $(IMAGE_TAG="${tag}" dc "${env}" config --services 2>/dev/null | tr '\n' ' ') "
+
+    # 1. platform.env names services that exist in this commit's compose.
+    for var in HEALTH_SERVICE MIGRATE_SERVICE BACKUP_SERVICE DB_SERVICE; do
+        val="${!var:-}"
+        [[ -z "${val}" ]] && continue
+        [[ "${var}" == HEALTH_SERVICE && -z "${HEALTH_CMD}" ]] && continue
+        [[ "${var}" == MIGRATE_SERVICE && -z "${MIGRATE_CMD}" ]] && continue
+        if [[ "${services}" != *" ${val} "* ]]; then
+            log "platform.env : ${var}=${val}, mais le compose n'a pas de service « ${val} » (services :${services% })"
+            problems=1
+        fi
+    done
+
+    # 2. Names of this project's PRIVATE services (base, cache, php-fpm…)
+    #    also published on a shared network (nginx-proxy, observability) by
+    #    another project: from a container on both networks, Docker may
+    #    resolve the name to the other project's container.
+    local line
+    while IFS= read -r line; do
+        [[ -z "${line}" ]] && continue
+        log "${line}"
+        problems=1
+    done < <(shared_name_conflicts "${env}" <<< "${cfg}")
+
+    return "${problems}"
+}
+
+# Reads `docker compose config` (normalised YAML) on stdin.
+shared_name_conflicts() {
+    local env="$1" parsed
+    parsed="$(awk '
+        /^[a-z]/ { top = $1; next }
+        top == "services:" && /^  [^ ]/ { svc = $1; sub(/:$/, "", svc); innet = 0; next }
+        top == "services:" && /^    [^ ]/ { innet = ($1 == "networks:"); next }
+        top == "services:" && innet && /^      [^ ]/ { net = $1; sub(/:$/, "", net); print "N", svc, net, svc; next }
+        top == "services:" && innet && /^          - / { print "N", svc, net, $2; next }
+        top == "networks:" && /^  [^ ]/ { k = $1; sub(/:$/, "", k); real[k] = k; next }
+        top == "networks:" && /^    name:/ { real[k] = $2 }
+        top == "networks:" && /^    external: true/ { ext[k] = 1 }
+        END { for (k in ext) print "X", k, real[k] }')"
+    local -A shared=() on_shared=() private_names=()
+    local kind a b c
+    while read -r kind a b c; do [[ "${kind}" == X ]] && shared["${a}"]="${b}"; done <<< "${parsed}"
+    [[ ${#shared[@]} -eq 0 ]] && return 0
+    while read -r kind a b c; do [[ "${kind}" == N && -n "${shared[${b}]:-}" ]] && on_shared["${a}"]=1; done <<< "${parsed}"
+    while read -r kind a b c; do
+        [[ "${kind}" == N && -z "${on_shared[${a}]:-}" ]] && private_names["${c}"]="${a}"
+    done <<< "${parsed}"
+    [[ ${#private_names[@]} -eq 0 ]] && return 0
+
+    local net container project names name
+    for net in $(printf '%s\n' "${shared[@]}" | sort -u); do
+        docker network inspect "${net}" >/dev/null 2>&1 || continue
+        for container in $(docker network inspect -f '{{range .Containers}}{{.Name}} {{end}}' "${net}"); do
+            project="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "${container}" 2>/dev/null || true)"
+            [[ "${project}" == "${APP_NAME}-${env}" ]] && continue
+            names="$(docker inspect -f "{{json (index .NetworkSettings.Networks \"${net}\")}}" "${container}" 2>/dev/null \
+                | grep -oE '"(Aliases|DNSNames)":\[[^]]*\]' | grep -oE '"[^"]*"' | tr -d '"' | grep -vxE 'Aliases|DNSNames' || true)"
+            for name in ${container} ${names}; do
+                [[ -n "${private_names[${name}]:-}" ]] || continue
+                echo "nom « ${name} » (service privé ${private_names[${name}]}) aussi publié sur le réseau partagé ${net} par ${container} (projet ${project:-hors compose}) : Docker peut y résoudre « ${name} » vers ce conteneur-là. Donner au service un nom propre au projet (ex. ${APP_NAME}-${name}), ou retirer ${container} de ${net}"
+            done
+        done
+    done | sort -u
 }
 
 # Refuses to deploy when a host name of this project is already claimed by
@@ -260,9 +383,10 @@ cmd_build() {
     local env="${2:-staging}"
     local ref="${1:-origin/$(branch_for "${env}")}" sha
     if is_git; then
-        git -C "${PROJECT_DIR}" fetch --quiet origin
+        fetch_origin || die "impossible de récupérer ${ref} (voir ci-dessus)"
         sha="$(git -C "${PROJECT_DIR}" rev-parse "${ref}^{commit}")"
         git -C "${PROJECT_DIR}" checkout --quiet --detach "${sha}"
+        load_config
     else
         [[ "${ref}" =~ ^[0-9a-f]{40}$ ]] || die "hors git, build exige un SHA explicite"
         sha="${ref}"
@@ -279,13 +403,17 @@ cmd_up() {
     ensure_images "${env}" "${sha}"
     local tag; tag="$(tag_for "${env}" "${sha}")"
     proxy_config_ok || die "nginx-proxy est déjà en erreur — aucun déploiement ne serait pris en compte. Corriger d'abord (bin/vps-audit.sh, bin/vps-hosts.sh)"
+    if ! preflight "${env}" "${tag}"; then
+        state_set "${env}" failed "${sha}"
+        die "contrôle avant déploiement en échec (ci-dessus) — rien n'a été modifié. Corriger, vérifier avec « deploy.sh check ${env} », puis pousser un commit ou relancer « deploy.sh up ${env} ${sha} »"
+    fi
     if ! check_hosts "${env}" "${tag}"; then
         state_set "${env}" failed "${sha}"
         die "noms d'hôte déjà utilisés par un autre projet (voir ci-dessus) — rien n'a été modifié. Inventaire : bin/vps-hosts.sh"
     fi
 
     if volumes_in_use_elsewhere "${env}" "${tag}"; then
-        die "arrêter d'abord l'ancienne installation qui utilise ces volumes (deux bases sur les mêmes données les corrompent) — rien n'a été modifié"
+        die "arrêter d'abord l'ancienne installation qui utilise ces volumes (deux bases sur les mêmes données les corrompent) — rien n'a été modifié. Cas d'un service renommé dans ce commit : l'ancien conteneur tient encore le volume ; l'arrêter (docker rm -f <conteneur> — les volumes restent) puis relancer"
     fi
 
     log "déploiement ${env} ${sha} (précédent : ${previous:-aucun})"
@@ -296,7 +424,7 @@ cmd_up() {
             || die "sauvegarde en échec — déploiement annulé (SKIP_BACKUP=1 pour forcer)"
     fi
 
-    if [[ -n "${MIGRATE_CMD}" ]]; then
+    if [[ -n "${MIGRATE_CMD}" && "${SKIP_MIGRATIONS:-0}" != 1 ]]; then
         log "migrations"
         if ! IMAGE_TAG="${tag}" dc "${env}" run --rm -T "${MIGRATE_SERVICE:-${HEALTH_SERVICE}}" sh -c "${MIGRATE_CMD}"; then
             die "migrations en échec — la version ${previous:-précédente} tourne toujours, rien n'a été basculé"
@@ -339,7 +467,7 @@ cmd_watch() {
     fi
     [[ "${env}" == prod ]] && die "la production n'est jamais déployée automatiquement : deploy.sh promote"
     is_git || die "watch exige un checkout git"
-    git -C "${PROJECT_DIR}" fetch --quiet origin
+    fetch_origin || die "impossible de savoir si ${branch} a bougé (voir ci-dessus)"
     target="$(git -C "${PROJECT_DIR}" rev-parse "origin/${branch}^{commit}")"
     [[ "${target}" == "$(state_get "${env}" current)" ]] && exit 0
     [[ "${target}" == "$(state_get "${env}" failed)" ]] && exit 0   # pas de boucle sur un commit cassé
@@ -373,7 +501,25 @@ cmd_rollback() {
     local env="${1:?env}" previous
     previous="$(state_get "${env}" previous)"
     [[ -n "${previous}" ]] || die "aucune version précédente connue pour ${env}"
-    MIGRATE_CMD="" SKIP_BACKUP=1 cmd_up "${env}" "${previous}"
+    SKIP_MIGRATIONS=1 SKIP_BACKUP=1 cmd_up "${env}" "${previous}"
+}
+
+# check [env] — the pre-flight of a deploy, on the current checkout, plus
+# git access. Changes nothing: safe on a project already in production,
+# which is how an existing project is brought to the standard.
+cmd_check() {
+    local env="${1:-staging}" ok=1
+    is_env "${env}" || die "environnement inconnu « ${env} » (${ENVIRONMENTS})"
+    if is_git; then
+        fetch_origin && log "check : accès git OK ($(git -C "${PROJECT_DIR}" remote get-url origin))" || ok=0
+    fi
+    if preflight "${env}" "$(git -C "${PROJECT_DIR}" rev-parse HEAD 2>/dev/null || echo latest)"; then
+        log "check : platform.env et compose cohérents, aucun nom privé exposé sur un réseau partagé (${env})"
+    else
+        ok=0
+    fi
+    [[ "${ok}" == 1 ]] || die "check ${env} : problème(s) ci-dessus"
+    log "check ${env} : OK"
 }
 
 cmd_status() {
@@ -393,7 +539,8 @@ main() {
         promote) lock; cmd_promote "$@" ;;
         rollback) lock; cmd_rollback "$@" ;;
         status) cmd_status ;;
-        *) sed -n '2,25p' "$0"; exit 2 ;;
+        check) cmd_check "$@" ;;
+        *) sed -n '2,35p' "$0"; exit 2 ;;
     esac
 }
 

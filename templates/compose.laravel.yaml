@@ -32,8 +32,8 @@ x-app: &app
     DB_HOST: mon-saas-db
     REDIS_HOST: mon-saas-redis
   depends_on:
-    db: { condition: service_healthy }
-    redis: { condition: service_healthy }
+    mon-saas-db: { condition: service_healthy }
+    mon-saas-redis: { condition: service_healthy }
   networks: [ default, observability ]
   labels:
     observability.enable: "true"
@@ -76,7 +76,7 @@ services:
     healthcheck: { disable: true }
     deploy: { resources: { limits: { cpus: "0.25", memory: "256M" } } }
 
-  db:
+  mon-saas-db:
     <<: *defaults
     image: postgres:18-alpine        # ou mysql:8.4 / mariadb:11 (adapter healthcheck et backup)
     environment:
@@ -84,7 +84,6 @@ services:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes: [ db-data:/var/lib/postgresql ]
-    networks: { default: { aliases: [ mon-saas-db ] } }
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${DB_USERNAME} -d ${DB_DATABASE}" ]
       interval: 5s
@@ -92,12 +91,11 @@ services:
       retries: 10
     deploy: { resources: { limits: { cpus: "1.0", memory: "${DB_MEMORY:-768M}" } } }
 
-  redis:
+  mon-saas-redis:
     <<: *defaults
     image: valkey/valkey:8.1-alpine
     command: valkey-server --appendonly yes --maxmemory 192mb --maxmemory-policy noeviction
     volumes: [ redis-data:/data ]
-    networks: { default: { aliases: [ mon-saas-redis ] } }
     healthcheck:
       test: [ "CMD", "valkey-cli", "ping" ]
       interval: 5s
@@ -118,7 +116,7 @@ services:
       PGUSER: ${DB_USERNAME}
       PGPASSWORD: ${DB_PASSWORD}
     volumes: [ backups:/backups ]
-    depends_on: { db: { condition: service_healthy } }
+    depends_on: { mon-saas-db: { condition: service_healthy } }
     deploy: { resources: { limits: { cpus: "0.5", memory: "256M" } } }
 
 volumes:

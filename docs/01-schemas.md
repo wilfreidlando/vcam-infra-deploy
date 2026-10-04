@@ -404,7 +404,7 @@ flowchart TB
     Deploy -->|"noms libres ?"| Hosts["vps-hosts.sh"]
     Deploy -->|"configuration valide ?"| Proxy
     Hosts -->|"lit VIRTUAL_HOST + certificats"| Proxy
-    Audit["vps-audit.sh<br/>(lecture seule)"] -->|"contrôle les 12 règles"| Webs & Apps & DBs & Proxy
+    Audit["vps-audit.sh<br/>(lecture seule)"] -->|"contrôle le contrat"| Webs & Apps & DBs & Proxy
     Cron["cron / GitLab CI"] -->|"watch (staging)"| Deploy
     Human(["Personne"]) -->|"promote (production)"| Deploy
     Uptime(["Surveillance externe"]) --> Proxy

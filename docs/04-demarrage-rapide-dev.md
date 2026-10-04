@@ -37,7 +37,10 @@ Selon votre projet, copier depuis `templates/` :
 | Autre backend web (Node, Python, Go…) | `compose.web.yaml`, `platform.env` | `compose.prod.yaml` |
 
 Dans ces fichiers, remplacer `mon-saas` / `mon-site` / `mon-front` par le nom de
-votre projet. Chaque fichier explique ses réglages en commentaire.
+votre projet, **partout**, y compris dans les noms de services (`mon-saas-db` →
+`mon-projet-db`). Jamais de service nommé `app`, `db` ou `redis` : le
+[contrat](05-contrat-projet.md) explique pourquoi (clause C3). Chaque fichier explique
+ses réglages en commentaire.
 
 Votre projet a déjà un `Dockerfile` ? Gardez-le. Il suffit que :
 - le conteneur web écoute sur un port HTTP (`VIRTUAL_PORT`) ;
@@ -54,9 +57,11 @@ Puis commit et push.
 ## 3. Préparer le serveur (une fois par projet)
 
 ```bash
+# 1. Clé de déploiement du projet + alias SSH « github-mon-projet » : guide 3, étape 0.
+#    Jamais d'URL https:// : sous cron, personne ne tape de mot de passe.
 mkdir -p /app/mon-projet && cd /app/mon-projet
-git clone <url du dépôt> staging
-git clone <url du dépôt> prod
+git clone git@github-mon-projet:<compte>/mon-projet.git staging
+git clone git@github-mon-projet:<compte>/mon-projet.git prod
 cp staging/.env.example staging/.env.staging     # puis le remplir (valeurs de TEST)
 cp prod/.env.example prod/.env                   # puis le remplir (valeurs de PRODUCTION)
 ```
@@ -68,13 +73,16 @@ expliquées dans `templates/env.platform.example`.
 ## 4. Premier déploiement
 
 ```bash
+cd /app/mon-projet/staging && /app/vps-platform/bin/deploy.sh check staging   # contrôle seul, rien n'est modifié
 cd /app/mon-projet/staging && /app/vps-platform/bin/deploy.sh watch    # build + staging
 # vérifier https://mon-projet-staging.visibilitycam.com
 cd /app/mon-projet/prod && /app/vps-platform/bin/deploy.sh promote     # production (taper « oui »)
 ```
 
-Si `deploy.sh` refuse, il dit pourquoi : nom déjà pris, image absente, contrôle de
-santé en échec… **Rien n'a été cassé** : corriger, puis relancer.
+Si `deploy.sh` refuse, il dit pourquoi : nom déjà pris, service inconnu, nom en
+conflit avec un autre projet, image absente, contrôle de santé en échec… **Rien n'a
+été cassé** : corriger dans le dépôt, vérifier avec `deploy.sh check staging`,
+pousser.
 
 ## 5. Staging automatique
 
@@ -91,7 +99,7 @@ arrive en staging en moins de 2 minutes.
 | Voir les journaux | Grafana → *Applications*, ou `docker logs <conteneur> --tail 100` |
 | Déployer une autre branche en staging | `cd /app/mon-projet/staging && …/deploy.sh build origin/ma-branche`, puis `…/deploy.sh up staging <sha affiché>` |
 | Sauvegarder maintenant | `docker compose -p mon-projet-prod -f compose.prod.yaml --env-file .env run --rm backup backup.sh` |
-| Vérifier mon projet | `/app/vps-platform/bin/vps-audit.sh`, puis lire la section de mon projet |
+| Vérifier mon projet | `…/deploy.sh check prod` (lecture seule), puis `/app/vps-platform/bin/vps-audit.sh` et la section de mon projet |
 
 ## Ce qu'il ne faut jamais faire
 
@@ -105,5 +113,6 @@ arrive en staging en moins de 2 minutes.
 - Mettre une base de données sur le réseau `nginx-proxy` ou `observability`.
 - Réutiliser un sous-domaine sans `vps-hosts.sh --free`.
 - Committer un `.env`.
+- Modifier `platform.env` sur le serveur : il se change par un commit.
 - Supprimer un volume (`docker volume rm`, `down -v`) en production. C'est là que
   sont les données.

@@ -12,8 +12,14 @@ tourne dans Docker. En échange, il obtient automatiquement :
 
 ## Par où commencer ?
 
+**Le référentiel est le [contrat d'un projet](docs/05-contrat-projet.md)** : ce que
+tout projet hébergé doit respecter, qui le vérifie, et comment le faire évoluer.
+Le reste de ce dépôt (modèles, outils, guides) l'applique.
+
 | Je suis… | Je lis |
 | --- | --- |
+| **Responsable d'un projet déjà en production** à mettre au standard | [Contrat, § 4 : appliquer à un projet existant](docs/05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production), puis `deploy.sh check prod` (lecture seule) |
+| **Mainteneur de la plateforme** (je change une règle, un outil) | [Contrat, § 5 : faire évoluer le contrat](docs/05-contrat-projet.md#5-faire-évoluer-le-contrat) et les [retours d'expérience](docs/retours-experience/README.md) |
 | **Développeur** et je veux mettre mon projet en ligne | [Démarrage rapide](docs/04-demarrage-rapide-dev.md), puis les [schémas](docs/01-schemas.md) |
 | **Nouveau** et je veux comprendre comment le serveur fonctionne | [Schémas](docs/01-schemas.md) et [glossaire](docs/03-glossaire.md) |
 | **La personne qui installe** la plateforme | les [guides](guides/README.md), dans l'ordre |
@@ -24,9 +30,9 @@ tourne dans Docker. En échange, il obtient automatiquement :
 
 | Dossier | Contenu |
 | --- | --- |
-| [`docs/`](docs) | [Schémas de chaque élément](docs/01-schemas.md), [résilience et évolutivité](docs/02-resilience-evolutivite.md), [glossaire](docs/03-glossaire.md), [démarrage rapide](docs/04-demarrage-rapide-dev.md) |
+| [`docs/`](docs) | **[Contrat d'un projet](docs/05-contrat-projet.md)** (le référentiel), [schémas de chaque élément](docs/01-schemas.md), [résilience et évolutivité](docs/02-resilience-evolutivite.md), [glossaire](docs/03-glossaire.md), [démarrage rapide](docs/04-demarrage-rapide-dev.md), [retours d'expérience](docs/retours-experience/README.md) |
 | [`guides/`](guides/README.md) | **Guides pas à pas** de mise en place, dans l'ordre |
-| [`bin/deploy.sh`](bin/deploy.sh) | Déploiement standard : build, staging automatique, promotion manuelle en production, retour arrière automatique, refus en cas de collision de nom ou de volume encore utilisé par une autre installation |
+| [`bin/deploy.sh`](bin/deploy.sh) | Déploiement standard : build, staging automatique, promotion manuelle en production, retour arrière automatique. **Contrôle avant déploiement** (rien n'est modifié s'il échoue) : cohérence `platform.env` ↔ compose, noms en conflit sur les réseaux partagés, accès git, sous-domaine déjà pris, volume encore utilisé ailleurs. `deploy.sh check <env>` lance ce contrôle seul |
 | [`bin/vps-audit.sh`](bin/vps-audit.sh) | Audit **en lecture seule** de tous les conteneurs du serveur |
 | [`bin/vps-hosts.sh`](bin/vps-hosts.sh) | Inventaire de tous les sous-domaines, contrôle « libre ou pris ? », garde contre les collisions |
 | [`bin/restore.sh`](bin/restore.sh) | Restauration d'une sauvegarde dans un environnement |
@@ -112,11 +118,13 @@ graph LR
 
 ---
 
-## 2. Le standard — 12 règles
+## 2. Le standard — 16 règles
 
-Chaque règle est vérifiée par `vps-audit.sh` (colonne « Audit »).
+Résumé du [contrat d'un projet](docs/05-contrat-projet.md), qui détaille chaque règle.
+Colonne « Vérifié par » : un niveau d'audit (`vps-audit.sh`, lecture seule) ou
+**BLOQUANT** (`deploy.sh` refuse avant de modifier quoi que ce soit).
 
-| # | Règle | Pourquoi | Audit |
+| # | Règle | Pourquoi | Vérifié par |
 | --- | --- | --- | --- |
 | 1 | Tout passe par **nginx-proxy** (`VIRTUAL_HOST` + `LETSENCRYPT_HOST`), jamais `ports:` | HTTPS automatique ; rien d'autre n'est exposé | CRITIQUE |
 | 2 | Base, cache, file : **réseau privé du projet uniquement** | Isolation entre projets | CRITIQUE |
@@ -130,6 +138,13 @@ Chaque règle est vérifiée par `vps-audit.sh` (colonne « Audit »).
 | 10 | Secrets dans `.env` / `.env.staging`, **jamais commités** ; staging n'a jamais les secrets de production | Une fuite de staging ne compromet pas la production | — |
 | 11 | Toute base a sa **sauvegarde chiffrée hors serveur**, restaurée une fois par mois | Le VPS est un point unique de défaillance | — |
 | 12 | Backends : **labels d'observabilité** | Journaux et erreurs de tous les projets au même endroit | INFO |
+| 13 | **Noms de services propres au projet** (`<app>-web`, `<app>-db`, `<app>-redis`), jamais `app`, `db`, `redis` | Le conteneur web voit les noms de tous les projets sur `nginx-proxy` : un `db` étranger peut répondre à la place du vôtre | **BLOQUANT** en cas de conflit réel |
+| 14 | Healthcheck de la base **par le réseau** (`pg_isready -h 127.0.0.1`) | Au premier démarrage, le socket local répond avant le réseau : migrations lancées trop tôt | Modèles |
+| 15 | `platform.env` **commité**, cohérent avec le compose, **jamais modifié sur le serveur** | Il est relu dans le commit déployé | **BLOQUANT** |
+| 16 | Le serveur lit le dépôt par sa **clé de déploiement SSH** (`github-<app>`), jamais en HTTPS | Sous cron, personne ne tape de mot de passe | **BLOQUANT** |
+
+Règles 13 à 16 : ajoutées le 2026-10-04 après le
+[premier déploiement de skills-devops](docs/retours-experience/2026-10-04-premier-deploiement-skills-devops.md).
 
 ---
 
@@ -299,17 +314,21 @@ deploy_production:
    - `frontend/` : SPA React/Angular/Vue (`Dockerfile.spa`) ou Next.js
      (`Dockerfile.nextjs`).
 
-   Renommer en `compose.prod.yaml` et remplacer `mon-saas` par le nom du projet.
+   Renommer en `compose.prod.yaml` et remplacer `mon-saas` par le nom du projet
+   **partout**, noms de services compris (règle 13).
 2. **`platform.env`** (commité) : nom, healthcheck, migrations, sauvegarde. Modèle :
    `templates/platform.env`, ou `templates/frontend/platform.env` pour un frontend.
 3. **Fichiers d'environnement** (non commités) : `.env` et `.env.staging`, avec les
    variables de `templates/env.platform.example`. Les ajouter au `.gitignore`.
 4. **Sur le serveur** :
    ```bash
+   # clé de déploiement + alias SSH github-<projet> : guide 3, étape 0 (règle 16)
    mkdir -p /app/<projet> && cd /app/<projet>
-   git clone <dépôt> staging && git clone <dépôt> prod
+   git clone git@github-<projet>:<compte>/<dépôt>.git staging
+   git clone git@github-<projet>:<compte>/<dépôt>.git prod
    # déposer .env.staging dans staging/ et .env dans prod/
-   cd staging && /app/vps-platform/bin/deploy.sh watch      # premier staging
+   cd staging && /app/vps-platform/bin/deploy.sh check staging   # aucun déploiement, lecture seule
+   /app/vps-platform/bin/deploy.sh watch                         # premier staging
    cd ../prod && /app/vps-platform/bin/deploy.sh promote    # première production
    ```
 5. Ajouter la ligne cron de staging automatique (§ 5).
@@ -339,6 +358,9 @@ deploy_production:
 | `VIRTUAL_HOST` hérité sur un conteneur non exposé | La variable est dans un `env_file` partagé : la renommer (`APP_PUBLIC_HOST`) et ne mettre `VIRTUAL_HOST: ${APP_PUBLIC_HOST}` que sur le conteneur web |
 | Image `latest` | `image: <projet>:${IMAGE_TAG:-latest}` + `deploy.sh` |
 | Pas de healthcheck | Bloc `healthcheck` des modèles |
+| `deploy.sh check` : nom « db » aussi publié sur nginx-proxy par … | Renommer le service (`<app>-db`) et `DB_HOST` ; procédure : [contrat, § 4](docs/05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) |
+| `deploy.sh check` : `platform.env` cite un service absent | Aligner `HEALTH_SERVICE`/`MIGRATE_SERVICE`/`BACKUP_SERVICE`/`DB_SERVICE` sur le compose, dans le même commit |
+| `deploy.sh check` : origin en HTTPS | `git remote set-url origin git@github-<app>:<compte>/<dépôt>.git` (guide 3) |
 
 3. **Appliquer sans coupure inutile** : la correction prend effet quand le projet est
    recréé (`docker compose up -d`), donc au prochain déploiement. Les volumes de
@@ -419,4 +441,6 @@ staging contient alors des données réelles. Le réinitialiser ensuite si besoi
 | Erreur 502 de nginx-proxy | Le conteneur web du projet est arrêté ou en échec : `docker ps -a \| grep <projet>` |
 | Disque plein | `vps-audit.sh` (constats journaux), `docker system df`, `docker image prune -f`, `docker builder prune -f` |
 | Données corrompues ou supprimées | `bin/restore.sh prod <sauvegarde>` (la dernière `pre-deploy-*` si c'est arrivé après un déploiement) |
+| `deploy.sh` refuse avec « contrôle avant déploiement en échec » | Rien n'a été modifié. Lire les lignes au-dessus, corriger dans le dépôt, vérifier avec `deploy.sh check <env>`, pousser |
+| `Connection refused` vers la base pendant les migrations, toujours la même adresse IP | Le nom de la base mène à un **autre** projet : `deploy.sh check <env>` le confirme ([REX](docs/retours-experience/2026-10-04-premier-deploiement-skills-devops.md)) |
 | Tous les sites tombés | `systemctl status docker` ; `docker ps -a` ; redémarrer nginx-proxy en premier : `cd /app/nginx-proxy-conf && docker compose up -d` |
