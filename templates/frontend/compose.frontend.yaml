@@ -10,7 +10,7 @@ x-defaults: &defaults
 
 services:
   # ── Variant A: SPA (Dockerfile.spa) — one image for staging and prod ──
-  app:
+  mon-front-web:   # nom unique : il est publié sur nginx-proxy, partagé par toutes les apps
     <<: *defaults
     image: mon-front:${IMAGE_TAG:-latest}
     build:

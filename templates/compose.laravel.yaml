@@ -11,6 +11,10 @@
 #   - restart policy, memory limit, healthcheck, log rotation everywhere
 #   - images tagged by commit (IMAGE_TAG), never a moving `latest`
 #   - observability labels + shared `observability` network for app containers
+#   - project-unique host names (mon-saas-web, mon-saas-db, mon-saas-redis),
+#     never bare « app », « db », « redis »: the web service also sits on the
+#     shared nginx-proxy network, where another project's « db » can win the
+#     DNS lookup (seen on the VPS: migrations hitting a foreign database)
 
 x-defaults: &defaults
   restart: unless-stopped
@@ -23,6 +27,10 @@ x-app: &app
   image: mon-saas:${IMAGE_TAG:-latest}
   build: { context: ., target: production }
   env_file: [ "${ENV_FILE:-.env}" ]
+  environment: &app-env
+    # Override the env file on purpose: see the header.
+    DB_HOST: mon-saas-db
+    REDIS_HOST: mon-saas-redis
   depends_on:
     db: { condition: service_healthy }
     redis: { condition: service_healthy }
@@ -33,10 +41,11 @@ x-app: &app
     observability.deployment: ${DEPLOYMENT:-prod}
 
 services:
-  app:
+  mon-saas-web:
     <<: *app
     # Serves HTTP on 8000 (FrankenPHP, Octane, or php-fpm + nginx in the image).
     environment:
+      <<: *app-env
       VIRTUAL_HOST: ${APP_PUBLIC_HOST}
       VIRTUAL_PORT: "8000"
       LETSENCRYPT_HOST: ${APP_PUBLIC_HOST}
@@ -75,6 +84,7 @@ services:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes: [ db-data:/var/lib/postgresql ]
+    networks: { default: { aliases: [ mon-saas-db ] } }
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${DB_USERNAME} -d ${DB_DATABASE}" ]
       interval: 5s
@@ -87,6 +97,7 @@ services:
     image: valkey/valkey:8.1-alpine
     command: valkey-server --appendonly yes --maxmemory 192mb --maxmemory-policy noeviction
     volumes: [ redis-data:/data ]
+    networks: { default: { aliases: [ mon-saas-redis ] } }
     healthcheck:
       test: [ "CMD", "valkey-cli", "ping" ]
       interval: 5s
@@ -102,7 +113,7 @@ services:
     environment:
       BACKUP_NAME: mon-saas-${DEPLOYMENT:-prod}
       BACKUP_ENGINE: postgres
-      PGHOST: db
+      PGHOST: mon-saas-db
       PGDATABASE: ${DB_DATABASE}
       PGUSER: ${DB_USERNAME}
       PGPASSWORD: ${DB_PASSWORD}
