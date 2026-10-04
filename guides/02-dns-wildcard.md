@@ -18,19 +18,20 @@ certificat HTTPS.
 - On ne touche à **rien d'autre** : ni aux enregistrements existants, ni aux e-mails
   (`MX`), ni aux `TXT`.
 
-> **Votre cas (VisibilityCam)** : le VPS est chez **Contabo**, le domaine est acheté
-> chez **LWS**, et c'est la **zone DNS chez LWS** qui « redirige » les sous-domaines
-> vers l'IP du VPS (des lignes de type `A`). Le wildcard est **une ligne de plus dans
-> cette zone LWS**, identique aux autres, avec `*` comme nom. Rien à faire chez
-> Contabo. Suivez l'étape 4, cas B, ligne LWS.
+> **Votre cas (VisibilityCam), vérifié sur les écrans :**
+> - le domaine est **acheté chez LWS**, mais LWS est en « Configuration DNS
+>   personnalisée » avec `ns1/ns2/ns3.contabo.net` : **la zone DNS est chez Contabo**
+>   (*Network Services → DNS Management → visibilitycam.com*), environ 93
+>   enregistrements ;
+> - le **wildcard existe déjà** : `*.visibilitycam.com  A  207.180.203.19`. Ce guide
+>   est donc **déjà fait** : il reste seulement l'étape 5 (vérifier) ;
+> - pour les **sous-domaines créés à la volée par une app** (certificat wildcard),
+>   il faut une API DNS que acme.sh connaît ; ce n'est le cas ni de Contabo ni de
+>   LWS. Voir l'annexe : la zone part de Contabo vers Cloudflare, et chez LWS on
+>   remplace les serveurs `ns*.contabo.net` par ceux de Cloudflare.
 >
-> Deux niveaux d'automatisme :
-> - **un projet déployé obtient son sous-domaine et son HTTPS tout seul**
->   (`boutique.visibilitycam.com`) : ce guide suffit, LWS suffit ;
-> - **une app crée elle-même des sous-domaines à la volée**, sans les déclarer
->   (`client-x.visibilitycam.com`, `centre-a.cpf.visibilitycam.com`) : il faut en plus
->   un certificat wildcard, donc le DNS de `visibilitycam.com` chez Cloudflare. Voir
->   l'annexe : le domaine reste chez LWS, seuls ses serveurs DNS changent.
+> Pour ajouter un enregistrement chez Contabo : *DNS Management* → `visibilitycam.com`
+> → **Add a new resource record** (bouton bleu en bas de la liste).
 
 ## Étape 1 — Relever l'adresse IP du VPS
 
@@ -205,7 +206,11 @@ domaine reste acheté et renouvelé chez **LWS**. Le VPS reste chez **Contabo**.
 déménagement si l'on suit l'ordre. Le point délicat : **les e-mails**. Si un
 enregistrement `MX` ou `TXT` est oublié, des e-mails sont perdus.
 
-1. **Exporter la zone actuelle** chez le registrar (étape 3). C'est la référence.
+1. **Exporter la zone actuelle** là où elle est hébergée (chez VisibilityCam :
+   Contabo, *DNS Management*). À défaut d'export, recopier la liste complète
+   (93 lignes : passer *Rows Per Page* au maximum, puis captures d'écran). C'est la
+   référence. Lister à part les `MX` et les `TXT` (taper `MX`, puis `TXT`, dans la
+   recherche de la zone) : ce sont eux qui font marcher les e-mails.
 2. Sur https://dash.cloudflare.com : bouton **Add a domain** (ou **+ Add** →
    *Connect a domain*) → saisir `visibilitycam.com` → laisser **Quick scan for DNS
    records** coché → **Continue**.
@@ -234,8 +239,9 @@ enregistrement `MX` ou `TXT` est oublié, des e-mails sont perdus.
    **Chez LWS** (votre cas) : *Espace client* → *Mes domaines* (ou *Domaines*) →
    `visibilitycam.com` → rubrique **Serveurs DNS** (parfois *Gestion des DNS* →
    *Serveurs de noms*). Choisir l'option **serveurs DNS personnalisés / externes**,
-   saisir les deux noms donnés par Cloudflare **à la place** de ceux de LWS
-   (`ns*.lwsdns.com`), puis **Valider**. Noter d'abord les anciens noms : ils
+   saisir les deux noms donnés par Cloudflare **à la place** de ceux qui y figurent
+   (chez VisibilityCam : `ns1.contabo.net`, `ns2.contabo.net`, `ns3.contabo.net` ;
+   vider le 3ᵉ champ), puis **Valider**. Noter d'abord les anciens noms : ils
    servent au retour arrière. Si DNSSEC apparaît comme activé dans la même page,
    le désactiver avant.
 
