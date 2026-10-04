@@ -10,6 +10,9 @@ Une seule pile pour tous les projets du serveur, comme `nginx-proxy` :
 
 Décision : [ADR-0064](../docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md).
 
+**Nouveau dans l'observabilité ?** Lire d'abord le [guide 17](../guides/17-comprendre-et-lire-grafana.md) : le rôle de
+chaque service, ce qu'on voit dans Grafana et comment le lire.
+
 ```mermaid
 graph LR
     subgraph P1["Projet A (ex. core-system prod)"]

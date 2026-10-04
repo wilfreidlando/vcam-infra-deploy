@@ -23,6 +23,7 @@ revenir en arrière.
 | 14 | [Revenir aux dépôts privés (clés de déploiement)](14-retour-aux-depots-prives.md) | aucun | 10 min par dépôt |
 | 15 | [Prise en main par une nouvelle équipe informatique](15-prise-en-main-equipe-it.md) | aucun | 30 min de lecture |
 | 16 | [Mettre un projet au standard (fiche de conformité)](16-mettre-un-projet-au-standard.md) | selon le projet | 2 h par projet |
+| 17 | [Comprendre l'observabilité et lire Grafana](17-comprendre-et-lire-grafana.md) | aucun | 30 min de lecture |
 
 Pour comprendre l'ensemble avant de commencer : [schémas](../docs/01-schemas.md) et
 [glossaire](../docs/03-glossaire.md).
