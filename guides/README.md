@@ -20,6 +20,7 @@ revenir en arrière.
 | 11 | [Mettre à jour la plateforme sur le serveur](11-depot-plateforme.md) | aucun (outils) ; quelques secondes (observabilité) | 5 min |
 | 12 | [Reprise après sinistre (serveur perdu)](12-reprise-apres-sinistre.md) | — | 2-4 h ; **la partie « à préparer avant » est à faire dès maintenant** |
 | 13 | [Intervention assistée sur le serveur (Claude Code, garde-fous)](13-intervention-assistee.md) | aucun en inventaire ; annoncé action par action ensuite | 20 min de préparation |
+| 14 | [Revenir aux dépôts privés (clés de déploiement)](14-retour-aux-depots-prives.md) | aucun | 10 min par dépôt |
 
 Pour comprendre l'ensemble avant de commencer : [schémas](../docs/01-schemas.md) et
 [glossaire](../docs/03-glossaire.md).
