@@ -16,6 +16,12 @@ export GRAFANA_ADMIN_PASSWORD=vpstest-pass GRAFANA_HOST=grafana.vpstest.localhos
 docker network create "${OBS_NETWORK}" >/dev/null
 docker network create "${NGINX_PROXY_NETWORK}" >/dev/null
 
+step "Secrets de la plateforme jamais commités"
+# observability/.env contient le mot de passe de Grafana et celui du SMTP : un
+# « git add -A » ne doit jamais pouvoir le publier (contrat, clause C10).
+check "observability/.env est ignoré par git" git -C "${INFRA_DIR}" check-ignore -q observability/.env
+check_not "le modèle .env.example reste suivi" git -C "${INFRA_DIR}" check-ignore -q observability/.env.example
+
 step "Démarrage de la stack"
 check "stack démarrée" docker compose -p vpstest-obs -f "${INFRA_DIR}/observability/compose.yaml" up -d
 
