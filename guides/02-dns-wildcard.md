@@ -24,8 +24,13 @@ certificat HTTPS.
 > cette zone LWS**, identique aux autres, avec `*` comme nom. Rien à faire chez
 > Contabo. Suivez l'étape 4, cas B, ligne LWS.
 >
-> Si vous voulez des **sous-domaines automatiques avec HTTPS** (WILMANAGER en mode
-> sous-domaine), il faudra en plus passer le DNS chez Cloudflare : voir l'annexe.
+> Deux niveaux d'automatisme :
+> - **un projet déployé obtient son sous-domaine et son HTTPS tout seul**
+>   (`boutique.visibilitycam.com`) : ce guide suffit, LWS suffit ;
+> - **une app crée elle-même des sous-domaines à la volée**, sans les déclarer
+>   (`client-x.visibilitycam.com`, `centre-a.cpf.visibilitycam.com`) : il faut en plus
+>   un certificat wildcard, donc le DNS de `visibilitycam.com` chez Cloudflare. Voir
+>   l'annexe : le domaine reste chez LWS, seuls ses serveurs DNS changent.
 
 ## Étape 1 — Relever l'adresse IP du VPS
 

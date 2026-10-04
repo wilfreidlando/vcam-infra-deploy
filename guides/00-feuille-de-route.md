@@ -33,6 +33,7 @@ Tout doit finir en vert. Un échec dit précisément ce qui ne va pas. Si c'est 
 | --- | --- | --- |
 | B1 | Inventorier les sous-domaines existants | [1](01-inventaire-sous-domaines.md) |
 | B2 | DNS wildcard `*.visibilitycam.com` | [2](02-dns-wildcard.md) |
+| B2 bis | Sous-domaines **créés à la volée par les apps** (certificat wildcard) : passer le DNS de `visibilitycam.com` chez Cloudflare. Le domaine reste chez LWS ; recopier tous les `MX`/`TXT` (e-mails) | [2, annexe](02-dns-wildcard.md#annexe--déplacer-le-dns-de-visibilitycamcom-chez-cloudflare-plus-tard-si-besoin) |
 | B3 | Cloner ce dépôt dans `/app/vps-platform` et installer l'observabilité | [3](03-installer-plateforme.md) |
 | B4 | Sauvegardes vers MEGA S4 | [4](04-sauvegardes-mega-s4.md) |
 | B5 | Rotation des journaux Docker (en heure creuse) | [9](09-rotation-journaux-hote.md) |
