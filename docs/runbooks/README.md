@@ -1,5 +1,7 @@
 # Runbooks d'incident
 
+Retour au [sommaire de la documentation](../README.md).
+
 Une page par situation, écrite pour quelqu'un qui n'a **pas** assisté à la mise en place et
 qui a peu de temps. Chaque page a le même plan : symptôme, première minute, diagnostic,
 action, vérification, **ce qu'il ne faut pas faire**, et ce qu'on écrit après.
@@ -11,6 +13,12 @@ action, vérification, **ce qu'il ne faut pas faire**, et ce qu'on écrit après
 | Erreur de certificat, `HTTP 000`, HTTPS qui ne marche pas pour un nouveau nom | [Certificat non émis](certificat-non-emis.md) |
 | `Connection refused` vers la base, migrations en échec, base qui ne démarre pas | [Base de données inaccessible](base-inaccessible.md) |
 | Le serveur est perdu | [Reprise après sinistre](../../guides/12-reprise-apres-sinistre.md) |
+
+## Exercices (sans incident)
+
+| Quand | Runbook |
+| --- | --- |
+| Chaque mois, par projet | [Exercice de restauration](exercice-de-restauration.md) : prouver qu'une sauvegarde se restaure |
 
 ## Les cinq règles de tout incident
 

@@ -134,7 +134,7 @@ dans le même ensemble de commits :
    arrêté.
 4. **Les modèles** de `templates/` appliquent la nouvelle règle.
 5. **Ce document** (nouvelle clause, version du contrat) et la table des règles du
-   [README](../README.md#2-le-standard--16-règles).
+   [16 règles](reference/les-16-regles.md).
 6. **Les projets existants** : lancer `deploy.sh check` et `vps-audit.sh` sur chacun,
    et noter les écarts restants dans le retour d'expérience, avec qui s'en occupe.
 

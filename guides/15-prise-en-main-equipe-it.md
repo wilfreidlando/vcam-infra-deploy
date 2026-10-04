@@ -16,7 +16,7 @@ propriétaire différents.
 
 | Couche | Ce que c'est | Où | Qui la change |
 | --- | --- | --- | --- |
-| **L'hôte** | Le système, Docker, le pare-feu, SSH, la rotation des journaux, le swap | le serveur lui-même ([README § 8](../README.md#8-réglages-de-lhôte-une-fois), [guide 9](09-rotation-journaux-hote.md)) | l'administrateur du serveur |
+| **L'hôte** | Le système, Docker, le pare-feu, SSH, la rotation des journaux, le swap | le serveur lui-même ([réglages de l'hôte](../docs/reference/reglages-de-lhote.md), [guide 9](09-rotation-journaux-hote.md)) | l'administrateur du serveur |
 | **La plateforme** | `nginx-proxy` (HTTPS et routage), les outils `deploy.sh`, `vps-audit.sh`, `vps-inventory.sh`, `restore.sh`, l'observabilité (Grafana et ses services) | ce dépôt, cloné dans `/app/vps-platform` | le responsable de la plateforme, par pull request |
 | **Les projets** | Chaque application : son dépôt, son `compose.prod.yaml`, son `platform.env`, ses `.env` | `/app/<projet>/<env>` (un clone par environnement) | le responsable du projet |
 
@@ -81,7 +81,7 @@ Les noms suivent le [contrat, § 3](../docs/05-contrat-projet.md#3-les-noms) : c
 
 Deux garanties : on ne livre en production que ce que le staging a validé, et une version
 qui ne répond pas à son healthcheck ne reste jamais en ligne. Limite : **les migrations ne
-sont pas annulées** par un retour arrière (README § 5) : les écrire de façon compatible avec
+sont pas annulées** par un retour arrière ([protocole de livraison](../docs/reference/organisation-et-livraison.md#protocole-de-livraison)) : les écrire de façon compatible avec
 la version précédente.
 
 ## 5. Comment faire évoluer la plateforme
@@ -142,7 +142,7 @@ test « le défaut est arrêté » **et** un test « le projet sain passe ».
 | --- | --- | --- |
 | Chaque jour (automatique) | Surveillance externe, alertes, sauvegardes | — |
 | Chaque semaine | `vps-audit.sh` : aucune ligne CRITIQUE | plateforme |
-| Chaque mois | Restaurer une sauvegarde de production dans un staging ([README § 9](../README.md#9-sauvegardes)) | chaque projet |
+| Chaque mois | Restaurer une sauvegarde de production dans un staging ([sauvegardes](../docs/reference/sauvegardes.md)) | chaque projet |
 | Chaque trimestre | Nouvel [inventaire](../docs/inventaire/README.md), comparé au précédent ; relecture du contrat | plateforme |
 | À chaque incident | Un retour d'expérience, clos seulement quand un contrôle automatique empêche la récidive | tous |
 

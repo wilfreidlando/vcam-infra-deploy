@@ -1,6 +1,6 @@
 # ADR-0059 — alert rules shipped as code. Contact point: e-mail to
 # GRAFANA_ALERT_EMAIL (Grafana needs GF_SMTP_* to actually send — see
-# docs/operations/observabilite.md).
+# observability/README.md and guides/17-comprendre-et-lire-grafana.md).
 apiVersion: 1
 
 contactPoints:

@@ -38,7 +38,7 @@ $ /app/vps-platform/bin/restore.sh staging <fichier>.dump.enc    # vérifier l'a
 
 Pour la production : `restore.sh prod <fichier>` après vérification et accord du responsable
 du projet. Si l'incident a suivi un déploiement, prendre la dernière sauvegarde `pre-deploy-*`.
-Détails : [README § 9](../../README.md#9-sauvegardes) et [guide 12](../../guides/12-reprise-apres-sinistre.md).
+Détails : [sauvegardes](../reference/sauvegardes.md) et [guide 12](../../guides/12-reprise-apres-sinistre.md).
 
 > Si aucune sauvegarde n'existe pour ce projet, **le dire tout de suite** au responsable :
 > c'est un écart à la clause C11 qui devient une perte de données.

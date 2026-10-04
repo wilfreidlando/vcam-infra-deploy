@@ -111,5 +111,5 @@ version ne répond pas. Chaque étape a son retour arrière décrit dans le guid
 | --- | --- | --- |
 | Chaque jour (automatique) | Surveillance externe, alertes Grafana, sauvegardes | — |
 | Chaque semaine | `vps-audit.sh` : aucune ligne CRITIQUE | plateforme |
-| Chaque mois | Restaurer une sauvegarde de production dans un staging (README § 9) | chaque projet |
+| Chaque mois | Restaurer une sauvegarde de production dans un staging ([sauvegardes](../docs/reference/sauvegardes.md)) | chaque projet |
 | Chaque trimestre | Inventaire (phase 0) comparé au précédent ; relecture du contrat | plateforme |
