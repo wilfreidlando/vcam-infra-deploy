@@ -18,6 +18,15 @@ certificat HTTPS.
 - On ne touche à **rien d'autre** : ni aux enregistrements existants, ni aux e-mails
   (`MX`), ni aux `TXT`.
 
+> **Votre cas (VisibilityCam)** : le VPS est chez **Contabo**, le domaine est acheté
+> chez **LWS**, et c'est la **zone DNS chez LWS** qui « redirige » les sous-domaines
+> vers l'IP du VPS (des lignes de type `A`). Le wildcard est **une ligne de plus dans
+> cette zone LWS**, identique aux autres, avec `*` comme nom. Rien à faire chez
+> Contabo. Suivez l'étape 4, cas B, ligne LWS.
+>
+> Si vous voulez des **sous-domaines automatiques avec HTTPS** (WILMANAGER en mode
+> sous-domaine), il faudra en plus passer le DNS chez Cloudflare : voir l'annexe.
+
 ## Étape 1 — Relever l'adresse IP du VPS
 
 Sur le serveur (en SSH) :
@@ -180,8 +189,14 @@ Les sites qui ont leur propre enregistrement ne sont pas affectés.
 
 ## Annexe — Déplacer le DNS de `visibilitycam.com` chez Cloudflare (plus tard, si besoin)
 
-À faire **seulement** quand une app aura besoin de certificats wildcard
-(`*.monapp.visibilitycam.com`, guide 10). Le DNS continue de fonctionner pendant le
+À faire quand une app a besoin de **sous-domaines automatiques avec HTTPS** :
+WILMANAGER en mode `subdomain` (`centre-a.cpf.visibilitycam.com`), ou un SaaS
+(guide 10). Il faut alors un certificat wildcard, qui exige une API DNS. Or acme.sh,
+l'outil d'acme-companion, ne connaît pas l'API de LWS (ni celle de Contabo) ; il
+connaît Cloudflare.
+
+**Ce qui change** : seul « qui répond aux questions DNS » passe chez Cloudflare. Le
+domaine reste acheté et renouvelé chez **LWS**. Le VPS reste chez **Contabo**. Le DNS continue de fonctionner pendant le
 déménagement si l'on suit l'ordre. Le point délicat : **les e-mails**. Si un
 enregistrement `MX` ou `TXT` est oublié, des e-mails sont perdus.
 
@@ -197,7 +212,10 @@ enregistrement `MX` ou `TXT` est oublié, des e-mails sont perdus.
    - les `TXT` : SPF (`v=spf1 …`), DKIM (`… ._domainkey`), DMARC (`_dmarc`), et les
      vérifications Google ou Microsoft ;
    - les sous-domaines peu visibles (`autodiscover`, `webmail`, `ftp`…) ;
-   - le `*` créé à l'étape 4.
+   - le `*` créé à l'étape 4 ;
+   - pour WILMANAGER en mode sous-domaine, ajouter aussi `*.cpf` (et
+     `*.cpf-staging`, `*.devwilmanager` si ces environnements l'utilisent), type
+     `A`, IP du VPS, DNS only.
 
    Mettre **tous** les enregistrements en **DNS only** (nuage gris) : le site doit se
    comporter exactement comme avant.
@@ -206,9 +224,19 @@ enregistrement `MX` ou `TXT` est oublié, des e-mails sont perdus.
 6. Chez le registrar :
    - si **DNSSEC** est activé, le **désactiver d'abord**, sinon le domaine devient
      injoignable pendant le changement ;
-   - puis remplacer les serveurs DNS par ceux de Cloudflare (OVH : onglet **Serveurs
-     DNS** → *Modifier les serveurs DNS* ; Namecheap : *Nameservers* → **Custom DNS** ;
-     ailleurs, rubrique « Serveurs de noms / Nameservers »).
+   - puis remplacer les serveurs DNS par ceux de Cloudflare.
+
+   **Chez LWS** (votre cas) : *Espace client* → *Mes domaines* (ou *Domaines*) →
+   `visibilitycam.com` → rubrique **Serveurs DNS** (parfois *Gestion des DNS* →
+   *Serveurs de noms*). Choisir l'option **serveurs DNS personnalisés / externes**,
+   saisir les deux noms donnés par Cloudflare **à la place** de ceux de LWS
+   (`ns*.lwsdns.com`), puis **Valider**. Noter d'abord les anciens noms : ils
+   servent au retour arrière. Si DNSSEC apparaît comme activé dans la même page,
+   le désactiver avant.
+
+   Ailleurs : OVH, onglet **Serveurs DNS** → *Modifier les serveurs DNS* ;
+   Namecheap, *Nameservers* → **Custom DNS** ; sinon, rubrique « Serveurs de noms /
+   Nameservers ».
 7. Revenir sur Cloudflare et cliquer **Check nameservers now**. L'activation prend de
    quelques minutes à 24 heures ; Cloudflare envoie un e-mail quand le domaine est
    **Active**.
