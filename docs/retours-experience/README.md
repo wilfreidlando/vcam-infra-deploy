@@ -9,6 +9,7 @@ automatique : un contrôle, un test, un modèle corrigé. Voir le
 | Date | Sujet | Protection mise en place | Statut |
 | --- | --- | --- | --- |
 | 2026-10-04 | [Premier déploiement de skills-devops : quatre échecs en chaîne](2026-10-04-premier-deploiement-skills-devops.md) | `deploy.sh` : contrôle avant déploiement, commande `check`, `platform.env` lu dans le commit déployé, git sans attente de mot de passe ; modèles corrigés ; contrat v2 | Clos (reste : passer le Core et centre-formation à `deploy.sh check`) |
+| 2026-10-04 | [Grafana ne charge pas dans le navigateur : aucun site n'est compressé](2026-10-04-grafana-sans-compression.md) | Grafana compresse lui-même (`GF_SERVER_ENABLE_GZIP`) ; test de compression dans `test-observability.sh`. Défaut de fond (`gzip on` absent de `nginx-proxy`) à décider séparément | Partiel : correction faite, décision `nginx-proxy` ouverte |
 
 ## Modèle
 

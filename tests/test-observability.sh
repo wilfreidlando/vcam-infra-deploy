@@ -65,4 +65,14 @@ check "dossier Core System" grep -q '"Core System"' <<< "${search}"
 check "tableau Applications — journaux" grep -q 'Applications' <<< "${search}"
 check "6 règles d'alerte provisionnées" test "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/alert-rules" | grep -o '"uid"' | wc -l)" -ge 6
 
+# Les fichiers de l'application pèsent jusqu'à 3,5 Mo (≈ 9 Mo au total) et
+# nginx-proxy ne compresse pas (pas de « gzip on ») : Grafana doit le faire
+# lui-même, sinon le chargement échoue sur une connexion lente
+# (« Grafana has failed to load its application files »).
+step "Compression des fichiers de Grafana"
+asset="$(graf "http://localhost:3000/login" | grep -o 'public/build/runtime[^"]*\.js' | head -1)"
+check "un fichier de l'application est référencé par la page de connexion" test -n "${asset}"
+magic="$(docker exec vpstest-obs-grafana wget -qO- --header 'Accept-Encoding: gzip' "http://localhost:3000/${asset}" | head -c 2 | od -An -tx1 | tr -d ' \n')"
+check "fichiers de Grafana servis compressés (en-tête gzip 1f8b)" test "${magic}" = "1f8b"
+
 docker compose -p vpstest-obs -f "${INFRA_DIR}/observability/compose.yaml" down -v >/dev/null 2>&1 || true

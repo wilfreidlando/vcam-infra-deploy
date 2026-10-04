@@ -105,6 +105,10 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_SERVER_ROOT_URL: https://${GRAFANA_HOST:-grafana.localhost}
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # The application files weigh up to 3.5 MB each (~9 MB in all) and
+      # nginx-proxy does not compress (no "gzip on"): without this, a slow
+      # connection fails with "Grafana has failed to load its application files".
+      GF_SERVER_ENABLE_GZIP: "true"
       GRAFANA_ALERT_EMAIL: ${GRAFANA_ALERT_EMAIL:-ops@example.com}
       GF_SMTP_ENABLED: ${GF_SMTP_ENABLED:-false}
       GF_SMTP_HOST: ${GF_SMTP_HOST:-}
