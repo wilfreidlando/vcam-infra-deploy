@@ -222,4 +222,18 @@ check "projets compose distincts par environnement" docker inspect vpstest-demo-
 check_not "la production ne se déploie jamais en watch" sh -c "cd '${WORK}/prod' && '${DEPLOY}' watch prod"
 check "status liste les trois environnements" sh -c "cd '${WORK}/prod' && '${DEPLOY}' status | grep -c '^── ' | grep -qx 3"
 
+step "Disposition réelle : un seul fichier d'environnement par dossier"
+# Sur le serveur, /app/<projet>/prod n'a que .env et /app/<projet>/staging que .env.staging
+# (contrat, § 1). Le nettoyage des images après une promotion cherchait le fichier des AUTRES
+# environnements, échouait (« fichier … absent ») et ne supprimait jamais rien : le défaut était
+# masqué parce que ce test posait tous les fichiers dans chaque dossier.
+rm -f "${WORK}/prod/.env.staging" "${WORK}/prod/.env.dev" "${WORK}/staging/.env" "${WORK}/staging/.env.dev"
+commit_version v5
+lines="$(wc -l < "${STATE_DIR}/vpstest-demo/deploy.log")"
+(cd "${WORK}/staging" && "${DEPLOY}" watch >/dev/null 2>&1)
+(cd "${WORK}/prod" && "${DEPLOY}" promote --yes >/dev/null 2>&1)
+check "v5 en production, depuis un dossier qui n'a que son .env" test "$(page prod)" = v5
+check_not "aucune erreur « fichier … absent » dans le journal après la promotion (nettoyage des images)" \
+    sh -c "tail -n +$((lines + 1)) '${STATE_DIR}/vpstest-demo/deploy.log' | grep -q 'absent (copier'"
+
 docker image ls vpstest-demo -q | xargs -r docker rmi -f >/dev/null 2>&1 || true

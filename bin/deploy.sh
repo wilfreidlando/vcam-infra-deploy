@@ -375,7 +375,10 @@ prune_images() {
                 [[ " ${keep[*]} " == *" ${tag} "* ]] && continue
                 docker image rm "${repo}:${tag}" >/dev/null 2>&1 && log "image supprimée ${repo}:${tag}"
             done
-    done < <(for e in ${ENVIRONMENTS}; do images_for "${e}" "${sha}"; done | sort -u)
+    # Only environments whose env file is in THIS checkout: /app/<project>/prod has .env only and
+    # /app/<project>/staging .env.staging only. Asking for the other one used to die here
+    # ("fichier … absent") and nothing was ever pruned. Image names are the same in every environment.
+    done < <(for e in ${ENVIRONMENTS}; do [[ -f "$(env_file_for "${e}")" ]] || continue; images_for "${e}" "${sha}"; done | sort -u)
 }
 
 # ── Commands ────────────────────────────────────────────────────────────
