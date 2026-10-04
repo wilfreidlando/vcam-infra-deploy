@@ -19,6 +19,7 @@ Le reste de ce dépôt (modèles, outils, guides) l'applique.
 | Je suis… | Je lis |
 | --- | --- |
 | **Responsable d'un projet déjà en production** à mettre au standard | [Contrat, § 4 : appliquer à un projet existant](docs/05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production), puis `deploy.sh check prod` (lecture seule) |
+| **Nouvelle équipe informatique** qui reprend le serveur | [Guide 15, prise en main](guides/15-prise-en-main-equipe-it.md), puis les [runbooks d'incident](docs/runbooks/README.md) |
 | **Mainteneur de la plateforme** (je change une règle, un outil) | [Contrat, § 5 : faire évoluer le contrat](docs/05-contrat-projet.md#5-faire-évoluer-le-contrat) et les [retours d'expérience](docs/retours-experience/README.md) |
 | **Développeur** et je veux mettre mon projet en ligne | [Démarrage rapide](docs/04-demarrage-rapide-dev.md), puis les [schémas](docs/01-schemas.md) |
 | **Nouveau** et je veux comprendre comment le serveur fonctionne | [Schémas](docs/01-schemas.md) et [glossaire](docs/03-glossaire.md) |
