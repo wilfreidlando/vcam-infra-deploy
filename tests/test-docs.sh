@@ -85,6 +85,7 @@ check "chaque guide figure dans guides/README.md" test -z "$(liste guides guides
 check "chaque runbook figure dans docs/runbooks/README.md" test -z "$(liste docs/runbooks docs/runbooks/README.md '*.md')"
 check "chaque retour d'expérience figure dans docs/retours-experience/README.md" test -z "$(liste docs/retours-experience docs/retours-experience/README.md '2*.md')"
 check "chaque ADR figure dans docs/adr/README.md" test -z "$(liste docs/adr docs/adr/README.md '[0-9]*.md')"
+check "chaque inventaire figure dans docs/inventaire/README.md" test -z "$(liste docs/inventaire docs/inventaire/README.md '2*.md')"
 check "chaque page de référence figure dans docs/README.md" test -z "$(liste docs/reference docs/README.md '*.md')"
 check "chaque document de docs/ figure dans docs/README.md" test -z "$(liste docs docs/README.md '0*.md')"
 
