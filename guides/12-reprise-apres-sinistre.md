@@ -63,7 +63,7 @@ de l'observabilité est perdu ; ce n'est pas grave.
 
 ```bash
 $ mkdir -p /app/<projet> && cd /app/<projet>
-$ git clone <dépôt> staging && git clone <dépôt> prod
+$ git clone <dépôt> staging && git clone <dépôt> prod     # serveur neuf : refaire d'abord les clés du guide 3, étape 0
 # recopier .env (prod) et .env.staging (staging) depuis le coffre
 $ cd staging && /app/vps-platform/bin/deploy.sh build origin/main
 ```

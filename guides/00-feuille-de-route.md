@@ -12,7 +12,7 @@ détaillé. On peut s'arrêter entre deux phases : rien ne reste à moitié fait
 | D | Passer WILMANAGER au standard | 1 à 3 min pour la prod de WILMANAGER, au moment choisi | 2 h |
 | E | Finitions | aucune | 30 min |
 
-## A. Vérifier sur un poste (Docker, ou WSL2 sous Windows)
+## A. Vérifier sur un poste (facultatif : sauter si vous appliquez directement sur le serveur)
 
 ```bash
 git clone https://github.com/wilfreidlando/vcam-infra-deploy.git vps-platform

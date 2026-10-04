@@ -6,10 +6,83 @@ Ce guide installe :
 
 Il ne modifie ni nginx-proxy, ni les projets existants.
 
+## Étape 0 — Donner au serveur l'accès aux dépôts GitHub privés
+
+`vcam-infra-deploy` et `vcam-core-system` sont privés : sans clé, `git clone` échoue
+sur le serveur. On crée une **clé de déploiement en lecture seule par dépôt** (GitHub
+refuse d'utiliser la même clé sur deux dépôts). À faire en root, une seule fois.
+
+**0.1 Créer les deux clés**
+
+```bash
+$ ssh-keygen -t ed25519 -N "" -C "vps-contabo vcam-infra-deploy" -f /root/.ssh/deploy_vcam_infra
+$ ssh-keygen -t ed25519 -N "" -C "vps-contabo vcam-core-system"  -f /root/.ssh/deploy_vcam_core
+```
+
+**0.2 Dire à SSH quelle clé utiliser pour quel dépôt**
+
+Ouvrir le fichier de configuration SSH de root :
+
+```bash
+$ nano /root/.ssh/config
+```
+
+Ajouter à la fin ces lignes, telles quelles, puis enregistrer (Ctrl+O, Entrée,
+Ctrl+X) :
+
+```
+Host github-vcam-infra
+  HostName github.com
+  User git
+  IdentityFile /root/.ssh/deploy_vcam_infra
+  IdentitiesOnly yes
+
+Host github-vcam-core
+  HostName github.com
+  User git
+  IdentityFile /root/.ssh/deploy_vcam_core
+  IdentitiesOnly yes
+```
+
+```bash
+$ chmod 600 /root/.ssh/config
+```
+
+**0.3 Déclarer chaque clé sur GitHub**
+
+```bash
+$ cat /root/.ssh/deploy_vcam_infra.pub      # copier toute la ligne (ssh-ed25519 AAAA… vps-contabo vcam-infra-deploy)
+```
+
+Sur https://github.com/wilfreidlando/vcam-infra-deploy : **Settings** (onglet en haut
+du dépôt) → **Deploy keys** (menu de gauche) → **Add deploy key** :
+- *Title* : `VPS Contabo` ;
+- *Key* : coller la ligne ;
+- **ne pas** cocher *Allow write access* ;
+- **Add key**.
+
+Même chose pour le Core : `cat /root/.ssh/deploy_vcam_core.pub`, à coller dans
+https://github.com/wilfreidlando/vcam-core-system → *Settings* → *Deploy keys*.
+
+**0.4 Vérifier**
+
+```bash
+$ ssh -T git@github-vcam-infra
+Are you sure you want to continue connecting (yes/no)?    # ← 1re fois seulement : taper yes
+Hi wilfreidlando/vcam-infra-deploy! You've successfully authenticated, but GitHub does not provide shell access.
+$ ssh -T git@github-vcam-core
+Hi wilfreidlando/vcam-core-system! You've successfully authenticated, …
+```
+
+Le message « does not provide shell access » est **normal** : c'est la réussite.
+`Permission denied (publickey)` signifie que la clé n'est pas (ou mal) collée dans
+*Deploy keys* du bon dépôt.
+
 ## Étape 1 — Cloner la plateforme
 
 ```bash
-$ git clone https://github.com/wilfreidlando/vcam-infra-deploy.git /app/vps-platform
+$ git clone git@github-vcam-infra:wilfreidlando/vcam-infra-deploy.git /app/vps-platform
+$ ls /app/vps-platform        # → bin  docs  guides  host  images  observability  templates  tests  README.md
 ```
 
 Tous les chemins de la documentation partent de là : `/app/vps-platform/bin/deploy.sh`,

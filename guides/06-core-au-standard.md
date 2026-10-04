@@ -41,7 +41,8 @@ $ cp <ANCIEN>/.env /root/core-env-avant-standard
 ```bash
 $ mkdir -p /app/core-system
 $ mv <ANCIEN> /app/core-system/prod                       # le checkout actuel devient « prod »
-$ git clone <url du dépôt core-system> /app/core-system/staging
+$ git -C /app/core-system/prod remote set-url origin git@github-vcam-core:wilfreidlando/vcam-core-system.git
+$ git clone git@github-vcam-core:wilfreidlando/vcam-core-system.git /app/core-system/staging
 $ cd /app/core-system/prod && git fetch && git status     # doit être propre (pas de fichiers modifiés)
 ```
 
