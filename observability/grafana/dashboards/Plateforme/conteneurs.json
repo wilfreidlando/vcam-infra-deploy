@@ -353,7 +353,7 @@
       "id": 7,
       "type": "bargauge",
       "title": "Redémarrages sur 24 h (conteneurs concernés)",
-      "description": "Un conteneur à un redémarrage par heure (ex. un worker de file d'attente configuré ainsi) est normal ; des dizaines indiquent une boucle.",
+      "description": "Un conteneur à un redémarrage par heure (ex. un worker de file d'attente configuré ainsi) est normal ; des dizaines indiquent une boucle. Seuls les conteneurs qui ont redémarré apparaissent : vide = aucun redémarrage, c'est le bon état.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -387,7 +387,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "Aucun redémarrage sur 24 h"
         },
         "overrides": []
       },

@@ -351,7 +351,8 @@
             "fillOpacity": 10,
             "lineWidth": 1,
             "showPoints": "never"
-          }
+          },
+          "noValue": "non sondé"
         },
         "overrides": []
       },
@@ -398,7 +399,8 @@
             "fillOpacity": 10,
             "lineWidth": 1,
             "showPoints": "never"
-          }
+          },
+          "noValue": "non sondé"
         },
         "overrides": []
       },
@@ -445,7 +447,8 @@
             "fillOpacity": 10,
             "lineWidth": 1,
             "showPoints": "never"
-          }
+          },
+          "noValue": "aucun conteneur étiqueté"
         },
         "overrides": []
       },
@@ -501,7 +504,8 @@
             "fillOpacity": 10,
             "lineWidth": 1,
             "showPoints": "never"
-          }
+          },
+          "noValue": "aucun conteneur étiqueté"
         },
         "overrides": []
       },
@@ -557,7 +561,8 @@
             "fillOpacity": 10,
             "lineWidth": 1,
             "showPoints": "never"
-          }
+          },
+          "noValue": "aucun conteneur étiqueté"
         },
         "overrides": []
       },
@@ -604,7 +609,8 @@
             "fillOpacity": 10,
             "lineWidth": 1,
             "showPoints": "never"
-          }
+          },
+          "noValue": "métriques non exposées"
         },
         "overrides": []
       },

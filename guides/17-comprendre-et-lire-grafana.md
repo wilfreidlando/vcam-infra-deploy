@@ -76,6 +76,10 @@ Menu de gauche :
 | **Connections → Data sources** | Les trois sources déjà configurées | Rarement : tout est préconfiguré |
 | Profil (en bas) | Changer son mot de passe | Une fois, à la première connexion |
 
+> **« No data » : défaut ou bon état ?** Un panneau qui ne liste que les **exceptions** (les conteneurs qui ont redémarré, les sites hors ligne) est **vide quand tout va bien** : il affiche alors un message
+> (« Aucun redémarrage sur 24 h », « non sondé »). Un panneau qui devrait **toujours** avoir une valeur (processeur, mémoire, charge) et qui affiche « No data » est un défaut : le signaler. La plateforme teste que ces
+> derniers renvoient bien des données ([retour d'expérience](../docs/retours-experience/2026-10-05-no-data-charge-par-processeur.md)).
+>
 > **L'état d'une seule application ?** *Dashboards → Plateforme → « Application — vue d'ensemble »* : choisir l'application en haut. **Les tableaux et alertes propres à un projet**
 > (ses chiffres métier) sont dans un dossier à son nom, publiés depuis son dépôt : [guide 19](19-observabilite-de-mon-projet.md).
 
