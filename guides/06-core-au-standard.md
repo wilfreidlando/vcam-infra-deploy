@@ -49,15 +49,19 @@ $ cp -p <ANCIEN>/.env /root/core-env-avant-standard
 
 ```bash
 $ mkdir -p /app/core-system
-$ mv <ANCIEN> /app/core-system/prod                       # le checkout actuel devient « prod »
+$ docker inspect core-system-webserver --format '{{range .Mounts}}{{.Type}} {{.Source}}{{println}}{{end}}'   # un montage « bind » vers <ANCIEN> ?
+$ cp -a <ANCIEN> /app/core-system/prod                    # COPIE : le checkout actuel reste en place
 $ git -C /app/core-system/prod remote set-url origin git@github-vcam-core:wilfreidlando/vcam-core-system.git
 $ git clone git@github-vcam-core:wilfreidlando/vcam-core-system.git /app/core-system/staging
 $ cd /app/core-system/prod && git fetch && git status     # doit être propre (pas de fichiers modifiés)
 ```
 
-Déplacer le dossier n'arrête pas les conteneurs. Le nom du projet Docker
-(`core-system-prod`) est écrit dans `compose.prod.yaml`, il ne dépend pas du
-dossier.
+**Pourquoi copier et non déplacer.** Un conteneur peut monter un dossier **par son chemin** (un montage « bind », par exemple la configuration nginx du serveur web). Si on déplace
+le dossier, ce chemin disparaît : le conteneur continue de tourner, **mais à son prochain redémarrage il ne démarre plus**, et le site tombe. La copie laisse l'ancien dossier en place :
+les conteneurs actuels fonctionnent jusqu'à la promotion, qui les recrée **depuis le nouveau dossier**. L'ancien dossier sert aussi de **base de retour arrière** (ancien compose, ancienne image)
+tant que la nouvelle version n'est pas validée ; après validation, le renommer (`mv <ANCIEN> <ANCIEN>.ancien`), et sa suppression est l'affaire de la personne qui gère le serveur.
+
+Le nom du projet Docker (`core-system-prod`) est écrit dans `compose.prod.yaml`, il ne dépend pas du dossier.
 
 ## Étape 3 — Compléter le `.env` de production
 
@@ -189,7 +193,8 @@ $ docker volume rm <ces volumes>
 
 | Situation | Action |
 | --- | --- |
-| La promotion échoue avant la bascule (sauvegarde, migration) | Rien n'a basculé. Lire l'erreur, corriger, relancer |
+| La promotion échoue avant la bascule (migration) | Rien n'a basculé. Lire l'erreur, corriger, relancer |
+| **Première promotion d'un projet déjà en production** : la santé échoue après la bascule | **Pas de retour automatique** : l'outil ne connaît pas encore de version précédente. Retour manuel : depuis l'**ancien dossier** (conservé), `docker compose -f compose.prod.yaml up -d` recrée l'ancienne pile avec ses anciennes images. Les migrations restent appliquées : vérifier que l'ancien code les supporte, sinon restaurer la copie de l'étape 1 |
 | Le retour automatique a eu lieu | La production tourne sur l'ancienne version. Les migrations éventuelles sont restées |
 | Il faut revenir aux données d'avant | `cd /app/core-system/prod && /app/vps-platform/bin/restore.sh prod <fichier de sauvegarde sur S3>` |
 | Ultime recours | `docker exec -i core-system-postgres sh -c 'pg_restore --clean --if-exists --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /root/core-avant-standard-<date>.dump` (attention : `--clean` ne supprime pas ce qui a été créé **après** la copie ; l'outil `restore.sh` le fait, voir le [retour d'expérience](../docs/retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md)) |
