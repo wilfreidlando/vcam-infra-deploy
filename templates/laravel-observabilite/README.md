@@ -21,7 +21,7 @@
 | 1 | **Journaux en JSON** : `LOG_STDERR_FORMATTER=Monolog\Formatter\JsonFormatter` (avec `LOG_CHANNEL=stderr`) | `.env` et `.env.staging` du serveur, et les exemples du dépôt | Grafana → Explore → Loki : l'étiquette `level` a des valeurs |
 | 2 | **Labels** `observability.enable`, `observability.app`, `observability.deployment` sur chaque service à observer | `compose.prod.yaml` ([modèle](../compose.laravel.yaml)) | `{app="<projet>"}` dans Loki |
 | 3 | **Métriques** : les quatre fichiers ci-dessus, le label `observability.metrics.port: "8000"` et le réseau `observability` sur le **web seul** | le dépôt du projet | `up{app="<projet>"}` vaut 1 dans Prometheus |
-| 4 | **Sauvegarde observée** : labels et `healthcheck` sur le service `backup` ([modèle](../compose.laravel.yaml)) | `compose.prod.yaml` | `docker ps` : `healthy` ; alerte « aucune sauvegarde depuis 36 h » |
+| 4 | **Sauvegarde observée** : labels et `healthcheck` sur le service `backup` ([modèle](../compose.laravel.yaml)) | `compose.prod.yaml` | `docker ps` : `healthy` ; alerte « Une sauvegarde de production n'envoie plus de copie depuis 36 heures » (par projet, rappel quotidien) |
 | 5 | **Le site dans la liste des sondes** | `observability/prometheus/targets/sites.yml`, **sur le serveur** (responsable de la plateforme) | Tableau « Sites » |
 
 **Vérifier chaque signal séparément** (journaux, métriques, alertes) : voir les journaux ne prouve pas que les métriques arrivent

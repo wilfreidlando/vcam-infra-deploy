@@ -21,3 +21,13 @@ policies:
     group_wait: 30s
     group_interval: 5m
     repeat_interval: 4h
+    routes:
+      # Les alertes étiquetées « cadence=daily » (par exemple une sauvegarde de production désactivée ou en échec) sont rappelées UNE FOIS PAR JOUR,
+      # pas toutes les 4 h : un état connu et accepté ne doit pas remplir la boîte aux lettres. Un projet peut poser cette étiquette sur ses propres règles.
+      - receiver: core-oncall
+        object_matchers:
+          - ['cadence', '=', 'daily']
+        group_by: ['alertname']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 24h

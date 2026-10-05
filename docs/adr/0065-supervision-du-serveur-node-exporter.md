@@ -50,3 +50,5 @@ charge élevée, mémoire libre faible, aucune alerte). Les journaux répondent 
 ## Évolution du 2026-10-05
 
 L'alerte « swap > 50 % » mesurait un **niveau** : le serveur avait 63 % de swap occupé sans aucun va-et-vient (pages inactives), donc une alerte sans cause. Elle mesure désormais le swap **relu** (`rate(node_vmstat_pswpin[5m])` > 300 pages/s pendant 15 minutes). Le seuil est une première estimation (10 h d'historique seulement) : à ajuster. La décision d'origine (cinq alertes génériques) est inchangée.
+
+L'alerte « sauvegarde absente » (point 6) était **globale** : elle se taisait tant qu'un projet envoyait ses copies, même si un autre n'était plus sauvegardé. Une règle **par projet** s'y ajoute le même jour, avec un rappel quotidien (`cadence=daily`) : voir [le retour d'expérience](../retours-experience/2026-10-05-alerte-de-sauvegarde-globale.md).

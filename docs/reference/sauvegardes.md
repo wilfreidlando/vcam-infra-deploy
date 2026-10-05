@@ -33,7 +33,7 @@ flowchart LR
 | --- | --- | --- |
 | 1 | **Par construction** : aucune copie ne reste après un envoi réussi ; au plus trois si l'envoi échoue | agent `db-backup` |
 | 2 | **Une sauvegarde en échec est bruyante** : sortie en erreur, ligne dans les journaux, visible dans Grafana (et, pour un projet en `BACKUP_BEFORE_DEPLOY=always`, la promotion est refusée) | agent, `deploy.sh` |
-| 3 | **Alerte « Aucune sauvegarde envoyée hors du serveur depuis 36 heures »** (journaux de l'agent) ; contrôle de santé du conteneur sur le même critère. **L'alerte est globale, pas par projet** : voir « Limite connue » ci-dessous | Grafana, `docker ps` |
+| 3 | **Alerte « Aucune sauvegarde envoyée hors du serveur depuis 36 heures »** (journaux de l'agent) ; contrôle de santé du conteneur sur le même critère. **Deux alertes, une globale et une par projet (rappel quotidien)** : voir ci-dessous | Grafana, `docker ps` |
 | 4 | **Alerte disque** (« / » à plus de 85 %) pour tout ce qui ne serait pas dans ce cadre | Grafana |
 
 ### Le contrôle de santé
@@ -41,14 +41,23 @@ flowchart LR
 Le conteneur de sauvegarde est `healthy` si **un envoi a réussi il y a moins de 36 heures** (marqueur `/backups/.last-upload`, quelques octets). Ce n'est plus
 « un fichier existe » : il n'y en a plus.
 
-### Limite connue de l'alerte (constat du 2026-10-05)
+### Deux alertes : une globale, une par projet (constat du 2026-10-05)
 
-L'alerte ne sonne que si **plus aucun** agent de production n'envoie quoi que ce soit : `absent_over_time` porte sur **l'ensemble** des agents. Tant qu'**un seul** projet envoie ses copies,
-elle reste silencieuse, **même si un autre projet n'est plus sauvegardé du tout**. Exemple réel : le pilote envoie ses copies sur S3 ; le Core de production a son agent désactivé
-(`BACKUP_DISABLED=1`, faute de bucket) : l'alerte ne dit rien du Core.
+| Alerte | Ce qu'elle voit | Ce qu'elle ne voit pas |
+| --- | --- | --- |
+| « Aucune sauvegarde envoyée hors du serveur depuis 36 heures » | **Plus aucun** envoi dans l'ensemble des agents de production : observateur cassé, tous les agents arrêtés | Un projet isolé non sauvegardé, tant qu'**un autre** projet envoie ses copies |
+| « Une sauvegarde de production n'envoie plus de copie depuis 36 heures » | **Par projet** : un agent qui a eu un passage de sauvegarde sans aucun envoi, parce que l'envoi **échoue** ou que la sauvegarde est **désactivée** (`BACKUP_DISABLED=1`, bucket absent) | Un projet **sans agent** de sauvegarde, ou dont l'agent n'a pas les labels `observability.*` |
 
-Ce qui détecte l'absence de sauvegarde **projet par projet**, aujourd'hui : l'état de santé du conteneur `backup` (`docker ps` : `healthy`, voir ci-dessus) et `bin/vps-audit.sh`. Une règle par projet
-(« un agent de production qui journalise mais n'a envoyé aucune copie depuis 36 h ») est possible ; elle n'est pas en place, parce qu'elle sonnerait en permanence pour un projet **volontairement** sans sauvegarde.
+La première règle seule laissait un trou : le pilote envoyait ses copies, le Core de production avait son agent désactivé, et rien ne le disait. La seconde le dit, projet par projet.
+
+**Une fois par jour, pas en continu.** Les alertes étiquetées `cadence=daily` suivent une route de notification propre (`notifications.yaml`) : l'e-mail est répété toutes les **24 h**, contre 4 h pour les autres alertes.
+Un projet **volontairement** sans sauvegarde en production (exception décidée, écrite dans les « écarts connus » de sa fiche de déploiement) est donc rappelé une fois par jour, sans remplir la boîte aux lettres.
+La bonne issue n'est pas de taire l'alerte, mais de brancher S3.
+
+**Un projet neuf n'est pas signalé trop tôt.** La règle compte les lignes d'un **passage** de sauvegarde (préfixe `backup:`), pas la ligne de démarrage de l'agent (préfixe `db-backup:`) : un projet n'est donc signalé qu'après son premier passage nocturne.
+Pour un agent désactivé, le premier rappel arrive le lendemain du déploiement, une heure après le passage de 02:30 UTC (délai de la règle).
+
+Ce qui détecte un projet **sans aucun agent** : l'état de santé du conteneur `backup` (`docker ps` : `healthy`, voir ci-dessus), `bin/vps-audit.sh`, et la clause C11 du [contrat](../05-contrat-projet.md) (toute base a sa sauvegarde).
 
 ## L'agent
 

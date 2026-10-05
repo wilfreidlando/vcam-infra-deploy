@@ -75,6 +75,19 @@ docker run -d --name vpstest-obs-demo --network vpstest-a-first \
 docker network connect "${OBS_NETWORK}" vpstest-obs-demo
 docker run -d --name vpstest-obs-ignored --network "${OBS_NETWORK}" -l com.docker.compose.project=secret-project \
     busybox sh -c 'while true; do echo ignored-line; sleep 2; done' >/dev/null
+# Trois faux agents de sauvegarde de PRODUCTION (labels comme ceux d'un vrai projet), pour éprouver la règle d'alerte par projet :
+#   bk-ok  : envoie ses copies ;  bk-off : son passage dit « désactivée » (BACKUP_DISABLED=1) ;  bk-new : vient de démarrer, pas encore de passage.
+for spec in "bk-ok|backup: uploaded to s3://bucket/bk-ok/copie.dump.enc" \
+            "bk-off|backup: BACKUP_DISABLED=1 — this environment is deliberately not backed up, nothing written"; do
+    app="${spec%%|*}"; line="${spec#*|}"
+    docker run -d --name "vpstest-obs-${app}" --network "${OBS_NETWORK}" \
+        -l observability.enable=true -l "observability.app=${app}" -l observability.deployment=prod -l com.docker.compose.service=backup \
+        busybox sh -c "while true; do echo '${line}'; sleep 5; done" >/dev/null
+done
+docker run -d --name vpstest-obs-bk-new --network "${OBS_NETWORK}" \
+    -l observability.enable=true -l observability.app=bk-new -l observability.deployment=prod -l com.docker.compose.service=backup \
+    busybox sh -c 'echo "db-backup: daily backup at 02:30 UTC (bk-new, postgres)"; sleep 3600' >/dev/null
+
 # Un conteneur qui s'arrête tout seul (code 0) toutes les ~11 s et que Docker relance, comme un worker --max-time. Il consomme du processeur PENDANT TOUT
 # son cycle (11 s, au moins 10 s : en dessous, Docker allonge le délai entre deux relances) : son compteur monte puis repart de zéro à chaque relance, et ce
 # retour à zéro est visible quelle que soit la phase où tombe l'échantillon de 15 s. Une première version ne consommait que 2 s sur 11 : le compteur restait
@@ -223,9 +236,52 @@ check "tableau Sites (disponibilité) provisionné" grep -q 'Sites' <<< "${searc
 check "tableau « Application — vue d'ensemble » provisionné" grep -q "Application — vue" <<< "${search}"
 check "le dossier du projet (probe-app) existe dans Grafana" grep -q 'probe-app' <<< "${search}"
 check "le tableau publié par le projet y est" grep -q 'Vue du projet de test' <<< "${search}"
-check "11 règles d'alerte provisionnées (5 du serveur, 5 conteneurs, sites et sauvegardes, 1 publiée par le projet de test)" test "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/alert-rules" | grep -o '"uid"' | wc -l)" -ge 11
+check "12 règles d'alerte provisionnées (5 du serveur, 6 conteneurs, sites et sauvegardes, 1 publiée par le projet de test)" test "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/alert-rules" | grep -o '"uid"' | wc -l)" -ge 12
 check "le point de contact core-oncall vient de notifications.yaml (plateforme)" grep -q core-oncall <<< "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/contact-points")"
 check "la politique de notification l'applique à toutes les alertes" grep -q core-oncall <<< "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/policies")"
+
+step "Sauvegardes : une alerte PAR PROJET, rappelée une fois par jour"
+# Constat du 2026-10-05 : l'alerte « aucune sauvegarde depuis 36 h » portait sur l'ensemble des agents (absent_over_time) : tant qu'un projet envoyait ses copies,
+# elle se taisait, même si un autre n'était plus sauvegardé du tout (le pilote envoyait, le Core était désactivé). La règle par projet nomme chaque projet concerné
+# et sa notification est répétée toutes les 24 h (route « cadence=daily »), pas toutes les 4 h.
+RULES="${INFRA_DIR}/observability/grafana/provisioning/alerting/containers-alerts.yaml"
+check "la règle par projet porte l'étiquette cadence=daily" sh -c "grep -A16 'uid: backup-agent-no-upload' '${RULES}' | grep -q 'cadence: daily'"
+check "la politique de notification a une route « cadence=daily »" grep -q cadence <<< "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/policies")"
+check "cette route répète toutes les 24 h (les autres alertes : 4 h)" grep -q -E '"repeat_interval":"(24h|1d)"' <<< "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/policies" | tr -d ' ')"
+cat > "${WORK}/bkrule.py" <<'BKRULE'
+import json, subprocess, sys, urllib.parse, yaml
+y = yaml.safe_load(open(sys.argv[1]))
+expr = next(d["model"]["expr"] for g in y["groups"] for r in g["rules"] if r["uid"] == "backup-agent-no-upload" for d in r["data"] if d["refId"] == "A")
+def apps(q):
+    url = "http://loki:3100/loki/api/v1/query?query=" + urllib.parse.quote(q)
+    out = subprocess.run(["docker", "exec", "vpstest-obs-grafana", "wget", "-qO-", url], capture_output=True, text=True).stdout
+    return sorted(x["metric"].get("app", "?") for x in json.loads(out)["data"]["result"])
+# la fenêtre de 36 h devient 5 min : les faux agents n'ont que quelques minutes d'existence
+per_project = apps(expr.replace("[36h]", "[5m]"))
+# l'ancienne règle, globale : se tait tant que bk-ok envoie ses copies
+global_rule = apps('absent_over_time({service="backup", deployment="prod"} |= "uploaded to" [5m])')
+print("par projet :", per_project, "| globale :", global_rule, file=sys.stderr)
+sys.exit(0 if per_project == ["bk-off"] and global_rule == [] else 1)
+BKRULE
+check "la règle nomme le projet désactivé (bk-off), pas celui qui envoie (bk-ok), pas le projet neuf sans passage (bk-new) ; l'ancienne règle globale se taisait" \
+    wait_for 150 python3 "${WORK}/bkrule.py" "${RULES}"
+python3 "${WORK}/bkrule.py" "${RULES}" >&2 || true   # en cas d'échec, le journal montre ce que chaque règle a renvoyé
+# La requête est juste (ci-dessus) ; reste à prouver que GRAFANA l'évalue : avec « execErrState: OK », une erreur d'évaluation passerait inaperçue (état Normal).
+# On exige donc une santé « ok » et une instance d'alerte par projet concerné, avec les étiquettes app et cadence.
+cat > "${WORK}/bkeval.py" <<'BKEVAL'
+import json, subprocess, sys
+out = subprocess.run(["docker", "exec", "vpstest-obs-grafana", "wget", "-qO-", "http://admin:vpstest-pass@localhost:3000/api/prometheus/grafana/api/v1/rules"], capture_output=True, text=True).stdout
+rules = [r for g in json.loads(out)["data"]["groups"] for r in g["rules"] if r["name"].startswith("Une sauvegarde de production")]
+if not rules:
+    print("règle absente de Grafana", file=sys.stderr); sys.exit(1)
+r = rules[0]
+alerts = [a["labels"] for a in r.get("alerts", [])]
+print("santé :", r.get("health"), "| état :", r.get("state"), "| instances :", alerts, file=sys.stderr)
+ok = r.get("health") == "ok" and any(l.get("app") == "bk-off" and l.get("cadence") == "daily" for l in alerts) and not any(l.get("app") in ("bk-ok", "bk-new") for l in alerts)
+sys.exit(0 if ok else 1)
+BKEVAL
+check "Grafana évalue la règle sans erreur : une instance pour le projet concerné (bk-off), avec cadence=daily, aucune pour les autres" wait_for 480 python3 "${WORK}/bkeval.py"
+python3 "${WORK}/bkeval.py" >&2 || true
 # Incident du 2026-10-05 : « {{ $$labels.name }} » chargeait sans erreur mais ne s'évaluait pas (« bad character U+0024 »), 585 erreurs en quelques minutes
 # sur le serveur. Charger une règle ne prouve pas que son message s'évalue : on attend la première évaluation, puis on cherche l'erreur.
 check "les règles de conteneurs ont été évaluées par Grafana" wait_for 240 sh -c \

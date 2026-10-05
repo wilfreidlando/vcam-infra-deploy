@@ -166,3 +166,38 @@ groups:
             type: gt
             params:
             - 0
+  - uid: backup-agent-no-upload
+    title: Une sauvegarde de production n'envoie plus de copie depuis 36 heures
+    condition: C
+    for: 1h
+    noDataState: OK
+    execErrState: OK
+    # Rappel QUOTIDIEN (pas toutes les 4 h) : la route « cadence=daily » de notifications.yaml répète toutes les 24 h. Un projet de production dont la
+    # sauvegarde est volontairement désactivée (BACKUP_DISABLED=1) est ainsi rappelé une fois par jour, sans bruit permanent.
+    labels:
+      cadence: daily
+    annotations:
+      summary: 'L''agent de sauvegarde de {{ .Labels.app }} (production) a tourné mais n''a envoyé aucune copie sur S3 depuis 36 h : soit l''envoi échoue (voir « docker logs » du conteneur backup), soit la sauvegarde est désactivée (BACKUP_DISABLED=1, ou bucket S3 absent). Rappel une fois par jour tant que ce n''est pas résolu. Voir docs/reference/sauvegardes.md.'
+    data:
+    - refId: A
+      datasourceUid: loki
+      relativeTimeRange:
+        from: 3600
+        to: 0
+      model:
+        refId: A
+        # Par projet : les agents qui ont eu un PASSAGE de sauvegarde (ligne « backup: », pas la ligne de démarrage « db-backup: ») moins ceux qui ont
+        # envoyé au moins une copie. Un projet neuf n'est donc pas signalé avant son premier passage nocturne.
+        expr: 'sum by (app) (count_over_time({service="backup", deployment="prod"} |~ "^backup: " [36h])) unless sum by (app) (count_over_time({service="backup", deployment="prod"} |= "backup: uploaded to" [36h]))'
+        queryType: instant
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 0

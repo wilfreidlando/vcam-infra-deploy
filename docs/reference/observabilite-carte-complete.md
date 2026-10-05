@@ -36,15 +36,15 @@ environ 230 Mo pour les cinq composants d'origine).
 | **Santé du serveur** : processeur, mémoire, swap, disque, charge | node-exporter | Tableau **Plateforme → Serveur — vue d'ensemble** | 5 règles (§ 3) | [Disque plein](../runbooks/disque-plein.md), [Site en panne](../runbooks/site-en-panne.md) |
 | **Consommation et redémarrages par conteneur** | cAdvisor | Tableau **Plateforme → Conteneurs** | 2 règles | [Conteneur en boucle](../runbooks/conteneur-en-boucle.md) |
 | **Disponibilité et certificats des sites** | blackbox-exporter | Tableau **Plateforme → Sites** | 2 règles | [Site en panne](../runbooks/site-en-panne.md), [Certificat non émis](../runbooks/certificat-non-emis.md) |
-| **Sauvegardes** : une copie part-elle sur S3 ? | Journaux de l'agent (`uploaded to s3://…`) | **Explore → Loki**, `{service="backup"}` | 1 règle | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
+| **Sauvegardes** : une copie part-elle sur S3 ? | Journaux de l'agent (`uploaded to s3://…`) | **Explore → Loki**, `{service="backup"}` | 2 règles | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
 | **Métriques de l'application** | `/metrics` du projet (si exposé) | **Explore → Prometheus**, `up{app="…"}` | selon le projet | [README de l'observabilité](../../observability/README.md) |
 | **Traces** | OTLP vers Alloy (si configuré) | **Explore → Tempo** | — | idem |
 | **Le Core** | Ses métriques, ses tableaux et ses alertes, **livrés par son propre dépôt** | Dossier **core-system** | 6 règles propres au Core | voir ci-dessous |
 
-## 3. Les alertes (10 de la plateforme, plus celles que les projets publient)
+## 3. Les alertes (11 de la plateforme, plus celles que les projets publient)
 
-Toutes partent vers le même point de contact (`core-oncall`, nom historique : il reçoit **toutes** les alertes) par e-mail. Chacune a un **délai** (`for`)
-contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf pour celle qui surveille l'observateur lui-même.
+Toutes partent vers le même point de contact (`core-oncall`, nom historique : il reçoit **toutes** les alertes) par e-mail, **répétées toutes les 4 h** tant qu'elles durent ; celles étiquetées `cadence=daily`
+(une sauvegarde désactivée, par exemple) ne sont répétées qu'**une fois par jour** (route de `notifications.yaml`). Chacune a un **délai** (`for`) contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf pour celle qui surveille l'observateur lui-même.
 
 | Alerte | Seuil | Délai | Runbook |
 | --- | --- | --- | --- |
@@ -57,7 +57,8 @@ contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf po
 | Un conteneur approche de sa limite de mémoire | plus de 90 % de sa limite | 10 min | idem |
 | Un site ne répond plus | sonde en échec (autre chose que 2xx) | 3 min | [Site en panne](../runbooks/site-en-panne.md) |
 | Un certificat HTTPS expire bientôt | moins de 14 jours | 1 h | [Certificat non émis](../runbooks/certificat-non-emis.md) |
-| Aucune sauvegarde envoyée hors du serveur depuis 36 heures | **plus aucune** ligne « uploaded to » dans **tous** les agents de production (alerte globale : un seul projet qui envoie suffit à la taire, [limite connue](sauvegardes.md#limite-connue-de-lalerte-constat-du-2026-10-05)) | 1 h | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
+| Aucune sauvegarde envoyée hors du serveur depuis 36 heures | **plus aucune** ligne « uploaded to » dans **tous** les agents de production (alerte globale : elle ne voit que l'absence totale ; pour un projet précis, voir la suivante) | 1 h | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
+| Une sauvegarde de production n'envoie plus de copie depuis 36 heures | **par projet** : un agent de production a eu un passage de sauvegarde mais n'a envoyé aucune copie (envoi en échec **ou sauvegarde désactivée**) ; un projet neuf n'est signalé qu'après son premier passage. **Rappel une fois par jour** (`cadence=daily`) | 1 h | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
 | 6 règles du Core | **publiées par le dépôt du Core** (injoignable, file bloquée, erreurs 5xx…), évaluées sur ses métriques `deployment=prod` | variable | Elles ne sont fiables que **tant que le Core est branché** (labels et `/metrics`) |
 
 ## 4. Les tableaux de bord
