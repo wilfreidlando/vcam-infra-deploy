@@ -118,6 +118,20 @@ services:
     volumes: [ backups:/backups ]
     depends_on: { mon-saas-db: { condition: service_healthy } }
     deploy: { resources: { limits: { cpus: "0.5", memory: "256M" } } }
+    # Journaux de la sauvegarde dans Grafana : « backup: uploaded to s3://… » chaque nuit, ou son absence
+    # (alerte « aucune sauvegarde envoyée depuis 36 h »). Label seul : pas de réseau `observability`.
+    labels:
+      observability.enable: "true"
+      observability.app: mon-saas
+      observability.deployment: ${DEPLOYMENT:-prod}
+    # « healthy » = une copie chiffrée de moins de 36 h existe : une sauvegarde qui cesse de tourner devient
+    # visible (docker ps, audit). Le premier créneau nocturne peut n'arriver que le lendemain d'un premier déploiement.
+    healthcheck:
+      test: [ "CMD-SHELL", "find /backups -name '*.dump.enc' -mmin -2160 | grep -q ." ]
+      interval: 1h
+      timeout: 10s
+      retries: 1
+      start_period: 30h
 
 volumes:
   db-data:

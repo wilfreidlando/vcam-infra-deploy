@@ -97,7 +97,15 @@ ce réseau partagé : mettez-leur le label seul.
 
 ### 2. Journaux : JSON sur la sortie standard (aucune dépendance)
 
-Dans `config/logging.php` :
+**Sans une ligne de code (Laravel récent)** : le canal `stderr` fourni par Laravel accepte un format par variable d'environnement.
+Dans le `.env` du projet (c'est ce que fait le [projet pilote](../guides/18-le-projet-pilote-skills-devops.md)) :
+
+```
+LOG_CHANNEL=stderr
+LOG_STDERR_FORMATTER=Monolog\Formatter\JsonFormatter
+```
+
+**Avec du code**, si vous voulez un canal à vous, dans `config/logging.php` :
 
 ```php
 'stdout_json' => [
