@@ -37,16 +37,40 @@ redémarre pas Docker.
 
 ## Quand et comment
 
-En heure creuse : une interruption réseau de quelques secondes reste possible
-pendant le redémarrage du démon.
+**Heure** : la plus creuse du serveur (la nuit, vers 02 h-04 h). Pendant que le démon est absent, un conteneur qui écrit beaucoup sur sa sortie standard (le proxy, qui journalise chaque requête) peut
+remplir son tampon de 64 Ko et **se bloquer** jusqu'au retour du démon : plus le démon est absent longtemps et plus le trafic est élevé, plus le risque est réel. Le script **mesure** cette durée.
+Le redémarrage de Docker n'a **jamais été testé** avec plusieurs centaines de conteneurs (voir [les tests](../tests/README.md#hors-périmètre)) : c'est pourquoi le script compare les conteneurs avant et après.
+
+**Avant** (lecture seule, 1 minute) :
 
 ```bash
-$ apt install -y jq
+$ command -v jq || apt install -y jq                         # requis par le script ; absent sur ce serveur au 2026-10-05
+$ docker info --format 'conteneurs={{.ContainersRunning}} live-restore={{.LiveRestoreEnabled}}'   # noter le nombre
+$ cat /etc/docker/daemon.json 2>&1                           # absent = rien à fusionner
+```
+
+**Appliquer** :
+
+```bash
 $ /app/vps-platform/host/apply-daemon-config.sh       # affiche la nouvelle config, demande « oui »
+```
+
+Le script écrit ce qu'il fait : le nombre de conteneurs en marche **avant**, le temps pendant lequel Docker n'a pas répondu, le nombre **après**, et **nomme tout conteneur manquant** (sortie en erreur : il
+ne relance rien tout seul). Résultat attendu : `Aucun conteneur perdu.`
+
+**Après** :
+
+```bash
 $ docker info --format 'log-driver={{.LoggingDriver}} live-restore={{.LiveRestoreEnabled}}'
 log-driver=json-file live-restore=true
 $ curl -sI https://<un site> | head -1                       # les sites répondent toujours
 ```
+
+## Pourquoi `live-restore` vaut la peine **même sans** la rotation
+
+Sans `live-restore`, **tout redémarrage du démon Docker arrête tous les conteneurs**. Constat du 2026-10-05 : `live-restore` est à `false`, et `unattended-upgrades` est actif sans que `docker-ce` ni `containerd.io` soient bloqués. Aucune mise à jour de ces paquets n'était en attente (version installée = version candidate),
+et **je n'ai pas vérifié** si le dépôt Docker fait partie des origines que les mises à jour automatiques ont le droit d'installer (`/etc/apt/apt.conf.d/50unattended-upgrades`, bloc `Allowed-Origins`). Quoi qu'il en soit,
+une mise à jour de ces paquets, ou un simple `systemctl restart docker`, couperait **tous les sites** d'un coup tant que `live-restore` est à `false`. Avec `live-restore`, le démon peut redémarrer sans toucher aux conteneurs.
 
 ## Ce qui change, et quand
 

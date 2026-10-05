@@ -64,7 +64,7 @@ Un code de sortie différent de 0 signale un échec.
   se vérifie avec le guide 4, étape 2.
 - **Le redémarrage de Docker sous systemd** (`host/apply-daemon-config.sh`) :
   la fusion et la validation de `daemon.json` ont été vérifiées, pas le redémarrage
-  lui-même (guide 9).
+  lui-même (guide 9). Le script compare les conteneurs avant et après et nomme ceux qui manquent.
 
 ## `test-platform.sh` : le Core
 
