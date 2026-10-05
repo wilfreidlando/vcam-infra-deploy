@@ -48,14 +48,20 @@ $ git fetch && git log --oneline HEAD..origin/main     # ce qui va changer
 $ git pull --ff-only
 ```
 
-- **Outils** (`bin/`) : pris en compte au prochain déploiement. Rien à redémarrer. Vérifier ensuite : `vps where` (le commit attendu), `vps-deploy check <env>` sur un projet (ne change rien), `host/install-commands.sh --check`.
-- **Image de sauvegarde** (`images/db-backup`) : reconstruite au prochain build de
-  chaque projet.
-- **Observabilité** (`observability/`) : seulement si ce dossier a changé
-  (quelques secondes sans collecte, aucun effet sur les sites) :
-  ```bash
-  $ cd /app/vps-platform/observability && docker compose --env-file .env up -d
-  ```
+**Voir d'abord ce qui change** : `git diff --stat HEAD origin/main` (après le `fetch`). Selon les dossiers touchés :
+
+| Ce qui a changé | Après le `pull`, il faut… |
+| --- | --- |
+| **`bin/`** (`deploy.sh`, `restore.sh`, `vps-*.sh`) | **Rien.** Pris en compte à la prochaine commande. Vérifier : `vps where`, puis `vps-deploy check <env>` sur un projet (ne change rien) |
+| **Une nouvelle commande** (`bin/vps.sh`, un script ajouté à la liste de `host/install-commands.sh`) | Relancer `host/install-commands.sh` (en root). `host/install-commands.sh --check` dit si c'est nécessaire |
+| **`host/`** (réglage de Docker) | Rien tant qu'on ne le lance pas : `vps-daemon-config` applique, de nuit |
+| **`images/db-backup`** (agent de sauvegarde) | **Le `pull` ne suffit pas.** Chaque projet reçoit la nouvelle image à son **prochain déploiement** ; les agents qui tournent gardent l'ancienne jusque-là |
+| **`observability/`** : tableaux | Rien : Grafana les recharge seul en une minute |
+| **`observability/`** : règles d'alerte ou notifications | **Recréer Grafana** (`cd /app/vps-platform/observability && docker compose --env-file .env up -d --no-deps --force-recreate grafana`) |
+| **`observability/`** : autre composant (Tempo, Alloy, Prometheus…) | Recréer **ce** composant seulement, jamais tout d'un coup |
+| **`templates/`, `docs/`, `guides/`, `tests/`** | Rien : rien ne s'exécute sur le serveur. Les projets copient les modèles à la main |
+
+Deux conditions pour que le `pull` passe : le clone du serveur ne doit avoir **aucune modification locale** (les fichiers propres au serveur, comme `sites.yml` ou `.env`, sont ignorés par git), et il se fait en root avec `--ff-only`.
 
 ## Revenir en arrière
 
