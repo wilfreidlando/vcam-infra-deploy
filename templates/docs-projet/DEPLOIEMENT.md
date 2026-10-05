@@ -51,6 +51,8 @@ Modèles complets : [production](https://github.com/wilfreidlando/vcam-infra-dep
 
 ## 4. Premier déploiement d'un environnement
 
+> **Commandes.** Elles s'écrivent `/app/vps-platform/bin/deploy.sh …`, ou simplement `vps-deploy …` quand les commandes courtes de la plateforme sont installées (`vps` donne l'aide, `vps where` dit où est la plateforme).
+
 *Une seule fois par environnement. Chaque commande dit ce qu'elle fait.*
 
 ```bash

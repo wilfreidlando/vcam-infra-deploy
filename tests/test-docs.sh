@@ -88,6 +88,17 @@ check "chaque ADR figure dans docs/adr/README.md" test -z "$(liste docs/adr docs
 check "chaque inventaire figure dans docs/inventaire/README.md" test -z "$(liste docs/inventaire docs/inventaire/README.md '2*.md')"
 check "chaque page de référence figure dans docs/README.md" test -z "$(liste docs/reference docs/README.md '*.md')"
 check "chaque document de docs/ figure dans docs/README.md" test -z "$(liste docs docs/README.md '0*.md')"
+# Constat du 2026-10-05 : deux suites ajoutées dans la journée n'étaient pas dans le tableau de tests/README.md ni dans la liste de run-all.sh : une suite qu'on ne lance pas ne protège rien.
+check "chaque suite de tests figure dans tests/README.md" test -z "$(liste tests tests/README.md 'test-*.sh')"
+suites_absentes() {  # suites de tests/ absentes de la liste de run-all.sh (et, hors test-platform, de la matrice de la CI)
+    local f n
+    for f in tests/test-*.sh; do
+        n="$(basename "${f}" .sh)"; n="${n#test-}"
+        grep -q -w "${n}" tests/run-all.sh || echo "run-all.sh : ${n}"
+        [[ "${n}" == platform ]] || grep -q -w "${n}" .github/workflows/tests.yml || echo "CI : ${n}"
+    done
+}
+check "chaque suite est lancée par run-all.sh et par la CI (test-platform : run-all seulement)" test -z "$(suites_absentes)"
 
 step "Aucun secret dans la documentation"
 secrets() { grep -rIn -E 'ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----' --include='*.md' . | grep -v '^./.git/' || true; }

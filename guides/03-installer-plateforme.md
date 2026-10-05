@@ -88,6 +88,21 @@ $ ls /app/vps-platform        # → bin  docs  guides  host  images  observabili
 Tous les chemins de la documentation partent de là : `/app/vps-platform/bin/deploy.sh`,
 `/app/vps-platform/observability/`… Mettre à jour plus tard : guide 11.
 
+**Installer les commandes courtes (recommandé, une fois, en root).** Pour ne plus jamais taper ni rater un chemin :
+
+```bash
+$ /app/vps-platform/host/install-commands.sh        # écrit 8 commandes dans /usr/local/bin : vps, vps-deploy, vps-restore, vps-audit,
+                                                    #   vps-inventory, vps-hosts, vps-obs-bundle, vps-daemon-config
+$ vps                                               # l'aide : comment on déploie sur cette plateforme, et la liste des commandes
+$ vps where                                         # où est la plateforme, quelle version : fonctionne depuis n'importe quel dossier
+plateforme : /app/vps-platform
+version    : 9c656e3 (2026-10-05)
+```
+
+Ensuite `vps-deploy check prod` (ou `vps deploy check prod`) remplace `/app/vps-platform/bin/deploy.sh check prod`, partout dans la documentation. Si la plateforme est introuvable, la commande le **dit** (code 127, avec le dossier cherché et comment corriger) au lieu d'un
+« No such file or directory ». Si la plateforme change de dossier : relancer l'installateur depuis le nouveau dossier, ou `VPS_PLATFORM_DIR=<dossier> vps-deploy …` en attendant. `install-commands.sh --check` montre l'état,
+`--uninstall` ne retire que ses propres commandes, et il n'écrase jamais un fichier qui n'est pas à lui.
+
 Vérifier les prérequis :
 
 ```bash

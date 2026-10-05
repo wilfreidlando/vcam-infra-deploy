@@ -10,14 +10,26 @@
 | Rôle | Intégration d'une branche de travail | **Valider** la version exacte qui ira en production | Servir les utilisateurs | Une production par client ou région |
 | Dossier sur le serveur | `/app/<projet>/dev` | `/app/<projet>/staging` | `/app/<projet>/prod` | `/app/<projet>/<nom>` |
 | Fichier d'environnement | `.env.dev` | `.env.staging` | `.env` | `.env.<nom>` |
-| Version qui s'y trouve | une branche (`BRANCH_DEV`) | `main` (`STAGING_BRANCH`), **suivie automatiquement** | **celle du staging**, jamais construite en production | chacune **la sienne**, indépendante |
+| Version qui s'y trouve | une branche (`BRANCH_DEV`) | la branche **choisie par le projet** (`BRANCH_STAGING`, par défaut `main`), **suivie automatiquement** | **celle du staging**, jamais construite en production ; si le projet déclare `BRANCH_PROD`, seulement ce qui est **déjà dans cette branche** | chacune **la sienne**, avec sa propre branche (`BRANCH_<NOM>`) |
 | Qui la déploie | automatique (`deploy.sh watch dev`) | automatique (`deploy.sh watch`) | **une personne**, jamais automatique : `deploy.sh promote` | `deploy.sh promote --env <nom>` |
 | Secrets | propres | **propres, jamais ceux de la production** | propres | **propres à chaque production** |
 | Sauvegarde | non | **non** (`BACKUP_DISABLED=1`) | **oui, chaque nuit, sur S3** | oui, un dossier S3 chacune |
 | Données | jetables | jetables (une copie de la production **seulement pour une répétition**, jamais laissée) | réelles | réelles |
 | Étiquette de supervision | `deployment=dev` | `deployment=staging` | `deployment=prod` | `deployment=<nom>` |
 
-**Sans staging** (profil B) : une seule ligne, la production ; `deploy.sh promote origin/main` construit sur place. Voir les [profils de projet](profils-de-projet.md).
+**Sans staging** (profil B) : une seule ligne, la production. Le projet déclare sa branche (`BRANCH_PROD=main`) et `deploy.sh promote` construit `origin/main` sur place. Voir les [profils de projet](profils-de-projet.md).
+
+### Les branches : le projet choisit, la plateforme n'impose rien
+
+| Le projet veut… | Il écrit dans `platform.env` | Ce qui se passe |
+| --- | --- | --- |
+| `develop` pour le staging, `main` pour la production | `BRANCH_STAGING=develop` et `BRANCH_PROD=main` | Le staging suit `develop`. Pour promouvoir, la version validée doit **d'abord être fusionnée dans `main`** ; la production reçoit alors l'**image du staging**, sans rien reconstruire |
+| `main` pour les deux, sans étape de fusion | `BRANCH_STAGING=main`, pas de `BRANCH_PROD` | Le staging suit `main` ; la production reçoit ce que le staging a validé, sans contrainte de branche |
+| Une production **sans staging** | `ENVIRONMENTS=prod` et `BRANCH_PROD=main` | `deploy.sh promote` construit `origin/main` sur place ; l'image n'a été validée par aucun staging |
+| **Plusieurs productions** | `PROD_ENVIRONMENTS="prod prodeu"`, `BRANCH_PROD=main`, `BRANCH_PRODEU=release` | Chaque production a sa branche ; `promote --env <nom>` dit laquelle |
+
+**Le passage staging → production**, dans tous les cas : `deploy.sh promote` déploie **l'image exacte** construite pour le staging (étiquette = commit) ; si elle n'existe pas, il **refuse** au lieu de reconstruire. Il écrit « même image que staging : rien n'est reconstruit »
+dans le journal. Seule exception, annoncée dans le journal : `BUILD_PER_ENV=1`, pour un front dont l'image intègre la configuration de l'environnement. `deploy.sh status` et `deploy.sh check` disent, pour chaque environnement, **quelle branche il suit**.
 
 ## 2. Selon la situation
 
@@ -64,14 +76,17 @@ Chaque production se promeut **séparément** (`--env`), a sa version, son `.env
 | Commande | Ce qu'elle fait | Change quelque chose ? |
 | --- | --- | --- |
 | `deploy.sh check [env]` | Contrôle avant déploiement : accès git, `platform.env`, compose, noms | **non** |
-| `deploy.sh status` | Version courante et précédente de chaque environnement, conteneurs | non |
+| `deploy.sh status` | Version courante et précédente de chaque environnement, **la branche qu'il suit**, conteneurs | non |
 | `deploy.sh build [ref] [env]` | Construit l'image d'un commit | construit une image |
 | `deploy.sh up <env> <version>` | Déploie une version déjà construite (aussi : recréer les conteneurs après un changement de `.env`) | **oui** |
 | `deploy.sh watch [env]` | Staging automatique : construit et déploie si la branche a bougé | **oui** (staging) |
-| `deploy.sh promote [version] [-y] [--env <nom>]` | Production : l'image testée en staging | **oui** (production) |
+| `deploy.sh promote [version] [-y] [--env <nom>]` | Production : l'image testée en staging, **à condition qu'elle soit dans la branche de production** si le projet en déclare une ; sans staging, construit la branche déclarée | **oui** (production) |
 | `deploy.sh rollback <env>` | Remet la version précédente | **oui** |
 | `deploy.sh backup [env]` | Une sauvegarde maintenant, envoyée sur S3 | crée une copie sur S3 |
 | `deploy.sh obs-sync [--remove]` | Publie (ou retire) les tableaux et alertes du projet | écrit dans l'arbre de Grafana |
+| `deploy.sh where` | Où est la plateforme, quelle version (aucun projet requis) | **non** |
+
+**Le chemin.** Partout, `deploy.sh` s'écrit `/app/vps-platform/bin/deploy.sh`, ou simplement `vps-deploy` une fois les [commandes courtes](../../guides/03-installer-plateforme.md#étape-1--cloner-la-plateforme) installées (une fois, en root).
 
 Variables utiles : `BACKUP_BEFORE_DEPLOY=always` (dans `platform.env`) pour une sauvegarde avant **chaque** déploiement ; `SKIP_MIGRATIONS=1`, `SKIP_BACKUP=1` pour les cas exceptionnels, avec l'accord du responsable.
 

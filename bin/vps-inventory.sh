@@ -27,7 +27,7 @@ STATE_DIR="${STATE_DIR:-/var/lib/vps-platform}"
 PLATFORM_DIR="${PLATFORM_DIR:-/app/vps-platform}"
 SHARED_NETWORKS="${SHARED_NETWORKS:-nginx-proxy observability}"
 NGINX_PROXY_CONTAINER="${NGINX_PROXY_CONTAINER:-nginx-proxy}"
-BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BIN_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 audit=1
 [[ "${1:-}" == "--no-audit" ]] && audit=0
 

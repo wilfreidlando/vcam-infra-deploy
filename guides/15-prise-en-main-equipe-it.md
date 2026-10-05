@@ -55,7 +55,7 @@ contourner.
 
 | Quoi | Où |
 | --- | --- |
-| Cette plateforme | `/app/vps-platform` (clone de ce dépôt) |
+| Cette plateforme | `/app/vps-platform` (clone de ce dépôt). Les commandes courtes `vps-deploy`, `vps-audit`… (installées par `host/install-commands.sh`) évitent d'en taper le chemin ; `vps` (sans argument) dit comment on déploie, `vps where` où est la plateforme et quelle version |
 | Un projet, un environnement | `/app/<projet>/<env>` (`env` = `staging` ou `prod`) |
 | Configuration de déploiement d'un projet | `platform.env` à la racine de son dépôt (commité, **aucun secret**) |
 | Secrets d'un projet | `.env` (prod) et `.env.staging`, **uniquement sur le serveur**, jamais commités |

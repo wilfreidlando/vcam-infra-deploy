@@ -16,6 +16,7 @@ Retour au [sommaire de la documentation](../README.md).
 | [0066](0066-sauvegardes-agent-maison-ou-portabase.md) | Sauvegardes : notre agent, Portabase, ou les deux ? | **Proposé** (essai à faire) | 2026-10-05 |
 | [0067](0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) | Profils de projet (sans staging, plusieurs productions, site simple) et sauvegardes sur S3 seulement | Accepté | 2026-10-05 |
 | [0068](0068-observabilite-portee-par-le-projet.md) | Observabilité portée par le projet : tableaux et alertes dans le dépôt du projet, tableau générique « Application » pour tous | Accepté | 2026-10-05 |
+| [0069](0069-commandes-courtes-et-branches-declarees-par-le-projet.md) | Des commandes sans chemin (`vps`, `vps-deploy`…), des branches déclarées par chaque projet, une promotion encadrée (même image, garde optionnelle) | Accepté | 2026-10-05 |
 
 ## Quand écrire une ADR
 

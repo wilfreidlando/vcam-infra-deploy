@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: [ obs-bundle, templates, hosts, deploy, inventory, backup, observability ]
+        test: [ docs, commands, obs-bundle, templates, hosts, deploy, branches, inventory, backup, observability ]
     steps:
       - uses: actions/checkout@v4
       - name: Docker

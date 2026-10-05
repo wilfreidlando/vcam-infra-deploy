@@ -22,6 +22,13 @@
 #                                  required when the project has no staging). --env: which production,
 #                                  when the project has several (PROD_ENVIRONMENTS)
 #
+# Branches: each project says which branch each environment follows, and nothing is imposed (develop for staging and main for
+# production is one choice; main for both, or a production without staging, are others):
+#   BRANCH_<ENV>      the branch `watch` follows for a non-production environment (STAGING_BRANCH is the older name of BRANCH_STAGING)
+#   BRANCH_<PROD>     OPTIONAL guard on a production (e.g. BRANCH_PROD=main): `promote` refuses a version that is not already in
+#                     origin/<branch> — merge what staging validated, then promote. Without it, no constraint. A project WITHOUT staging
+#                     (ENVIRONMENTS=prod) builds origin/<branch> when `promote` is given no version.
+#
 # Environments: ENVIRONMENTS in platform.env (default "staging prod"), e.g.
 # "dev staging prod". Each has its env file (ENV_FILE_<ENV>, default .env for
 # prod, .env.<env> otherwise) and, for watch, its branch (BRANCH_<ENV>;
@@ -39,6 +46,9 @@
 #   deploy.sh status               current/previous SHA and containers of each environment
 #   deploy.sh check [env]          pre-flight only (git access, platform.env ↔ compose,
 #                                  name collisions on shared networks) — changes nothing
+#   deploy.sh where                where the platform is and which version (no project needed) — changes nothing
+#
+# Short commands: host/install-commands.sh installs `vps-deploy` (= this script) and friends in the PATH, so nobody types the path.
 #
 # platform.env is read from the commit being deployed (re-read after every
 # checkout): a change to it takes effect with the commit that carries it.
@@ -50,8 +60,21 @@ set -euo pipefail
 
 # ── Configuration ───────────────────────────────────────────────────────
 PROJECT_DIR="$(pwd)"
-# The platform clone this script lives in (/app/vps-platform on the server).
-PLATFORM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The platform clone this script lives in (/app/vps-platform on the server). The script is resolved through any symlink first: a link in
+# the PATH (or anywhere else) must still find the REAL platform, never the folder holding the link.
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+PLATFORM_ROOT="$(cd "$(dirname "${SELF}")/.." && pwd)"
+# `deploy.sh where` : where the platform is and which version. Needs no project, no platform.env, and changes nothing.
+# The usage is shown from anywhere (no project needed): empty argument = exit 2 as before, explicit help = exit 0.
+case "${1:-}" in
+    ""|help|-h|--help) sed -n '2,/^set -euo/p' "${SELF}" | sed '$d'; [[ -z "${1:-}" ]] && exit 2; exit 0 ;;
+esac
+if [[ "${1:-}" == where ]]; then
+    echo "plateforme : ${PLATFORM_ROOT}"
+    echo "version    : $(git --git-dir="${PLATFORM_ROOT}/.git" rev-parse --short HEAD 2>/dev/null || echo inconnue) ($(git --git-dir="${PLATFORM_ROOT}/.git" log -1 --format=%cs 2>/dev/null || echo '?'))"
+    echo "script     : ${SELF}"
+    exit 0
+fi
 # Never wait for a password: under cron nobody types it (an HTTPS remote
 # would hang the deploy). Failures are explained by fetch_origin.
 export GIT_TERMINAL_PROMPT=0
@@ -339,7 +362,7 @@ check_hosts() {
         | grep -o '"VIRTUAL_HOST": *"[^"]*"' | cut -d'"' -f4 | paste -sd, - || true)"
     [[ -z "${names}" ]] && return 0
     local out
-    out="$("$(dirname "${BASH_SOURCE[0]}")/vps-hosts.sh" --check "${names}" --project "${APP_NAME}-${env}" 2>&1)" && return 0
+    out="$("$(dirname "${SELF}")/vps-hosts.sh" --check "${names}" --project "${APP_NAME}-${env}" 2>&1)" && return 0
     log "${out}"
     return 1
 }
@@ -421,6 +444,37 @@ prune_images() {
 }
 
 # ── Commands ────────────────────────────────────────────────────────────
+# The project's own rule on a production: only a version already contained in BRANCH_<ENV> can be promoted. No variable, no rule.
+guard_branch() {  # guard_branch <env> <sha>
+    local env="$1" sha="$2" var="BRANCH_${1^^}" br
+    br="${!var:-}"
+    [[ -n "${br}" ]] || return 0
+    if [[ "${SKIP_BRANCH_CHECK:-0}" == 1 ]]; then
+        log "SKIP_BRANCH_CHECK=1 : ${sha:0:12} non vérifié contre origin/${br} (exception, avec l'accord du responsable)"
+        return 0
+    fi
+    is_git || { log "hors git : la branche ${br} n'est pas vérifiée"; return 0; }
+    fetch_origin || die "impossible de vérifier la branche ${br} (voir ci-dessus)"
+    git -C "${PROJECT_DIR}" rev-parse --verify --quiet "origin/${br}^{commit}" >/dev/null \
+        || die "la branche de production « ${br} » (${var} dans platform.env) n'existe pas sur origin"
+    git -C "${PROJECT_DIR}" merge-base --is-ancestor "${sha}" "origin/${br}" \
+        || die "${sha:0:12} n'est pas dans origin/${br} (${var} dans platform.env) : fusionner d'abord dans ${br} la version validée. Exception, avec l'accord du responsable : SKIP_BRANCH_CHECK=1"
+}
+
+# One line saying which branch an environment follows, or checks against (used by status and check).
+describe_branch() {  # describe_branch <env>
+    local env="$1" var="BRANCH_${1^^}"
+    if is_prod "${env}"; then
+        if [[ -z "$(preprod_env)" ]]; then
+            if [[ -n "${!var:-}" ]]; then echo "production sans staging : construit origin/${!var} quand on la promeut (${var})"
+            else echo "production sans staging, branche non déclarée : donner la version à promouvoir, ou définir ${var} dans platform.env"; fi
+        elif [[ -n "${!var:-}" ]]; then echo "production : ne reçoit que ce qui est déjà dans origin/${!var} (${var})"
+        else echo "production : aucune contrainte de branche (${var} non défini)"; fi
+    else
+        echo "suit origin/$(branch_for "${env}" 2>/dev/null || echo "?  (définir ${var} dans platform.env)")"
+    fi
+}
+
 cmd_build() {
     local env="${2:-$(preprod_env)}"
     [[ -n "${env}" ]] || env="${PROD_ENVIRONMENTS%% *}"
@@ -545,15 +599,31 @@ cmd_promote() {
     is_prod "${env}" || die "« ${env} » n'est pas une production (${PROD_ENVIRONMENTS}) : elle se déploie par « deploy.sh watch »"
     local pre; pre="$(preprod_env)"
     if [[ -z "${sha}" ]]; then
-        [[ -n "${pre}" ]] || die "ce projet n'a pas de staging : donner la version à déployer (deploy.sh promote <sha ou origin/main>)"
-        sha="$(state_get "${pre}" current)"
-        [[ -n "${sha}" ]] || die "aucune version en ${pre} à promouvoir"
+        if [[ -n "${pre}" ]]; then
+            sha="$(state_get "${pre}" current)"
+            [[ -n "${sha}" ]] || die "aucune version en ${pre} à promouvoir"
+        else
+            # No staging: nothing was validated before, so the production follows the branch the project DECLARED (BRANCH_<ENV>).
+            # We never guess one (a default « main » would deploy something nobody chose): no declaration, no guess.
+            local bvar="BRANCH_${env^^}" branch
+            [[ -n "${!bvar:-}" ]] || die "ce projet n'a pas de staging et ne déclare pas la branche de ${env} : donner la version (deploy.sh promote <sha ou origin/<branche>>) ou déclarer ${bvar}=<branche> dans platform.env"
+            branch="${!bvar}"
+            is_git || die "ce projet n'a pas de staging et n'est pas un checkout git : donner la version (deploy.sh promote <sha>)"
+            fetch_origin || die "impossible de récupérer origin/${branch} (voir ci-dessus)"
+            sha="$(git -C "${PROJECT_DIR}" rev-parse "origin/${branch}^{commit}")" || die "la branche origin/${branch} n'existe pas"
+            log "pas de staging : la production ${env} suit origin/${branch} (${sha:0:12})"
+        fi
     elif [[ ! "${sha}" =~ ^[0-9a-f]{40}$ ]] && is_git; then
         fetch_origin || die "impossible de résoudre ${sha} (voir ci-dessus)"
         sha="$(git -C "${PROJECT_DIR}" rev-parse "${sha}^{commit}")" || die "version inconnue"
     fi
     if [[ -n "${pre}" && "${sha}" != "$(state_get "${pre}" current)" ]]; then
         log "ATTENTION : ${sha} n'est pas la version actuellement en ${pre} ($(state_get "${pre}" current))"
+    fi
+    guard_branch "${env}" "${sha}"
+    if [[ -z "${pre}" ]]; then log "pas de staging : l'image de ${sha:0:12} est construite ici, rien n'a été validé avant"
+    elif [[ "${BUILD_PER_ENV}" == 1 ]]; then log "BUILD_PER_ENV=1 : l'image de ${env} est construite pour cet environnement (sa configuration est intégrée à l'image)"
+    elif [[ "${sha}" == "$(state_get "${pre}" current)" ]]; then log "même image que ${pre} (${sha:0:12}) : rien n'est reconstruit"
     fi
     echo "Production ${env} : $(state_get "${env}" current || true) → ${sha}"
     if [[ "${yes}" != 1 ]]; then
@@ -639,12 +709,14 @@ cmd_check() {
     [[ -f "${PROJECT_DIR}/docs/DEPLOIEMENT.md" ]] \
         || log "check : INFO — pas de docs/DEPLOIEMENT.md : la fiche de déploiement du projet, environnement par environnement (modèle : templates/docs-projet/DEPLOIEMENT.md, clause C14)"
     [[ "${ok}" == 1 ]] || die "check ${env} : problème(s) ci-dessus"
+    for e in ${ENVIRONMENTS}; do log "check : branche de ${e} — $(describe_branch "${e}")"; done
     log "check ${env} : OK"
 }
 
 cmd_status() {
     for env in ${ENVIRONMENTS}; do
         echo "── ${env} : $(state_get "${env}" current || true)  (précédent : $(state_get "${env}" previous || true))"
+        echo "   $(describe_branch "${env}")"
         [[ -n "$(state_get "${env}" failed)" ]] && echo "   dernier échec : $(state_get "${env}" failed)"
         [[ -f "$(env_file_for "${env}")" ]] && dc "${env}" ps --format 'table {{.Name}}\t{{.Status}}' 2>/dev/null || true
     done
@@ -662,7 +734,7 @@ main() {
         obs-sync) cmd_obs_sync "$@" ;;
         status) cmd_status ;;
         check) cmd_check "$@" ;;
-        *) sed -n '2,35p' "$0"; exit 2 ;;
+        *) sed -n '2,/^set -euo/p' "${SELF}" | sed '$d'; exit 2 ;;
     esac
 }
 

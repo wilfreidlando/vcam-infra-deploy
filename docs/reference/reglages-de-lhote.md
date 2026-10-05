@@ -13,6 +13,8 @@
 
   À lancer de préférence en heure creuse : une interruption réseau de quelques
   secondes reste possible. La rotation s'applique aux conteneurs recréés ensuite.
+- **Commandes courtes** : `host/install-commands.sh` installe dans le `PATH` `vps` (l'aide : comment on déploie), `vps-deploy`, `vps-restore`, `vps-audit`, `vps-inventory`, `vps-hosts`, `vps-obs-bundle` et `vps-daemon-config`, pour ne plus taper le chemin de la plateforme
+  ([ADR-0069](../adr/0069-commandes-courtes-et-branches-declarees-par-le-projet.md)). Un chemin raté donne un message clair (code 127) ; `vps where` dit où est la plateforme et quelle version ([guide 3](../../guides/03-installer-plateforme.md#étape-1--cloner-la-plateforme)).
 - **Pare-feu** : `ufw` n'ouvre que 22, 80 et 443. Rappel : il ne protège pas les
   ports publiés par Docker (règle 1).
 - **Mises à jour de sécurité automatiques** : `apt install unattended-upgrades`.

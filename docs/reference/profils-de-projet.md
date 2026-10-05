@@ -29,6 +29,7 @@ flowchart TB
 | Règle | Pourquoi |
 | --- | --- |
 | Une production **n'est jamais déployée automatiquement** : c'est toujours une décision humaine (`deploy.sh promote`) | Une erreur ne doit jamais atteindre les clients toute seule |
+| **Chaque projet déclare ses branches** (`BRANCH_STAGING`, et `BRANCH_PROD` s'il veut une garde) ; la plateforme n'en impose aucune ([les branches](deployer-selon-la-situation.md#les-branches--le-projet-choisit-la-plateforme-nimpose-rien)) | Chaque équipe a son propre flux de travail |
 | Il n'y a **pas de sauvegarde automatique au déploiement** : la sauvegarde **nocturne** est le filet, et avant une migration risquée on en prend une à la main (`deploy.sh backup`). Un projet qui préfère la prudence met `BACKUP_BEFORE_DEPLOY=always` | Pouvoir revenir en arrière après une migration, **grâce à la sauvegarde nocturne** ou à celle prise à la main |
 | **Le retour arrière** est automatique si la nouvelle version ne répond pas | Un déploiement raté ne coupe pas le site |
 | Chaque production a **ses propres secrets** (jamais ceux d'un autre environnement) | Une fuite n'en compromet pas une autre ([clause C10](../05-contrat-projet.md)) |

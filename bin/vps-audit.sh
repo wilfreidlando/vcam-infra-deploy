@@ -165,7 +165,7 @@ if docker container inspect "${proxy}" >/dev/null 2>&1; then
 fi
 
 # ── Host-name collisions (bin/vps-hosts.sh) ────────────────────────
-hosts_script="$(dirname "${BASH_SOURCE[0]}")/vps-hosts.sh"
+hosts_script="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/vps-hosts.sh"
 if [[ -x "${hosts_script}" ]]; then
     while read -r host; do
         [[ -z "${host}" ]] && continue
