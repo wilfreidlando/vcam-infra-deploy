@@ -227,7 +227,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max(node_load5 / count(count by (cpu) (node_cpu_seconds_total{mode=\"idle\"})))",
+          "expr": "max(node_load5 / scalar(count(count by (cpu) (node_cpu_seconds_total{mode=\"idle\"}))))",
           "instant": true
         }
       ],

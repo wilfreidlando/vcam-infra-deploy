@@ -94,7 +94,7 @@ groups:
           - refId: A
             datasourceUid: prometheus
             relativeTimeRange: { from: 300, to: 0 }
-            model: { refId: A, expr: 'max(node_load5 / count(count by (cpu) (node_cpu_seconds_total{mode="idle"})))', instant: true }
+            model: { refId: A, expr: 'max(node_load5 / scalar(count(count by (cpu) (node_cpu_seconds_total{mode="idle"}))))', instant: true }
           - refId: C
             datasourceUid: __expr__
             model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [2.5] } }] }

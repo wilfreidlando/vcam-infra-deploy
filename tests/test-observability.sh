@@ -36,7 +36,7 @@ docker network create vpstest-a-first >/dev/null
 docker run -d --name vpstest-obs-demo --network vpstest-a-first \
     -l observability.enable=true -l observability.app=demo-laravel -l observability.deployment=staging \
     -l observability.metrics.port=8080 -l com.docker.compose.service=app \
-    busybox sh -c 'mkdir -p /www && printf "# TYPE demo_up gauge\ndemo_up 1\n" > /www/metrics && httpd -p 8080 -h /www && while true; do echo "{\"message\":\"hello\",\"level_name\":\"ERROR\",\"extra\":{\"correlation_id\":\"corr-123\"}}"; sleep 2; done' >/dev/null
+    busybox sh -c 'mkdir -p /www && printf "# TYPE demo_up gauge\ndemo_up 1\n" > /www/metrics && httpd -p 8080 -h /www && while true; do echo "{\"message\":\"hello\",\"level_name\":\"ERROR\",\"extra\":{\"correlation_id\":\"corr-123\"}}"; echo "{\"level\":\"warn\",\"msg\":\"caddy-line-xyz\"}"; sleep 2; done' >/dev/null
 docker network connect "${OBS_NETWORK}" vpstest-obs-demo
 docker run -d --name vpstest-obs-ignored --network "${OBS_NETWORK}" -l com.docker.compose.project=secret-project \
     busybox sh -c 'while true; do echo ignored-line; sleep 2; done' >/dev/null
@@ -54,6 +54,10 @@ prom() { graf "http://prometheus:9090/api/v1/$1"; }
 
 check "journaux reçus, labels app et deployment" wait_for 120 sh -c \
     "docker exec vpstest-obs-grafana wget -qO- 'http://loki:3100/loki/api/v1/query_range?query=%7Bapp%3D%22demo-laravel%22%2Cdeployment%3D%22staging%22%2Clevel%3D%22ERROR%22%7D&limit=1' | grep -q corr-123"
+# Caddy et FrankenPHP écrivent « level » en minuscules (« warn »), Laravel « level_name » en majuscules : un seul label « level »,
+# écrit comme les tableaux et les alertes l'attendent (« WARNING »).
+check "niveau « warn » de Caddy devenu le label level=WARNING" wait_for 120 sh -c \
+    "docker exec vpstest-obs-grafana wget -qO- 'http://loki:3100/loki/api/v1/query_range?query=%7Bapp%3D%22demo-laravel%22%2Clevel%3D%22WARNING%22%7D&limit=1' | grep -q caddy-line-xyz"
 check_not "conteneur sans label ignoré" sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://loki:3100/loki/api/v1/label/app/values' | grep -q secret-project"
 check "conteneur privé : journaux reçus sans réseau partagé" wait_for 120 sh -c \
     "docker exec vpstest-obs-grafana wget -qO- 'http://loki:3100/loki/api/v1/query?query=sum(count_over_time(%7Bapp%3D%22demo-private%22%7D%5B15m%5D))' | grep -q '\"10\"\]'"
@@ -91,6 +95,46 @@ check "cAdvisor est un job scruté et en bonne santé" wait_for 120 sh -c "docke
 # Sonde : le blackbox-exporter sait sonder une adresse et la déclarer en ligne.
 check "une sonde HTTP réussit (probe_success 1)" wait_for 60 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://blackbox-exporter:9115/probe?target=http://prometheus:9090/-/healthy&module=http_2xx' | grep -q '^probe_success 1'"
 check_not "une sonde vers une adresse morte échoue (probe_success 0)" sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://blackbox-exporter:9115/probe?target=http://loki:1/&module=http_2xx' | grep -q '^probe_success 1'"
+
+step "Aucun « No data » : chaque requête des tableaux et des alertes du serveur renvoie des données"
+# Incident du 2026-10-05 : « Charge par processeur » affichait « No data » (et l'alerte de charge ne pouvait jamais sonner) parce que
+# l'expression divisait une série étiquetée par un nombre sans étiquette. Le test vérifiait que les règles étaient CHARGÉES, jamais
+# qu'elles RENVOIENT quelque chose. Toute requête de ces fichiers doit donner au moins une série sur la pile de test.
+cat > "${WORK}/exprs.py" <<'PY'
+import json, sys, glob, subprocess, urllib.parse, yaml
+base = sys.argv[1]
+rows = []
+for f in ["Plateforme/serveur.json", "Plateforme/conteneurs.json"]:
+    d = json.load(open(f"{base}/grafana/dashboards/{f}"))
+    for p in d["panels"]:
+        for t in p.get("targets", []):
+            if t.get("expr"):
+                rows.append((f, p.get("title", "?"), t["expr"].replace("$__rate_interval", "5m").replace("$__interval", "5m")))
+y = yaml.safe_load(open(f"{base}/grafana/provisioning/alerting/generic-alerts.yaml"))
+for g in y["groups"]:
+    for r in g["rules"]:
+        for dd in r["data"]:
+            if dd.get("model", {}).get("expr"):
+                rows.append(("alerte", r["title"], dd["model"]["expr"]))
+# Légitimement vides tant qu'aucun conteneur ne redémarre : on le dit ici, avec la raison.
+OK_EMPTY = ("Redémarrages sur 24 h", "Conteneurs en boucle")
+bad = []
+for src, title, q in rows:
+    if title.startswith(OK_EMPTY):
+        continue
+    url = "http://prometheus:9090/api/v1/query?query=" + urllib.parse.quote(q)
+    out = subprocess.run(["docker", "exec", "vpstest-obs-grafana", "wget", "-qO-", url], capture_output=True, text=True).stdout
+    try:
+        res = json.loads(out)["data"]["result"]
+    except Exception:
+        res = None
+    if not res:
+        bad.append(f"{src} | {title}")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+check "chaque requête du tableau Serveur, du tableau Conteneurs et des alertes du serveur renvoie des données" \
+    wait_for 240 python3 "${WORK}/exprs.py" "${INFRA_DIR}/observability"
 
 step "Grafana"
 search="$(graf "http://admin:vpstest-pass@localhost:3000/api/search?query=")"

@@ -81,11 +81,20 @@ loki.process "laravel" {
   stage.json {
     expressions = {
       level          = "level_name",
+      level_caddy    = "level",
       correlation_id = "extra.correlation_id",
       trace_id       = "extra.trace_id",
       project_id     = "extra.project_id",
       environment    = "extra.environment",
     }
+  }
+
+  // One « level » label whatever the emitter: Laravel writes level_name (« ERROR », « WARNING »), Caddy and
+  // FrankenPHP write level (« error », « warn »). Upper case, and « WARN » becomes « WARNING », the way the
+  // Applications dashboard and the alerts spell it.
+  stage.template {
+    source   = "level"
+    template = "{{ $l := \"\" }}{{ if .Value }}{{ $l = ToUpper .Value }}{{ else if .level_caddy }}{{ $l = ToUpper .level_caddy }}{{ end }}{{ if eq $l \"WARN\" }}WARNING{{ else }}{{ $l }}{{ end }}"
   }
 
   stage.labels {

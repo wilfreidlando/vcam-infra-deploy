@@ -136,7 +136,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({app=~\"$app\", deployment=~\"$deployment\", service=~\"$service\", level=~\"ERROR|CRITICAL|ALERT|EMERGENCY\"} [$__range]))",
+          "expr": "sum(count_over_time({app=~\"$app\", deployment=~\"$deployment\", service=~\"$service\", level=~\"ERROR|CRITICAL|ALERT|EMERGENCY\"} [$__range])) or vector(0)",
           "instant": true
         }
       ]
@@ -158,7 +158,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({app=~\"$app\", deployment=~\"$deployment\", service=~\"$service\", level=\"WARNING\"} [$__range]))",
+          "expr": "sum(count_over_time({app=~\"$app\", deployment=~\"$deployment\", service=~\"$service\", level=\"WARNING\"} [$__range])) or vector(0)",
           "instant": true
         }
       ]
