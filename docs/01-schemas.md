@@ -3,6 +3,19 @@
 Chaque schéma montre **un seul sujet**, avec en dessous ce qu'il faut en retenir.
 Les mots techniques sont expliqués dans le [glossaire](03-glossaire.md).
 
+**Où suis-je ?** Cette page est le **niveau 3** (le détail, un sujet par schéma). Pour ne pas se perdre, on part de la page
+[Architecture du serveur](reference/architecture-du-serveur.md) (niveaux 1 et 2 : le serveur en une image, puis les cinq familles
+de choses qu'il contient) et on descend ici quand on a besoin du détail d'un sujet.
+
+**Comment lire les flèches** (identique dans tous les schémas) :
+
+| Trait | Sens |
+| --- | --- |
+| Flèche pleine `-->` | Un flux qui existe toujours : une requête, une donnée, une dépendance |
+| Flèche pointillée `-.->` | Un flux **périodique ou optionnel** : une sauvegarde nocturne, une sonde, une métrique envoyée si le projet l'a prévue |
+| Cylindre | Des **données qui durent** (base, journaux, copies) |
+| Cadre « réseau … » | Les conteneurs qui peuvent **se joindre** entre eux ; en dehors du cadre, ils ne se voient pas |
+
 Sommaire :
 1. [Le serveur, vu d'en haut](#1-le-serveur-vu-den-haut)
 2. [Qui peut parler à qui (réseaux)](#2-qui-peut-parler-à-qui-réseaux)
@@ -15,6 +28,7 @@ Sommaire :
 9. [Un SaaS à sous-domaines automatiques](#9-un-saas-à-sous-domaines-automatiques)
 10. [Les fichiers sur le serveur](#10-les-fichiers-sur-le-serveur)
 11. [Les relations entre tous les éléments](#11-les-relations-entre-tous-les-éléments)
+12. [Les alertes : du signal à l'e-mail](#12-les-alertes--du-signal-à-le-mail)
 
 ---
 
@@ -104,6 +118,37 @@ flowchart LR
 Un même conteneur peut être branché sur plusieurs réseaux. « web du projet A »
 apparaît deux fois sur le schéma pour cette raison : il est à la fois sur
 `nginx-proxy` et sur le réseau privé de son projet.
+
+**Le cas à connaître : un conteneur web est sur TROIS réseaux.** C'est le cas normal du conteneur web d'un projet, et c'est là qu'un
+outil qui ne regarde qu'un réseau se trompe (voir le
+[retour d'expérience du 5 octobre](retours-experience/2026-10-05-metriques-du-pilote-absentes-reseau-alloy.md)).
+
+```mermaid
+flowchart LR
+    Visitor(["Visiteur"]) --> Proxy
+    subgraph NP["réseau nginx-proxy : l'entrée publique"]
+        Proxy["nginx-proxy"]
+    end
+    subgraph WEB["Le conteneur web du projet (un seul conteneur, trois branchements)"]
+        Web["skills-devops-web"]
+    end
+    subgraph OB["réseau observability : être observé"]
+        Alloy["alloy"]
+    end
+    subgraph PRIV["réseau privé du projet : le travail interne"]
+        DB[("base")]
+        Cache[("cache")]
+    end
+    Proxy -->|"HTTPS vers le site"| Web
+    Alloy -->|"scrute /metrics"| Web
+    Web -->|"requêtes"| DB & Cache
+```
+
+| Réseau | Pourquoi le conteneur web y est | Ce qui ne doit **jamais** y être |
+| --- | --- | --- |
+| `nginx-proxy` | Recevoir les visites | La base, le cache, les workers |
+| `observability` | Être scruté (métriques, traces) | La base, le cache, un conteneur PHP-FPM |
+| `<projet>-<env>-internal` | Parler à sa base et à son cache | rien : c'est son réseau |
 
 **À retenir**
 - **Une base de données n'est branchée que sur le réseau privé de son projet.**
@@ -276,8 +321,9 @@ flowchart LR
     Agent -->|"envoi S3"| Remote
     Pass -.-> Agent
 
-    Remote -->|"restore.sh"| Restore["Restauration<br/>app arrêtée → données remplacées → app relancée"]
+    Remote -->|"restore.sh"| Restore["Restauration<br/>app arrêtée → base REMPLACÉE → app relancée"]
     Local -->|"restore.sh"| Restore
+    Agent -. "ligne « uploaded to » dans les journaux" .-> Watch["Alerte Grafana<br/>aucune copie envoyée depuis 36 h"]
 ```
 
 **À retenir**
@@ -291,37 +337,59 @@ flowchart LR
 
 ## 8. Observabilité : journaux, métriques, traces
 
+Trois **sortes de signaux**, trois **chemins** : ne pas les confondre, un chemin peut marcher sans que les autres marchent.
+
 ```mermaid
 flowchart LR
     subgraph Apps["Projets observés (label observability.enable=true)"]
-        A1["app Laravel<br/>journaux JSON sur stdout<br/>/metrics<br/>traces OTLP"]
-        A2["autre backend"]
+        A1["web du projet<br/>journaux JSON, /metrics privé, traces OTLP"]
+        A2["worker, scheduler, backup<br/>journaux seulement"]
         X["projet SANS label"]
+    end
+    subgraph Host["Le serveur et ses sites : rien à faire côté projet"]
+        NodeE["node-exporter<br/>processeur, mémoire, swap, disque, charge"]
+        CAd["cAdvisor<br/>consommation et redémarrages de chaque conteneur"]
+        BB["blackbox-exporter<br/>site en ligne ? délai, expiration du certificat"]
     end
     subgraph OBS["observability (partagé)"]
         Alloy["Alloy<br/>découvre les conteneurs par label"]
         Loki[("Loki<br/>journaux 90 j")]
-        Prom[("Prometheus<br/>métriques 30 j")]
+        Prom[("Prometheus<br/>métriques, 30 j par défaut")]
         Tempo[("Tempo<br/>traces 30 j")]
-        Graf["Grafana<br/>grafana.visibilitycam.com"]
+        Graf["Grafana<br/>tableaux et alertes"]
     end
+    Sites(["Les sites publics"])
     Team(["Équipe"])
 
-    A1 & A2 -->|"stdout"| Alloy
-    Alloy -->|"lit /metrics"| A1
-    A1 -->|"OTLP :4318"| Alloy
+    A1 & A2 -->|"1. journaux : stdout, via le socket Docker"| Alloy
+    Alloy -->|"2. scrute /metrics, réseau observability"| A1
+    A1 -->|"3. traces OTLP :4318"| Alloy
     X -. "ignoré" .-x Alloy
-    Alloy --> Loki & Prom & Tempo
+    Alloy --> Loki & Tempo
+    Alloy -->|"remote write"| Prom
+    Prom -->|"scrute toutes les 30 s"| NodeE & CAd
+    Prom -->|"demande une sonde"| BB
+    BB -->|"HTTPS"| Sites
     Graf --> Loki & Prom & Tempo
     Team --> Graf
-    Graf -->|"alertes e-mail<br/>(production du Core)"| Team
+    Graf -->|"alertes par e-mail"| Team
 ```
 
+| Chemin | Source | Passe par | Se retrouve dans | Condition |
+| --- | --- | --- | --- | --- |
+| **1. Journaux** | sortie standard de chaque conteneur | socket Docker → Alloy → Loki | Explore → Loki ; tableau Applications | Le label `observability.enable`. Aucun réseau requis |
+| **2. Métriques du projet** | `/metrics` du conteneur web | réseau `observability` → Alloy → Prometheus | Explore → Prometheus | Le label `observability.metrics.port` **et** le réseau `observability` |
+| **3. Traces** | OTLP envoyé par l'application | réseau `observability` → Alloy → Tempo | Explore → Tempo | Les variables `OTEL_*` |
+| **4. Le serveur** | node-exporter | Prometheus le scrute | Tableau Serveur | Rien : automatique |
+| **5. Les conteneurs** | cAdvisor | Prometheus le scrute | Tableau Conteneurs | Rien : automatique |
+| **6. Les sites** | blackbox-exporter | Prometheus lui demande de sonder la liste `sites.yml` | Tableau Sites | Le site figure dans la liste du serveur |
+
 **À retenir**
-- **Rien n'est collecté sans le label** `observability.enable=true`.
-- Le minimum pour un projet Laravel : des journaux JSON sur la sortie standard,
-  plus deux labels. Les métriques et les traces sont un bonus.
+- **Rien n'est collecté chez un projet sans le label** `observability.enable=true`. Les chemins 4, 5 et 6 ne demandent **rien** au projet.
+- Le minimum pour un projet Laravel : des journaux JSON sur la sortie standard, plus les labels. Les métriques et les traces sont un bonus.
+- **Chaque chemin se vérifie séparément** : voir ses journaux ne prouve pas que ses métriques arrivent.
 - Les frontends n'en ont pas besoin.
+- La carte complète (qui prévient, quoi faire) : [observabilité, carte complète](reference/observabilite-carte-complete.md).
 
 ---
 
@@ -415,6 +483,51 @@ flowchart TB
 | nginx-proxy | DNS, Docker | plus aucun site ne répond. Priorité absolue (guide 12) |
 | acme-companion | nginx-proxy, DNS | les sites restent servis ; les renouvellements sont en retard (les certificats durent 90 jours) |
 | Un projet | nginx-proxy, sa base | seul ce projet est touché |
-| Observabilité | Docker | aucun site n'est touché ; on perd juste la visibilité |
+| Observabilité (Grafana, Loki, Prometheus, Alloy, Tempo) | Docker | aucun site n'est touché ; on perd juste la visibilité |
+| node-exporter, cAdvisor, blackbox-exporter | Prometheus | l'alerte « le serveur n'est plus observé » sonne ; les sites ne sont pas touchés |
 | `deploy.sh` / cron | git, Docker | rien ne casse ; les déploiements attendent |
 | MEGA S4 | Internet | rien ne casse ; les sauvegardes restent locales, à rattraper |
+
+---
+
+## 12. Les alertes : du signal à l'e-mail
+
+Une alerte est **une question posée régulièrement** à Prometheus ou à Loki : « le disque dépasse-t-il 85 % ? ». Pour éviter le bruit, elle
+doit rester vraie pendant un **délai** (`for`) avant de partir.
+
+```mermaid
+flowchart LR
+    subgraph Signaux["Les signaux"]
+        P[("Prometheus<br/>serveur, conteneurs, sites")]
+        L[("Loki<br/>journaux des sauvegardes")]
+    end
+    subgraph Grafana["Grafana"]
+        Rules["16 règles<br/>dans le dépôt, provisionnées"]
+        State{"Vrai pendant<br/>le délai « for » ?"}
+        Policy["Politique de notification<br/>un seul point de contact"]
+    end
+    Mail(["E-mail de l'équipe"])
+    Run["Runbook<br/>docs/runbooks/"]
+
+    P --> Rules
+    L --> Rules
+    Rules -->|"évalue toutes les 1 à 5 minutes"| State
+    State -->|"non : rien"| Rules
+    State -->|"oui : Alerting"| Policy
+    Policy --> Mail
+    Mail -->|"« que faire ? »"| Run
+```
+
+| Étape | Ce qui se passe | Où c'est défini |
+| --- | --- | --- |
+| Les signaux | Les mêmes que le [schéma 8](#8-observabilité--journaux-métriques-traces) | `prometheus.yml`, journaux Alloy |
+| Les règles | Une question, un seuil, un délai, une phrase qui dit quoi faire | `observability/grafana/provisioning/alerting/` |
+| L'absence de données | **Pas d'alerte**, sauf pour la règle qui surveille l'observateur lui-même | champ `noDataState` de chaque règle |
+| Le message | Part par e-mail vers le point de contact par défaut | `core-alerts.yaml` (nom historique : il reçoit **toutes** les alertes) |
+| La suite | Chaque alerte pointe vers un runbook | [Runbooks](runbooks/README.md) |
+
+**À retenir**
+- Les règles sont **du code** : on les relit, on les teste et on les versionne comme le reste.
+- **Une règle charge ses signaux avant de sonner** : charger une alerte avant que son signal existe fait sonner à tort (voir le
+  [runbook de mise en service](runbooks/mise-en-service-supervision.md)).
+- Si le serveur entier tombe, **rien ici ne le dit** : c'est le rôle d'une sonde externe ([guide 8](../guides/08-surveillance-externe.md)).
