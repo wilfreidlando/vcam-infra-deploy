@@ -1,7 +1,8 @@
 # Alertes génériques, suite : conteneurs, disponibilité des sites, sauvegardes (ADR-0065).
 # Même point de contact que les autres (core-oncall : nom historique, reçoit TOUTES les alertes).
-# Grafana remplace $nom par une variable d'environnement dans les fichiers de provisionnement : un « $ » littéral s'écrit « $$ »
-# (donc {{ $$labels.name }} pour obtenir {{ $labels.name }}).
+# Étiquettes d'une alerte dans un message : « {{ .Labels.nom }} », jamais « {{ $labels.nom }} ». Grafana remplace $nom par une variable
+# d'environnement dans ces fichiers (« $labels » devient vide) et « $$labels » n'est PAS ramené à « $labels » dans les annotations :
+# le modèle d'alerte reçoit « $$labels » tel quel et refuse de s'évaluer (« bad character U+0024 »). La forme avec un point n'a aucun « $ ».
 # Principes : un délai (« for ») contre le bruit, absence de données = pas d'alerte, une phrase qui dit quoi faire.
 apiVersion: 1
 groups:
@@ -17,7 +18,7 @@ groups:
     noDataState: OK
     execErrState: OK
     annotations:
-      summary: 'Le conteneur {{ $$labels.name }} a redémarré plus de 3 fois en 30 minutes. Lire son journal et son code de sortie : runbook « Conteneur en boucle ».'
+      summary: 'Le conteneur {{ .Labels.name }} a redémarré plus de 3 fois en 30 minutes. Lire son journal et son code de sortie : runbook « Conteneur en boucle ».'
     data:
     - refId: A
       datasourceUid: prometheus
@@ -46,7 +47,7 @@ groups:
     noDataState: OK
     execErrState: OK
     annotations:
-      summary: 'Le conteneur {{ $$labels.name }} utilise plus de 90 % de sa limite de mémoire : il sera tué (OOM) s''il la dépasse. Mesurer avant d''augmenter la limite.'
+      summary: 'Le conteneur {{ .Labels.name }} utilise plus de 90 % de sa limite de mémoire : il sera tué (OOM) s''il la dépasse. Mesurer avant d''augmenter la limite.'
     data:
     - refId: A
       datasourceUid: prometheus
@@ -80,7 +81,7 @@ groups:
     noDataState: OK
     execErrState: OK
     annotations:
-      summary: Le site {{ $$labels.instance }} ne répond pas (vu depuis le serveur). Runbook « Site en panne ».
+      summary: Le site {{ .Labels.instance }} ne répond pas (vu depuis le serveur). Runbook « Site en panne ».
     data:
     - refId: A
       datasourceUid: prometheus
@@ -109,7 +110,7 @@ groups:
     noDataState: OK
     execErrState: OK
     annotations:
-      summary: Le certificat de {{ $$labels.instance }} expire dans moins de 14 jours alors qu'il devrait se renouveler seul. Runbook « Certificat non émis ».
+      summary: Le certificat de {{ .Labels.instance }} expire dans moins de 14 jours alors qu'il devrait se renouveler seul. Runbook « Certificat non émis ».
     data:
     - refId: A
       datasourceUid: prometheus

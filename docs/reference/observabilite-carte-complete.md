@@ -58,7 +58,7 @@ contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf po
 | Un site ne répond plus | sonde en échec (autre chose que 2xx) | 3 min | [Site en panne](../runbooks/site-en-panne.md) |
 | Un certificat HTTPS expire bientôt | moins de 14 jours | 1 h | [Certificat non émis](../runbooks/certificat-non-emis.md) |
 | Aucune sauvegarde envoyée hors du serveur depuis 36 heures | aucune ligne « uploaded to » en production | 1 h | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
-| 6 règles du Core | propres au Core (injoignable, file bloquée, erreurs 5xx…) | variable | **Fausses alertes si le Core n'est pas branché** |
+| 6 règles du Core | propres au Core (injoignable, file bloquée, erreurs 5xx…), évaluées sur ses métriques `deployment=prod` | variable | Elles ne sont fiables que **tant que le Core est branché** (labels et `/metrics`) |
 
 ## 4. Les tableaux de bord
 
@@ -113,9 +113,9 @@ vérifications et les pièges : [runbook de mise en service](../runbooks/mise-en
 
 | Manque | Conséquence | Piste |
 | --- | --- | --- |
-| Métriques et traces **des projets** | Seuls les journaux des projets branchés sont visibles ; un seul projet expose des métriques applicatives : le pilote (`/metrics`, dans son dépôt, à déployer) | [Catalogue des besoins](catalogue-des-besoins.md) |
+| Métriques et traces de **la plupart des projets** | Seuls les projets branchés (le pilote et le Core) exposent des métriques d'application ; les autres n'ont que les journaux s'ils ont les labels, et la sonde de disponibilité | [Catalogue des besoins](catalogue-des-besoins.md), [modèle Laravel](../../templates/laravel-observabilite/README.md) |
 | Alertes **par projet** (taux d'erreur, latence) | Une application lente mais « en ligne » passe inaperçue | Après les métriques applicatives |
 | **Sonde externe** | Si le serveur entier tombe, rien ici ne le dit | [Guide 8](../../guides/08-surveillance-externe.md) |
-| Alertes du Core | Fausses alertes tant que le Core n'est pas branché | Brancher le Core, ou les mettre en sourdine |
+| Sites **déjà en défaut** | Ils ne sont pas dans la liste des sites sondés : ils déclencheraient une alerte dès le premier jour | Les corriger avec leurs responsables, puis les ajouter à `sites.yml` |
 | Arrêts par manque de mémoire (OOM) | cAdvisor ne peut pas lire `/dev/kmsg` dans ce conteneur : le compteur d'événements OOM n'existe pas. L'alerte « approche de sa limite de mémoire » ne dépend pas de lui | Lire `dmesg` sur le serveur, ou surveiller la mémoire par conteneur |
 | Alerte vers un second canal | Un seul e-mail : s'il est mal configuré, personne n'est prévenu | Un canal de plus dans Grafana |

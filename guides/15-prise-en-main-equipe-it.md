@@ -134,7 +134,6 @@ test « le défaut est arrêté » **et** un test « le projet sain passe ».
   exception temporaire : [guide 14](14-retour-aux-depots-prives.md) pour revenir au standard.
 - Les secrets d'un projet ne vivent que dans ses `.env` sur le serveur. Ceux de la plateforme
   vivent dans `observability/.env` et dans la configuration des sauvegardes.
-- Pour une intervention assistée par un agent, avec garde-fous : [guide 13](13-intervention-assistee.md).
 
 ## 8. Rythme d'exploitation
 

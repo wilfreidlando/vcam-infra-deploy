@@ -9,9 +9,8 @@ Quand en faire un : avant toute mise en conformité, à la fin de chaque phase d
 la [feuille de route](../../guides/00-feuille-de-route.md), et une fois par
 trimestre. Comparer avec le précédent (`diff`) montre ce qui a dérivé.
 
-Comment : à la main (`/app/vps-platform/bin/vps-inventory.sh > inventaire.md` sur
-le serveur), ou assisté par Claude Code avec garde-fous
-([guide 13](../../guides/13-intervention-assistee.md)).
+Comment : `/app/vps-platform/bin/vps-inventory.sh > inventaire.md` sur le serveur
+(lecture seule, aucun secret).
 
 Avant de committer, relire : l'outil masque les secrets qu'il connaît (valeurs
 d'environnement, identifiants dans les URL git, arguments de cron nommés

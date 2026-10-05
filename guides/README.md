@@ -4,7 +4,7 @@ Des procédures **pas à pas**. Chaque guide dit : quoi faire, quel risque pour 
 comment vérifier que c'est bon, et comment revenir en arrière.
 
 Les numéros sont **stables** : des outils et d'autres documents citent « guide 3 » ou
-« guide 13 ». Les guides sont donc regroupés ici **par thème**, sans être renumérotés.
+« guide 12 ». Le numéro 13 n'est pas utilisé. Les guides sont donc regroupés ici **par thème**, sans être renumérotés.
 Retour au [sommaire de la documentation](../docs/README.md).
 
 ## Par où commencer
@@ -47,7 +47,6 @@ Retour au [sommaire de la documentation](../docs/README.md).
 | 8 | [Surveillance externe](08-surveillance-externe.md) | aucun | 10 min |
 | 17 | [Comprendre l'observabilité et lire Grafana](17-comprendre-et-lire-grafana.md) | aucun | 30 min de lecture |
 | 12 | [Reprise après sinistre (serveur perdu)](12-reprise-apres-sinistre.md) | — | 2-4 h ; **la partie « à préparer avant » est à faire dès maintenant** |
-| 13 | [Intervention assistée sur le serveur (Claude Code, garde-fous)](13-intervention-assistee.md) | aucun en inventaire ; annoncé action par action ensuite | 20 min de préparation |
 | 14 | [Revenir aux dépôts privés (clés de déploiement)](14-retour-aux-depots-prives.md) | aucun | 10 min par dépôt |
 
 ## D. Comprendre et reprendre

@@ -86,8 +86,8 @@ Un proxy dont le journal d'accès pèse plusieurs Go, ou des journaux sans rotat
 
 ## 5. Ce qu'il ne faut pas faire
 
-- **`docker logs --since …` sur un gros journal.** Docker **relit tout le fichier** depuis le début : sur un journal de plusieurs Go, la commande dure des minutes et **ajoute elle-même de la charge** (vécu en
-  faisant précisément cette analyse). Utiliser **`--tail N`**, qui lit depuis la fin.
+- **`docker logs --since …` sur un gros journal.** Docker **relit tout le fichier** depuis le début : sur un journal de plusieurs Go, la commande dure des minutes et **ajoute elle-même de la charge** (constaté lors d'un diagnostic
+  de charge). Utiliser **`--tail N`**, qui lit depuis la fin.
 - **Redémarrer Docker ou le serveur** pour « voir si ça passe » : cela efface la trace de ce qui se passe et coupe tous les sites.
 - **Supprimer un conteneur ou un volume** d'un autre projet pour faire cesser une boucle. Arrêter, oui ; supprimer, jamais sans l'accord.
 - **Conclure sur la seule « charge moyenne »** sans regarder `vmstat` : elle peut être haute sans que le serveur soit plein.

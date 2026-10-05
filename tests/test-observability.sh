@@ -144,6 +144,11 @@ check "dossier Plateforme et tableau Serveur provisionnés" grep -q 'Serveur' <<
 check "tableau Conteneurs provisionné" grep -q 'Conteneurs' <<< "${search}"
 check "tableau Sites (disponibilité) provisionné" grep -q 'Sites' <<< "${search}"
 check "16 règles d'alerte provisionnées (6 du Core, 5 du serveur, 5 conteneurs, sites et sauvegardes)" test "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/alert-rules" | grep -o '"uid"' | wc -l)" -ge 16
+# Incident du 2026-10-05 : « {{ $$labels.name }} » chargeait sans erreur mais ne s'évaluait pas (« bad character U+0024 »), 585 erreurs en quelques minutes
+# sur le serveur. Charger une règle ne prouve pas que son message s'évalue : on attend la première évaluation, puis on cherche l'erreur.
+check "les règles de conteneurs ont été évaluées par Grafana" wait_for 240 sh -c \
+    "docker exec vpstest-obs-grafana wget -qO- 'http://admin:vpstest-pass@localhost:3000/api/prometheus/grafana/api/v1/rules' | python3 -c 'import sys,json; d=json.load(sys.stdin); ok=[r for g in d[\"data\"][\"groups\"] for r in g[\"rules\"] if r[\"name\"].startswith(\"Un conteneur red\") and not r[\"lastEvaluation\"].startswith(\"0001\")]; sys.exit(0 if ok else 1)'"
+check_not "aucun message d'alerte ne signale « Error in expanding template »" sh -c "docker logs vpstest-obs-grafana 2>&1 | grep -q 'Error in expanding template'"
 
 # Les fichiers de l'application pèsent jusqu'à 3,5 Mo (≈ 9 Mo au total) et
 # nginx-proxy ne compresse pas (pas de « gzip on ») : Grafana doit le faire

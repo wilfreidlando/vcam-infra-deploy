@@ -16,6 +16,17 @@ phase ci-dessous rapproche le serveur de ce contrat.
 | D | Passer WILMANAGER au standard | 1 à 3 min pour la prod de WILMANAGER, au moment choisi | 2 h |
 | E | Finitions | aucune | 30 min |
 
+**Où en est-on ?**
+
+| Phase | État |
+| --- | --- |
+| 0 Inventaire | fait (à refaire à la fin de chaque phase) |
+| B Serveur | fait : plateforme, observabilité (serveur, conteneurs, sites), sauvegardes S3 du projet pilote |
+| Projet pilote | en production, staging et production |
+| C Core | staging et production au standard ; **reste** : sauvegardes S3 (un bucket dédié), annonce du nouveau contrat d'API |
+| D WILMANAGER | à faire |
+| E Finitions | en cours (sonde externe, rotation des journaux Docker, droits des `.env` des autres projets) |
+
 ## 0. Inventaire du serveur (avant tout changement)
 
 On ne corrige bien que ce que l'on a mesuré. L'inventaire décrit le serveur tel
@@ -25,7 +36,7 @@ crons, audit, sous-domaines. **Il n'affiche aucun secret et ne modifie rien.**
 | # | Action | Guide |
 | --- | --- | --- |
 | 0.1 | Sur le serveur : `cd /app/vps-platform && git pull` (si la plateforme est déjà installée ; sinon guide 3 d'abord) | [11](11-depot-plateforme.md) |
-| 0.2 | Inventaire : `/app/vps-platform/bin/vps-inventory.sh > /root/inventaire-$(date +%F).md`, à la main, **ou** assisté par Claude Code avec garde-fous | [13](13-intervention-assistee.md) |
+| 0.2 | Inventaire : `/app/vps-platform/bin/vps-inventory.sh > /root/inventaire-$(date +%F).md` (lecture seule, aucun secret) | [inventaires](../docs/inventaire/README.md) |
 | 0.3 | Ranger l'inventaire dans `docs/inventaire/` (pull request), avec le plan de mise en conformité, un responsable par écart | [inventaires](../docs/inventaire/README.md) |
 
 À refaire à la fin de chaque phase, et une fois par trimestre : la comparaison avec
@@ -35,7 +46,7 @@ le précédent montre ce qui a dérivé.
 
 ```bash
 git clone https://github.com/wilfreidlando/vcam-infra-deploy.git vps-platform
-git clone -b claude/zen-gates-lewzx5 https://github.com/wilfreidlando/vcam-core-system.git core
+git clone -b develop https://github.com/wilfreidlando/vcam-core-system.git core
 git clone -b vps-standard <dépôt de WILMANAGER> app
 
 cd vps-platform && CORE_DIR=../core tests/run-all.sh       # ≈ 200 vérifications de la plateforme (Core déployé compris)
@@ -63,8 +74,8 @@ Tout doit finir en vert. Un échec dit précisément ce qui ne va pas. Si c'est 
 
 | # | Action | Guide |
 | --- | --- | --- |
-| C1 | Fusionner la PR du Core (`claude/zen-gates-lewzx5` → `main`). Le Core n'embarque plus la plateforme : ses commandes `make` utilisent `/app/vps-platform` | — |
-| C2 | Staging + production au standard | [6](06-core-au-standard.md) |
+| C1 | Publier la branche du Core qui porte le standard (`develop` : `platform.env`, compose, `Makefile`). Le Core n'embarque plus la plateforme : ses commandes `make` utilisent `/app/vps-platform` | — |
+| C2 | Staging + production au standard : filet de sécurité, droits du `.env`, staging, **répétition des migrations sur une copie de la production**, recette, promotion | [6](06-core-au-standard.md) |
 | C3 | Staging automatique (cron, ou GitLab plus tard) | [7](07-staging-automatique.md) |
 
 ## D. WILMANAGER (dépôt de l'app, branche `vps-standard`)
@@ -83,8 +94,10 @@ Tout est dans **`docs/MIGRATION-VPS.md` du dépôt de l'app**, dans cet ordre :
 
 Filets de sécurité déjà en place : `deploy.sh` refuse si un nom d'hôte est pris, si
 nginx-proxy est en erreur ou si l'ancienne base tourne encore sur le volume. Il
-prend une sauvegarde avant la migration et revient seul en arrière si la nouvelle
-version ne répond pas. Chaque étape a son retour arrière décrit dans le guide.
+revient seul en arrière si la nouvelle version ne répond pas (sauf pour la toute
+première promotion d'un projet déjà en production, qui n'a pas de version précédente :
+retour manuel). La sauvegarde nocturne est le filet ; avant une migration risquée, en
+prendre une à la main (`deploy.sh backup`). Chaque étape a son retour arrière décrit dans le guide.
 
 ## E. Finitions
 

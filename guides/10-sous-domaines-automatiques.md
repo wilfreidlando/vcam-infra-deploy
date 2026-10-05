@@ -216,16 +216,16 @@ existante (voir ci-dessous).
 
 ## Votre app existante (sur GitLab)
 
-Pour que je l'adapte au standard, j'ai besoin de voir comment elle crée ses
-sous-domaines aujourd'hui. Deux façons :
+Pour l'adapter au standard, il faut examiner comment elle crée ses
+sous-domaines aujourd'hui. Deux façons de la mettre à la disposition de l'équipe plateforme :
 
 1. **Miroir vers GitHub (recommandé).** Dans GitLab : *Settings → Repository →
    Mirroring repositories*. URL `https://github.com/<vous>/<app>.git`, direction
    **Push**, mot de passe = un jeton GitHub (*Settings → Developer settings → Fine-grained
    tokens*, droit *Contents: Read and write* sur ce dépôt). Créer avant un dépôt
-   **privé** vide sur GitHub. Me donner ensuite son nom : je pourrai l'ajouter à la
-   session.
-2. **Copier les fichiers clés** dans la conversation, secrets retirés :
+   **privé** vide sur GitHub. Communiquer ensuite son nom à l'équipe plateforme, qui
+   pourra alors le consulter.
+2. **Transmettre les fichiers clés** à l'équipe plateforme, secrets retirés :
    - `docker-compose*.yml` et `Dockerfile` ;
    - la configuration nginx ou Caddy ;
    - `.env.example` ;

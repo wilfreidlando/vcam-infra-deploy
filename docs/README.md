@@ -51,7 +51,6 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Savoir ce qui a déjà mal tourné | [Retours d'expérience](retours-experience/README.md) |
 | Savoir l'état du serveur à une date | [Inventaires](inventaire/README.md) |
 | Faire évoluer la plateforme (règle, outil) | [Guide 15](../guides/15-prise-en-main-equipe-it.md), [contrat § 5](05-contrat-projet.md#5-faire-évoluer-le-contrat), [tests](../tests/README.md) |
-| Faire inventorier le serveur par un agent | [Guide 13](../guides/13-intervention-assistee.md) |
 | Reprendre le serveur sans l'avoir construit | [Guide 15](../guides/15-prise-en-main-equipe-it.md) |
 
 ## 3. Catalogue complet

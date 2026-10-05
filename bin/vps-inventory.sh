@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# VPS inventory (guide 13, contrat § 4) — READ-ONLY, secret-free.
+# VPS inventory (contrat § 4) — READ-ONLY, secret-free.
 #
 # One command that describes the whole server as it is, in Markdown, so that
 # the state can be kept in the repository (docs/inventaire/), compared over

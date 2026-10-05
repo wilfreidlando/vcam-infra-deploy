@@ -65,6 +65,6 @@ n'existait pas encore.
 | Quoi | Qui | Comment |
 | --- | --- | --- |
 | Identifier l'installation dont la base est sur `nginx-proxy` (172.18.0.119), la retirer de ce réseau ou l'arrêter | administrateur du VPS | `docker network inspect nginx-proxy --format '{{range .Containers}}{{.Name}} {{.IPv4Address}}{{"\n"}}{{end}}'` puis `vps-audit.sh` |
-| Inventaire complet du serveur (feuille de route, phase 0) avec `vps-inventory.sh`, à la main ou par le [guide 13](../../guides/13-intervention-assistee.md) | administrateur du VPS | `docs/inventaire/` |
+| Inventaire complet du serveur (feuille de route, phase 0) avec `vps-inventory.sh` | administrateur du VPS | `docs/inventaire/` |
 | Passer le Core et centre-formation à `deploy.sh check prod` ; corriger les écarts (services `app`, `postgres`, `valkey`… au nom générique) selon le [contrat, § 4](../05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) | responsable de chaque projet | contrat § 4 |
 | Remplacer l'origin HTTPS des clones existants par l'alias SSH du projet | administrateur du VPS | `git remote -v` dans chaque `/app/<app>/<env>` |

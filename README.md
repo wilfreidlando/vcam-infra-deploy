@@ -29,7 +29,6 @@ Le dépôt a plusieurs métiers. Chacun a un point d'entrée.
 | **L'observabilité** | Que se passe-t-il sur le serveur ? | Grafana, Loki, Prometheus, Tempo, Alloy | [`observability/`](observability/README.md) · [guide 17](guides/17-comprendre-et-lire-grafana.md) |
 | **Les sauvegardes** | Comment ne pas perdre de données ? | L'agent chiffré vers S3, la restauration | [`images/db-backup/`](images/db-backup/README.md) · [sauvegardes](docs/reference/sauvegardes.md) |
 | **Les modèles** | Par quoi partir pour un nouveau projet ? | Compose Laravel, web, frontend, `platform.env` | [`templates/`](templates) |
-| **L'intervention assistée** | Comment faire inventorier le serveur par un agent, avec garde-fous ? | Kit Claude Code | [Guide 13](guides/13-intervention-assistee.md) · [`templates/intervention-claude/`](templates/intervention-claude/PROMPT.md) |
 | **La qualité** | Comment sait-on que ça marche ? | Tests réels de toute la plateforme | [`tests/`](tests/README.md) |
 | **La mémoire** | Pourquoi ce choix ? Qu'est-ce qui a déjà mal tourné ? Que faire quand ça tombe ? | Décisions, retours d'expérience, runbooks, inventaires | [ADR](docs/adr/README.md) · [retours d'expérience](docs/retours-experience/README.md) · [runbooks](docs/runbooks/README.md) · [inventaires](docs/inventaire/README.md) |
 
@@ -44,7 +43,7 @@ Le dépôt a plusieurs métiers. Chacun a un point d'entrée.
 | **Développeur** qui veut mettre son projet en ligne | [Démarrage rapide](docs/04-demarrage-rapide-dev.md), puis les [schémas](docs/01-schemas.md) |
 | **Nouveau**, je veux comprendre comment le serveur fonctionne | [Schémas](docs/01-schemas.md), [glossaire](docs/03-glossaire.md), [architecture](docs/reference/architecture-du-serveur.md) |
 | **La personne qui installe** la plateforme | La [feuille de route](guides/00-feuille-de-route.md), puis les [guides](guides/README.md) |
-| **Je veux voir ce qui tourne** sur le serveur | `vps-inventory.sh` et les [inventaires](docs/inventaire/README.md) ; assisté par un agent : [guide 13](guides/13-intervention-assistee.md) |
+| **Je veux voir ce qui tourne** sur le serveur | `vps-inventory.sh` et les [inventaires](docs/inventaire/README.md) |
 | **Je veux comprendre Grafana** | [Guide 17](guides/17-comprendre-et-lire-grafana.md) |
 | **Responsable technique** | [Résilience et évolutivité](docs/02-resilience-evolutivite.md), [ADR-0064](docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md) |
 | **En plein incident** | [Runbooks](docs/runbooks/README.md), puis la [reprise après sinistre](guides/12-reprise-apres-sinistre.md) si le serveur est perdu |
@@ -53,7 +52,7 @@ Le dépôt a plusieurs métiers. Chacun a un point d'entrée.
 
 ```
 bin/                outils : deploy.sh, vps-audit.sh, vps-inventory.sh, vps-hosts.sh, restore.sh
-templates/          modèles de projet (Laravel, web, frontend) et kit d'intervention assistée
+templates/          modèles de projet (Laravel, web, frontend, observabilité Laravel)
 images/db-backup/   agent de sauvegarde chiffrée vers S3
 observability/      Grafana, Loki, Prometheus, Tempo, Alloy (une pile pour tout le serveur)
 host/               réglages du démon Docker et procédure sans coupure

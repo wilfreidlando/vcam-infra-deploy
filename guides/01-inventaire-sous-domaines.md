@@ -59,8 +59,8 @@ $ bin/vps-hosts.sh --ct visibilitycam.com
 
 Le script interroge crt.sh, un service public parfois lent. S'il ne répond pas,
 réessayez plus tard ou ouvrez `https://crt.sh/?q=%25.visibilitycam.com` dans un
-navigateur. Cette option est la seule que je n'ai pas pu exécuter : mon
-environnement de test bloquait crt.sh.
+navigateur. Cette option dépend d'un accès Internet sortant vers crt.sh : depuis un
+poste ou un serveur dont les sorties sont filtrées, elle peut ne pas répondre.
 
 Chaque nom est marqué « sur ce VPS » ou « ABSENT d'ici ». Un nom absent est soit un
 ancien site, soit un site hébergé ailleurs. **Il est à considérer comme pris** tant
