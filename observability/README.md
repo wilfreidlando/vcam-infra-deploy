@@ -51,8 +51,8 @@ docker compose -f observability/compose.yaml --env-file observability/.env up -d
 Aucune modification de nginx-proxy ni des autres projets : Grafana s'y déclare comme
 n'importe quel site (`VIRTUAL_HOST` / `LETSENCRYPT_HOST`).
 
-Ressources plafonnées : Loki 1 Go (`LOKI_MEMORY_LIMIT`), les quatre autres services
-512 Mo chacun.
+Ressources plafonnées : Loki 1 Go (`LOKI_MEMORY_LIMIT`), `cadvisor` 512 Mo (`CADVISOR_MEMORY_LIMIT`), `node-exporter` et `blackbox-exporter` 64 Mo, les autres
+services 512 Mo chacun. Ce sont des plafonds, pas des réservations.
 
 ## Brancher un projet Laravel
 
@@ -145,6 +145,40 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/json
 - Un projet peut livrer ses propres tableaux de bord : déposez les JSON dans
   `grafana/dashboards/<Nom du projet>/`, puis redémarrez Grafana
   (`docker restart observability-grafana`). Ils apparaissent dans ce dossier.
+
+## Le serveur lui-même (aucun projet à modifier)
+
+La plateforme observe aussi **le VPS**, sans opt-in : `node-exporter` (un conteneur de 64 Mo) lit le système en
+lecture seule (`/` monté en `/host:ro`), et Prometheus le scrute toutes les 30 s (`prometheus.yml`, job `node`). Il n'est
+joignable que depuis le réseau privé de la pile.
+
+| Ce qu'on voit | Où |
+| --- | --- |
+| Processeur, mémoire, swap, disque « / », charge | Grafana, dossier **Plateforme**, tableau **Serveur — vue d'ensemble** |
+| Cinq alertes génériques : serveur plus observé, disque > 85 %, mémoire disponible < 10 %, swap > 50 %, charge > 2,5 par processeur | Grafana, **Alerting**, dossier **Plateforme** ([`generic-alerts.yaml`](grafana/provisioning/alerting/generic-alerts.yaml)) |
+
+Ces alertes partent vers le point de contact par défaut (`core-oncall`, nom historique : il reçoit **toutes** les alertes). Chacune
+a un délai (`for`) pour éviter le bruit. Les métriques **par conteneur** (consommation, redémarrages) ne sont pas encore collectées :
+[ADR-0065](../docs/adr/0065-supervision-du-serveur-node-exporter.md) (cAdvisor, voir ci-dessous). Guide de lecture : [guide 17](../guides/17-comprendre-et-lire-grafana.md).
+
+Vérifier : `up{job="node"}` vaut 1 dans Prometheus, et `node_load5` renvoie une valeur.
+
+## Les conteneurs et les sites (aucun projet à modifier)
+
+| Composant | Ce qu'il apporte | Où |
+| --- | --- | --- |
+| **cAdvisor** | Consommation (processeur, mémoire et sa limite, réseau) et **redémarrages de chaque conteneur Docker** du serveur | Tableau **Plateforme → Conteneurs** ; alertes « conteneur en boucle » et « proche de sa limite de mémoire » |
+| **blackbox-exporter** | Les **sites publics** sondés depuis le serveur : en ligne ou non, délai, **expiration du certificat** | Tableau **Plateforme → Sites** ; alertes « site qui ne répond plus » et « certificat qui expire » |
+
+**Déclarer les sites à sonder** : copier `prometheus/targets/sites.yml.example` en `prometheus/targets/sites.yml` **sur le serveur** (le fichier n'est pas commité :
+c'est la liste des sites hébergés), y mettre l'adresse de santé de chaque site, avec ses étiquettes `app` et `deployment`. Prometheus relit le dossier toutes les
+minutes, sans redémarrage. Une sonde ne remplace pas une [surveillance externe](../guides/08-surveillance-externe.md) : si le serveur entier tombe, rien ici ne le dit.
+
+**Sauvegardes** : une alerte vérifie que les journaux des agents de production contiennent une ligne `uploaded to s3://…` au moins toutes les 36 h. Elle suppose que
+le conteneur `backup` du projet porte les labels `observability.*` (le [pilote](../guides/18-le-projet-pilote-skills-devops.md) le fait).
+
+**Mise en service progressive** (la charge du serveur est déjà élevée) : d'abord `node-exporter` et `blackbox-exporter`, puis `cadvisor` après avoir observé la charge. Voir
+la [carte complète](../docs/reference/observabilite-carte-complete.md).
 
 ## Vérifier qu'un projet est bien branché
 

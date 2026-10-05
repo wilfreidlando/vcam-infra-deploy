@@ -70,7 +70,7 @@ Menu de gauche :
 
 | Entrée | À quoi ça sert | Quand l'utiliser |
 | --- | --- | --- |
-| **Dashboards** | Les tableaux de bord prêts à l'emploi, rangés en dossiers (**Applications**, **Core System**) | Vue d'ensemble, surveillance de routine |
+| **Dashboards** | Les tableaux de bord prêts à l'emploi, rangés en dossiers (**Plateforme**, **Applications**, **Core System**) | Vue d'ensemble, surveillance de routine |
 | **Explore** | La recherche libre dans une source (Loki, Prometheus ou Tempo) | Enquêter sur un problème précis |
 | **Alerting** | Les règles d'alerte, leur état, les contacts, les mises en sourdine | Savoir si quelque chose cloche, régler les notifications |
 | **Connections → Data sources** | Les trois sources déjà configurées | Rarement : tout est préconfiguré |
@@ -146,6 +146,9 @@ Silences → New silence*, avec une durée et un filtre sur le nom de la règle.
 
 | Quand | Où | Ce qu'on cherche |
 | --- | --- | --- |
+| Chaque jour, 30 secondes | Tableau **Plateforme → Serveur — vue d'ensemble** | Les quatre voyants du haut sont verts : processeur, mémoire disponible, disque « / », charge par processeur |
+| Chaque jour, 30 secondes | Tableau **Plateforme → Sites** | Tous les sites en ligne ; le certificat le plus proche de l'expiration à plus de 30 jours |
+| Chaque semaine, 2 minutes | Tableau **Plateforme → Conteneurs** | Aucun conteneur en boucle ; qui consomme le plus ; redémarrages sur 24 h |
 | Chaque jour, 2 minutes | Tableau **Applications**, période « 24 h » | Les barres d'**erreurs** et d'**avertissements** montent-elles ? Un projet s'est-il tu (plus de journaux) ? |
 | Après chaque déploiement | Explore Loki, `{app="…", deployment="prod"}` | Des erreurs depuis l'heure du déploiement ? |
 | Quand un utilisateur signale un problème | Filtre **Recherche** (son identifiant ou le `correlation_id`) | La requête fautive et son erreur |
@@ -166,9 +169,8 @@ d'erreurs juste après un déploiement ; une règle en « Error » ; Grafana qui
 
 ## 9. Ce que cette pile ne fait pas
 
-- Elle **n'observe pas l'hôte** (processeur, disque, mémoire du serveur) : il n'y a pas de
-  collecteur de métriques du système dans la pile. Pour cela : `df`, `free`, `docker stats`, ou
-  l'ajouter plus tard (voir le plan d'infrastructure).
+- Elle observe **le serveur** (`node-exporter`), **chaque conteneur** (cAdvisor) et **les sites publics** (sondes), voir la
+  [carte complète](../docs/reference/observabilite-carte-complete.md). Ce qu'elle ne voit pas : l'**intérieur** d'un projet qui n'expose ni `/metrics` ni journaux JSON.
 - Elle **ne prévient pas si le serveur tombe** : Grafana tourne sur ce serveur. La
   [surveillance externe](08-surveillance-externe.md) est indispensable.
 - Elle **ne collecte que les projets qui l'ont demandé** : un projet sans label est invisible.

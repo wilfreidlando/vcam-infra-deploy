@@ -114,8 +114,9 @@ ligne `ERREUR` après `OK` est un défaut à comprendre (voir le [retour d'expé
 | Donnée | Aujourd'hui | Pour l'obtenir dans un autre projet |
 | --- | --- | --- |
 | **Journaux** | Collectés par les labels `observability.*` (web, worker, scheduler) | Poser les trois labels sur chaque service à observer |
-| **Niveau des journaux** (`level`) | Dépend du format : en texte brut, l'étiquette `level` est **vide** et les panneaux « Erreurs » et « Avertissements » restent à zéro | Écrire en **JSON** sur la sortie standard (`LOG_CHANNEL=stdout_json`), [README de l'observabilité](../observability/README.md) |
-| **Métriques** | Aucune pour l'application | Exposer `/metrics`, ajouter `observability.metrics.port` et le réseau `observability` au web |
+| **Niveau des journaux** (`level`) | En texte brut, l'étiquette `level` est **vide** et les panneaux « Erreurs » et « Avertissements » restent à zéro. Le pilote passe en **JSON** par une seule variable : `LOG_STDERR_FORMATTER=Monolog\Formatter\JsonFormatter` (le canal `stderr` de Laravel l'accepte, **aucun code à changer**) | Même variable pour Laravel ; autre techno : JSON sur la sortie standard avec un champ `level_name`, [README de l'observabilité](../observability/README.md) |
+| **Métriques de l'application** | **Route `/metrics`** au format Prometheus (version, base, cache, visites, jobs en échec, file, planificateur), **réservée au réseau privé** : nginx-proxy ajoute toujours `X-Forwarded-For`, une requête qui l'a reçoit 404. Hors du groupe `web` (aucune session par collecte). Le web porte `observability.metrics.port` et rejoint le réseau `observability` (**lui seul**) | Reprendre le contrôleur et le middleware du pilote (`app/Http/`), les labels et le réseau du `compose.prod.yaml` |
+| **Sauvegarde** | Le conteneur `backup` porte les labels ; ses lignes `uploaded to s3://…` alimentent l'alerte « sauvegarde absente » ; son healthcheck dit si une copie de moins de 36 h existe | Labels et healthcheck du service `backup` |
 | **Traces** | Aucune | Variables `OTEL_*` vers `http://observability-alloy:4318` |
 | **Alertes** | Aucune propre au projet | Règles dans Grafana ; [guide 17](17-comprendre-et-lire-grafana.md) |
 
@@ -199,9 +200,7 @@ Un pilote honnête dit ses écarts. Chacun a un responsable et une action dans l
 | Écart | Clause | Conséquence | Action prévue |
 | --- | --- | --- | --- |
 | Dépôt **public** lu en HTTPS par le serveur | C9 | Exception temporaire, le temps des tests | Clé de déploiement ([guide 14](14-retour-aux-depots-prives.md)) ou migration de dépôt |
-| Journaux en texte brut : pas de niveau dans Grafana | C12 | Panneaux d'erreurs vides | `stdout_json` |
-| Pas de `/metrics` | C12 | Aucune métrique applicative, aucune alerte | Route protégée, labels de métriques |
-| Le conteneur `backup` n'a ni healthcheck ni labels | C4, C12 | Une sauvegarde qui cesse de tourner passe inaperçue | Healthcheck sur l'âge de la dernière copie, labels |
+| **Dans le dépôt, pas encore déployé** : journaux JSON, `/metrics`, labels et healthcheck de `backup` | C12, C4 | Sans déploiement (et sans `LOG_STDERR_FORMATTER` dans les `.env` du serveur), Grafana reste comme avant | Déployer en staging puis en production |
 | Staging déployé à la main (pas de `deploy.sh watch` en cron) | § 5 du README | « Merge sur main » ne déploie pas seul | Ligne cron de `root` |
 | Bucket de sauvegarde partagé avec un autre projet | C10 | Une fuite de l'un expose l'autre | Bucket ou clé dédiés |
 | Les sauvegardes ne sont copiées hors serveur qu'en **production** | C11 | Le staging n'a pas de copie | Variables S3 du staging |

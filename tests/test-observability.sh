@@ -65,11 +65,36 @@ docker exec vpstest-obs-demo wget -qO- --header 'Content-Type: application/json'
     http://vpstest-obs-alloy:4318/v1/traces >/dev/null
 check "trace OTLP reçue par Tempo" wait_for 60 graf "http://tempo:3200/api/traces/${TID}"
 
+step "Le serveur lui-même (node-exporter)"
+# La plateforme observe le serveur sans qu'aucun projet n'ait rien à faire : processeur, mémoire, swap,
+# disque, charge. Les alertes génériques et le tableau « Serveur » s'appuient sur ces séries.
+check "node-exporter démarré" docker ps --filter name=vpstest-obs-node-exporter --filter status=running -q
+for serie in node_load5 node_memory_MemAvailable_bytes node_cpu_seconds_total; do
+    check "série ${serie} dans Prometheus" wait_for 120 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=${serie}' | grep -q '\"value\"'"
+done
+check "disque « / » mesuré (les alertes et le tableau le cherchent)" wait_for 60 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=node_filesystem_size_bytes%7Bmountpoint%3D%22%2F%22%7D' | grep -q '\"value\"'"
+check "node-exporter est un job scruté et en bonne santé" wait_for 60 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=up%7Bjob%3D%22node%22%7D' | grep -q '\"1\"\]'"
+
+step "Les conteneurs (cAdvisor) et les sondes de sites (blackbox)"
+# cAdvisor : consommation et redémarrages de chaque conteneur Docker, sans que le projet fasse rien.
+check "cAdvisor démarré" docker ps --filter name=vpstest-obs-cadvisor --filter status=running -q
+check "blackbox-exporter démarré" docker ps --filter name=vpstest-obs-blackbox-exporter --filter status=running -q
+for serie in container_memory_working_set_bytes container_start_time_seconds container_cpu_usage_seconds_total; do
+    check "série ${serie} dans Prometheus (cAdvisor)" wait_for 240 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=${serie}%7Bname%21%3D%22%22%7D' | grep -q '\"value\"'"
+done
+check "cAdvisor est un job scruté et en bonne santé" wait_for 120 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=up%7Bjob%3D%22cadvisor%22%7D' | grep -q '\"1\"\]'"
+# Sonde : le blackbox-exporter sait sonder une adresse et la déclarer en ligne.
+check "une sonde HTTP réussit (probe_success 1)" wait_for 60 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://blackbox-exporter:9115/probe?target=http://prometheus:9090/-/healthy&module=http_2xx' | grep -q '^probe_success 1'"
+check_not "une sonde vers une adresse morte échoue (probe_success 0)" sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://blackbox-exporter:9115/probe?target=http://loki:1/&module=http_2xx' | grep -q '^probe_success 1'"
+
 step "Grafana"
 search="$(graf "http://admin:vpstest-pass@localhost:3000/api/search?query=")"
 check "dossier Core System" grep -q '"Core System"' <<< "${search}"
 check "tableau Applications — journaux" grep -q 'Applications' <<< "${search}"
-check "6 règles d'alerte provisionnées" test "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/alert-rules" | grep -o '"uid"' | wc -l)" -ge 6
+check "dossier Plateforme et tableau Serveur provisionnés" grep -q 'Serveur' <<< "${search}"
+check "tableau Conteneurs provisionné" grep -q 'Conteneurs' <<< "${search}"
+check "tableau Sites (disponibilité) provisionné" grep -q 'Sites' <<< "${search}"
+check "16 règles d'alerte provisionnées (6 du Core, 5 du serveur, 5 conteneurs, sites et sauvegardes)" test "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/alert-rules" | grep -o '"uid"' | wc -l)" -ge 16
 
 # Les fichiers de l'application pèsent jusqu'à 3,5 Mo (≈ 9 Mo au total) et
 # nginx-proxy ne compresse pas (pas de « gzip on ») : Grafana doit le faire
@@ -78,7 +103,8 @@ check "6 règles d'alerte provisionnées" test "$(graf "http://admin:vpstest-pas
 step "Compression des fichiers de Grafana"
 asset="$(graf "http://localhost:3000/login" | grep -o 'public/build/runtime[^"]*\.js' | head -1)"
 check "un fichier de l'application est référencé par la page de connexion" test -n "${asset}"
-magic="$(docker exec vpstest-obs-grafana wget -qO- --header 'Accept-Encoding: gzip' "http://localhost:3000/${asset}" | head -c 2 | od -An -tx1 | tr -d ' \n')"
+# « head -c 2 » ferme le tube : wget reçoit SIGPIPE, et sous « set -e -o pipefail » cela avorterait le test.
+magic="$(docker exec vpstest-obs-grafana wget -qO- --header 'Accept-Encoding: gzip' "http://localhost:3000/${asset}" | head -c 2 | od -An -tx1 | tr -d ' \n' || true)"
 check "fichiers de Grafana servis compressés (en-tête gzip 1f8b)" test "${magic}" = "1f8b"
 
 docker compose -p vpstest-obs -f "${INFRA_DIR}/observability/compose.yaml" down -v >/dev/null 2>&1 || true

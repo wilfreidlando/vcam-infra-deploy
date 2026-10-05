@@ -6,6 +6,9 @@
 
 ## 1. Première minute
 
+L'alerte « Disque du serveur presque plein » (Grafana, dossier Plateforme) se déclenche à 85 % depuis 10 minutes ; le tableau
+**Serveur — vue d'ensemble** montre la courbe.
+
 ```bash
 $ df -h /                       # quel pourcentage ?
 $ docker system df              # ce que Docker occupe : images, conteneurs, volumes, cache de build

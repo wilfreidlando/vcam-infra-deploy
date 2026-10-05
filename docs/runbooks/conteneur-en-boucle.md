@@ -49,8 +49,8 @@ $ docker logs --tail 40 <conteneur>                  # la dernière ligne avant 
 
 - Le conteneur est « en marche » à chaque instant : aucune alerte de disponibilité ne se déclenche.
 - Les compteurs montent sans fin : des dizaines de milliers de redémarrages ont été observés sur des environnements de développement oubliés.
-- Remède : une alerte sur le **taux de redémarrages** (chantier de supervision du serveur, voir le
-  [guide 17](../../guides/17-comprendre-et-lire-grafana.md)) et la lecture hebdomadaire de `vps-audit.sh`.
+- Remède : l'alerte **« Un conteneur redémarre en boucle »** (plus de 3 redémarrages en 30 minutes) et le tableau Grafana **Plateforme → Conteneurs** (redémarrages sur 24 h),
+  décrits dans la [carte de l'observabilité](../reference/observabilite-carte-complete.md), plus la lecture hebdomadaire de `vps-audit.sh`.
 
 ## 5. Ce qu'il ne faut pas faire
 

@@ -8,3 +8,44 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ['localhost:9090']
+
+  # The server (CPU, memory, swap, disk, load): the platform observes itself, no opt-in.
+  - job_name: node
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          host: vps
+
+  # Every Docker container of the server (consumption, restarts). Only the series the dashboards and
+  # alerts use are kept, and only Docker containers (non-empty "name"): bounded cardinality.
+  - job_name: cadvisor
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          host: vps
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|start_time_seconds|last_seen|network_(receive|transmit)_bytes_total|oom_events_total)'
+        action: keep
+      - source_labels: [name]
+        regex: ''
+        action: drop
+
+  # The public sites, probed from the server (blackbox-exporter). The list is a file, not this config.
+  - job_name: sites
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    scrape_interval: 60s
+    file_sd_configs:
+      - files: ['/etc/prometheus/targets/*.yml']
+        refresh_interval: 1m
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

@@ -89,10 +89,75 @@ services:
       - --web.enable-remote-write-receiver
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/targets:/etc/prometheus/targets:ro
       - prometheus-data:/prometheus
     networks:
       - internal
     <<: *small
+
+  # The server itself: CPU, memory, swap, disk, load. Read-only view of the host (/ mounted at /host),
+  # reachable only from this project's private network, scraped by Prometheus (prometheus.yml).
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: ${OBS_PREFIX:-observability}-node-exporter
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+|var/lib/containers/.+)($$|/)
+      - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$$
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+
+  # Every container of the VPS: CPU, memory, network, restarts (ADR-0065). Kept light on a server with
+  # hundreds of containers: Docker containers only, a handful of metric families, a 60 s collection
+  # interval, container labels not stored (Prometheus drops what is left, see prometheus.yml).
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: ${OBS_PREFIX:-observability}-cadvisor
+    restart: unless-stopped
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=60s
+      - --store_container_labels=false
+      - --disable_metrics=advtcp,cpu_topology,cpuset,disk,diskIO,hugetlb,memory_numa,percpu,perf_event,process,referenced_memory,resctrl,sched,tcp,udp
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: ${CADVISOR_MEMORY_LIMIT:-512M}
+
+  # Probes the public sites FROM the server (up or down, certificate expiry). The list of sites is a
+  # file on the server (prometheus/targets/sites.yml, not committed). It does not replace an external
+  # probe: if the whole server is down, nothing here can warn.
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.27.0
+    container_name: ${OBS_PREFIX:-observability}-blackbox-exporter
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
 
   grafana:
     image: grafana/grafana:12.1.1

@@ -23,18 +23,21 @@ Légende : ✅ disponible aujourd'hui · 🟡 disponible mais à brancher · �
 | ✅ **Sauvegarde chiffrée** | Dump chaque nuit et avant chaque promotion, chiffré AES-256, 7 copies locales | Un service `backup` (image de l'agent) avec les variables du moteur (`PGHOST`… ou `MYSQL_*`), `BACKUP_PASSPHRASE`, `BACKUP_NAME` | `docker exec <projet>-<env>-backup-1 ls -l /backups` | service `backup` |
 | ✅ **Copie hors serveur** | La même sauvegarde sur S3 | `BACKUP_S3_ENDPOINT` (avec `https://`), `BACKUP_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` dans le `.env` | Le message `uploaded to s3://…` ; liste du bucket | `.env` de production |
 | ✅ **Restauration prouvée** | La base revient à l'état exact de la sauvegarde (PostgreSQL, MySQL, MariaDB) | La phrase de chiffrement **conservée hors du serveur** ; un exercice mensuel | [Exercice de restauration](../runbooks/exercice-de-restauration.md) | premier exercice du 2026-10-04 |
-| 🔜 **Alerte « sauvegarde absente »** | Prévenu si aucune copie récente | Un healthcheck sur l'âge de la dernière copie, et les labels d'observabilité sur `backup` | Grafana | à ajouter |
+| ✅ **Santé du conteneur de sauvegarde** | `docker ps` et l'audit signalent une sauvegarde qui cesse de tourner | Un healthcheck « une copie de moins de 36 h existe » sur `backup` | `docker ps` | service `backup` |
 
 ## 3. Voir ce qui se passe
 
 | Service | Ce qu'on obtient | Ce que le projet doit fournir | Comment vérifier | Dans le pilote |
 | --- | --- | --- | --- | --- |
 | ✅ **Journaux dans Grafana** | Recherche dans les journaux de tous les projets, par application, déploiement, service | Trois labels sur chaque service à observer : `observability.enable`, `observability.app`, `observability.deployment` | Grafana, Explore, `{app="<app>"}` | `x-app` |
-| 🟡 **Niveau des journaux** (erreurs, avertissements) | Panneaux « Erreurs » et « Avertissements », filtre par `level` | Écrire les journaux en **JSON** sur la sortie standard (`LOG_CHANNEL=stdout_json` pour Laravel) | L'étiquette `level` a des valeurs dans Loki | à brancher |
-| 🟡 **Métriques de l'application** | Courbes, calculs, alertes | `/metrics` au format Prometheus, **non public** ; `observability.metrics.port` ; le web sur le réseau `observability` | `up{app="<app>"}` vaut 1 | à brancher |
+| 🟡 **Niveau des journaux** (erreurs, avertissements) | Panneaux « Erreurs » et « Avertissements », filtre par `level` | Écrire les journaux en **JSON** (Laravel : `LOG_STDERR_FORMATTER=Monolog\Formatter\JsonFormatter`, sans code) | L'étiquette `level` a des valeurs dans Loki | dans le dépôt du pilote |
+| 🟡 **Métriques de l'application** | Courbes, calculs, alertes | `/metrics` au format Prometheus, **réservé au réseau privé** (refuser tout ce qui porte `X-Forwarded-For`) ; `observability.metrics.port` ; le web seul sur le réseau `observability` | `up{app="<app>"}` vaut 1 | `MetricsController` et `OnlyFromPrivateNetwork` du pilote |
 | 🟡 **Traces** | Le trajet d'une requête | Variables `OTEL_*` vers `http://observability-alloy:4318` ; le web sur le réseau `observability` | Explore, source Tempo | non prévu |
-| 🔜 **Métriques du serveur et de tous les conteneurs** | Processeur, mémoire, disque, redémarrages, **sans toucher aux projets** | Rien : c'est la plateforme qui le collecte | Tableau « Serveur » | chantier plateforme |
-| 🔜 **Alertes génériques** (disque, mémoire, boucle de redémarrage) | E-mail quand un seuil est franchi | Rien côté projet | Alerting, Alert rules | chantier plateforme |
+| ✅ **Métriques du serveur** | Processeur, mémoire, swap, disque, charge, **sans toucher aux projets** | Rien : c'est la plateforme qui le collecte (`node-exporter`) | Grafana, Plateforme, « Serveur — vue d'ensemble » | plateforme |
+| ✅ **Alertes génériques du serveur** (disque, mémoire, swap, charge, serveur plus observé) | E-mail quand un seuil est franchi | Rien côté projet | Alerting, dossier Plateforme | plateforme |
+| ✅ **Métriques par conteneur** (consommation, redémarrages en boucle) | Voir quel projet consomme, être prévenu d'une boucle | Rien côté projet (cAdvisor, [ADR-0065](../adr/0065-supervision-du-serveur-node-exporter.md)) | Grafana, Plateforme, « Conteneurs » | plateforme |
+| ✅ **Disponibilité et certificats des sites** (vus du serveur) | Prévenu quand un site ne répond plus ou qu'un certificat va expirer | Le **site doit figurer dans la liste** `prometheus/targets/sites.yml` (par le responsable de la plateforme) et avoir une route de santé | Grafana, Plateforme, « Sites » | `/up` |
+| ✅ **Alerte « sauvegarde absente »** | Prévenu si plus aucune copie n'est envoyée sur S3 | Les labels `observability.*` sur le conteneur `backup` | Alerting, groupe `sauvegardes` | service `backup` |
 | 🟡 **Alerte de disponibilité vue de l'extérieur** | Prévenu si le serveur entier tombe | Une URL publique de santé (`/up`) ; une sonde chez un service externe | Le service externe | [guide 8](../../guides/08-surveillance-externe.md) |
 
 Règle : **ne jamais** mettre la base, Redis ni un conteneur PHP-FPM sur le réseau `observability`.

@@ -1,0 +1,100 @@
+# Alertes génériques de la plateforme : elles surveillent LE SERVEUR, pour tous les projets, sans que
+# aucun projet n'ait rien à faire (métriques de node-exporter, voir compose.yaml et prometheus.yml).
+# Elles partent vers le point de contact par défaut de la politique de notification
+# (core-oncall dans core-alerts.yaml : nom historique, il reçoit TOUTES les alertes).
+#
+# Principes : peu d'alertes, chacune actionnable, avec un délai (« for ») qui évite le bruit.
+# Absence de données = « OK » (le serveur n'est peut-être pas encore observé), sauf pour
+# l'alerte qui surveille l'observateur lui-même.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: plateforme
+    folder: Plateforme
+    interval: 1m
+    rules:
+      - uid: node-exporter-down
+        title: Le serveur n'est plus observé
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Prometheus n'arrive plus à lire les métriques du serveur (node-exporter arrêté ou injoignable). Les autres alertes du serveur sont aveugles. Voir « docker ps --filter name=observability » et le runbook « Site en panne »."
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { refId: A, expr: 'min(up{job="node"})', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: lt, params: [1] } }] }
+
+      - uid: node-disk-high
+        title: Disque du serveur presque plein
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: "Plus de 85 % du disque « / » est utilisé. À plus de 90 %, les bases cessent d'écrire. Voir le runbook « Disque plein »."
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { refId: A, expr: 'max(100 - node_filesystem_avail_bytes{mountpoint="/"} * 100 / node_filesystem_size_bytes{mountpoint="/"})', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [85] } }] }
+
+      - uid: node-memory-low
+        title: Mémoire du serveur presque épuisée
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: "Moins de 10 % de la mémoire est disponible. Le noyau peut tuer des conteneurs au hasard. Voir « docker stats --no-stream » et le runbook « Site en panne »."
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { refId: A, expr: 'min(node_memory_MemAvailable_bytes * 100 / node_memory_MemTotal_bytes)', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: lt, params: [10] } }] }
+
+      - uid: node-swap-high
+        title: Le serveur utilise beaucoup son swap
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: "Plus de 50 % du swap est utilisé : la mémoire est durablement insuffisante, les temps de réponse se dégradent. Identifier le conteneur le plus gourmand (docker stats)."
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { refId: A, expr: 'max((node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) * 100 / (node_memory_SwapTotal_bytes > 0))', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [50] } }] }
+
+      - uid: node-load-high
+        title: Charge du serveur très élevée
+        condition: C
+        for: 20m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: "La charge moyenne sur 5 minutes dépasse 2,5 fois le nombre de processeurs depuis 20 minutes. Voir « top » et les conteneurs en boucle (runbook « Conteneur en boucle »)."
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { refId: A, expr: 'max(node_load5 / count(count by (cpu) (node_cpu_seconds_total{mode="idle"})))', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [2.5] } }] }

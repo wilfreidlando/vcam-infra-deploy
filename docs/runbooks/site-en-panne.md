@@ -6,6 +6,8 @@
 
 ## 1. Première minute
 
+L'alerte « Un site ne répond plus » (sonde depuis le serveur, 3 minutes) et le tableau **Plateforme → Sites** disent quel site est en échec et depuis quand.
+
 Trois questions, dans cet ordre :
 
 1. **Un seul site ou tous ?** Ouvrir deux autres sites. Si tous sont tombés, aller à la section 5.
@@ -55,6 +57,9 @@ différente. Retirer la revendication du projet fautif (son `VIRTUAL_HOST`), pui
 ce seul projet.
 
 ## 5. Tous les sites tombés
+
+Le tableau Grafana **Plateforme → Serveur — vue d'ensemble** donne l'état du serveur d'un coup d'œil (processeur, mémoire, disque, charge),
+si Grafana répond encore.
 
 ```bash
 $ systemctl status docker              # Docker tourne-t-il ?

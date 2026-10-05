@@ -1,0 +1,167 @@
+# Alertes génériques, suite : conteneurs, disponibilité des sites, sauvegardes (ADR-0065).
+# Même point de contact que les autres (core-oncall : nom historique, reçoit TOUTES les alertes).
+# Grafana remplace $nom par une variable d'environnement dans les fichiers de provisionnement : un « $ » littéral s'écrit « $$ »
+# (donc {{ $$labels.name }} pour obtenir {{ $labels.name }}).
+# Principes : un délai (« for ») contre le bruit, absence de données = pas d'alerte, une phrase qui dit quoi faire.
+apiVersion: 1
+groups:
+- orgId: 1
+  name: conteneurs
+  folder: Plateforme
+  interval: 1m
+  rules:
+  - uid: container-restart-loop
+    title: Un conteneur redémarre en boucle
+    condition: C
+    for: 5m
+    noDataState: OK
+    execErrState: OK
+    annotations:
+      summary: 'Le conteneur {{ $$labels.name }} a redémarré plus de 3 fois en 30 minutes. Lire son journal et son code de sortie : runbook « Conteneur en boucle ».'
+    data:
+    - refId: A
+      datasourceUid: prometheus
+      relativeTimeRange:
+        from: 300
+        to: 0
+      model:
+        refId: A
+        expr: max by (name) (changes(container_start_time_seconds{name!=""}[30m]))
+        instant: true
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 3
+  - uid: container-memory-near-limit
+    title: Un conteneur approche de sa limite de mémoire
+    condition: C
+    for: 10m
+    noDataState: OK
+    execErrState: OK
+    annotations:
+      summary: 'Le conteneur {{ $$labels.name }} utilise plus de 90 % de sa limite de mémoire : il sera tué (OOM) s''il la dépasse. Mesurer avant d''augmenter la limite.'
+    data:
+    - refId: A
+      datasourceUid: prometheus
+      relativeTimeRange:
+        from: 300
+        to: 0
+      model:
+        refId: A
+        expr: max by (name) (container_memory_working_set_bytes{name!=""} / (container_spec_memory_limit_bytes{name!=""} > 0))
+        instant: true
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 0.9
+- orgId: 1
+  name: disponibilite
+  folder: Plateforme
+  interval: 1m
+  rules:
+  - uid: site-down
+    title: Un site ne répond plus
+    condition: C
+    for: 3m
+    noDataState: OK
+    execErrState: OK
+    annotations:
+      summary: Le site {{ $$labels.instance }} ne répond pas (vu depuis le serveur). Runbook « Site en panne ».
+    data:
+    - refId: A
+      datasourceUid: prometheus
+      relativeTimeRange:
+        from: 300
+        to: 0
+      model:
+        refId: A
+        expr: min by (instance) (probe_success{job="sites"})
+        instant: true
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            type: lt
+            params:
+            - 1
+  - uid: site-cert-expiring
+    title: Un certificat HTTPS expire bientôt
+    condition: C
+    for: 1h
+    noDataState: OK
+    execErrState: OK
+    annotations:
+      summary: Le certificat de {{ $$labels.instance }} expire dans moins de 14 jours alors qu'il devrait se renouveler seul. Runbook « Certificat non émis ».
+    data:
+    - refId: A
+      datasourceUid: prometheus
+      relativeTimeRange:
+        from: 300
+        to: 0
+      model:
+        refId: A
+        expr: min by (instance) ((probe_ssl_earliest_cert_expiry{job="sites"} - time()) / 86400)
+        instant: true
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            type: lt
+            params:
+            - 14
+- orgId: 1
+  name: sauvegardes
+  folder: Plateforme
+  interval: 5m
+  rules:
+  - uid: backup-not-uploaded
+    title: Aucune sauvegarde envoyée hors du serveur depuis 36 heures
+    condition: C
+    for: 1h
+    noDataState: OK
+    execErrState: OK
+    annotations:
+      summary: 'Les journaux des agents de sauvegarde de production n''ont pas une seule ligne « uploaded to » depuis 36 h : la copie sur S3 ne part plus (ou aucun agent n''est branché sur l''observabilité). Voir l''agent du projet et l''exercice de restauration.'
+    data:
+    - refId: A
+      datasourceUid: loki
+      relativeTimeRange:
+        from: 3600
+        to: 0
+      model:
+        refId: A
+        expr: absent_over_time({service="backup", deployment="prod"} |= "uploaded to" [36h])
+        queryType: instant
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 0

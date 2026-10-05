@@ -1,0 +1,11 @@
+# Sondes HTTP des sites publics (prometheus.yml, job « sites »). Un site est « up » s'il répond 2xx
+# (redirections suivies) en moins de 10 s ; le certificat TLS est lu pour l'alerte d'expiration.
+modules:
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      follow_redirects: true
+      preferred_ip_protocol: ip4
+      valid_status_codes: []        # tout 2xx

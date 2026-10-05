@@ -1,0 +1,15 @@
+# Modèle de la liste des sites sondés. Copier en « sites.yml » SUR LE SERVEUR (non commité : c'est la liste
+# des sites hébergés) ; Prometheus relit le dossier toutes les minutes, sans redémarrage.
+#
+# Une entrée par site : l'adresse sondée (la route de santé de préférence) et les étiquettes qui servent
+# à filtrer dans Grafana.
+- targets:
+    - https://mon-projet.example.com/up
+  labels:
+    app: mon-projet
+    deployment: prod
+- targets:
+    - https://mon-projet-staging.example.com/up
+  labels:
+    app: mon-projet
+    deployment: staging
