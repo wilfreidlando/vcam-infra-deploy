@@ -7,9 +7,10 @@ aussi à tous les autres.
 
 ## Pourquoi c'est à faire (constat du 2026-10-05)
 
-Sur le serveur, **aucun réglage global n'existe** : seule une petite minorité de conteneurs a une rotation (ceux des projets au standard). Les journaux de tous les autres
-**grossissent sans limite**, et celui du proxy (qui journalise chaque requête de tous les sites) pèse déjà **plusieurs Go**, plus de la moitié du total. Ce n'est pas urgent tant que le disque est loin d'être plein,
-mais c'est exactement le scénario du disque qui se remplit **sans que personne ne le voie**. Voir aussi [Serveur chargé](../docs/runbooks/serveur-charge.md).
+Sur le serveur, **aucun réglage global n'existe** : 269 des 296 conteneurs en marche n'ont pas de limite de taille (seuls ceux des projets au standard en ont une). Leurs journaux
+**grossissent sans limite**. Mesure du 2026-10-05, après la troncature du journal du proxy (qui journalise chaque requête de tous les sites) : **2,2 Go au total**, le plus gros journal fait 323 Mo,
+sur un disque utilisé à 21 % (1,1 To libres). **Ce n'est donc pas urgent** : le risque est le scénario du disque qui se remplit **sans que personne ne le voie**, pas un incident en cours.
+Avant la troncature, le journal du proxy à lui seul pesait plusieurs Go : il peut y revenir, et c'est ce qui justifie la règle globale. Voir aussi [Serveur chargé](../docs/runbooks/serveur-charge.md).
 
 **Regarder, sans rien changer :**
 
@@ -17,6 +18,7 @@ mais c'est exactement le scénario du disque qui se remplit **sans que personne 
 $ cat /etc/docker/daemon.json                      # absent ou sans log-opts : pas de rotation globale
 $ du -sh /var/lib/docker/containers                # le total
 $ docker inspect -f '{{.Name}} {{.LogPath}}' nginx-proxy | cut -d' ' -f2 | xargs ls -lh   # le journal du proxy
+$ for f in $(ls -S /var/lib/docker/containers/*/*-json.log | head -10); do id=$(basename $(dirname $f) | cut -c1-12); echo "$(du -m $f | cut -f1) Mo  $(docker ps -a --filter id=$id --format '{{.Names}}')"; done   # les 10 plus gros
 ```
 
 ## Ce que fait le script
