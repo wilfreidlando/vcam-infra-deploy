@@ -30,6 +30,7 @@ Deux faiblesses ressortent de l'usage du standard :
 - `BRANCH_<PROD>` (par exemple `BRANCH_PROD=main`) est une **garde optionnelle** : `deploy.sh promote` refuse une version qui n'est pas déjà **contenue dans `origin/<branche>`** (`git merge-base --is-ancestor`). Sans cette variable, aucune contrainte.
   Chaque production a sa branche (`BRANCH_PRODEU=release`).
 - **Sans staging** (`ENVIRONMENTS=prod`), `BRANCH_PROD` est la branche que `promote` construit quand on ne donne pas de version.
+- La garde est lue dans la configuration **déjà déployée en production**, pas dans la version candidate : elle s'active à la première promotion qui porte `BRANCH_<PROD>`, et un commit ne peut pas la retirer pour s'y soustraire.
 - Une exception ponctuelle existe, **explicite et consignée** : `SKIP_BRANCH_CHECK=1`, avec l'accord du responsable.
 
 ### 3. Le passage staging → production réutilise l'image du staging
