@@ -37,7 +37,7 @@ vmstat 1 6                  # lire les colonnes ci-dessous
 | Les processus qui travaillent | `top -b -n1` (les premières lignes) | Les plus gourmands, y compris `dockerd`, `nginx`, `docker-gen` |
 | **Qui redémarre sans cesse** | voir § 3 | Le coupable le plus fréquent |
 | Ce qui s'agite côté Docker | `timeout 60 docker events --filter type=container` | Les démarrages et arrêts, **hors `exec_*`** |
-| Les alertes | Grafana → Alerting | « charge très élevée », « un conteneur redémarre en boucle » |
+| Les alertes | Grafana → Alerting | « Charge du serveur très élevée », « Un conteneur redémarre en boucle » |
 
 **Lire le swap : le niveau ne dit rien, le mouvement dit tout.** Un swap occupé à 60 % mais **sans lecture** (`si` et `so` à 0 dans `vmstat 1 5`) ne contient que des pages inactives : aucun site n'est ralenti.
 Un swap **relu en continu** (`si` élevé, courbe « Swap : pages relues » du tableau Serveur) veut dire que la mémoire manque vraiment : c'est ce que l'alerte surveille. Pour savoir **qui** l'occupe :

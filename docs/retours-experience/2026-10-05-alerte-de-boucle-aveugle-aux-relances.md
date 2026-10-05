@@ -40,3 +40,6 @@ Le compteur de processeur d'un conteneur repart de zéro à chaque relance : `re
 1. **Un test doit provoquer l'événement qu'il prétend détecter** : ici, de vraies relances, pas la présence d'une série.
 2. **Lire un compteur de redémarrages avec l'âge du conteneur** : `redémarrages ÷ jours de vie`. 24 par jour = un par heure = un worker réglé ainsi ; des centaines par jour = une boucle ([runbook](../runbooks/conteneur-en-boucle.md)).
 3. **Valider une règle de supervision contre un cas réel connu** (ici : les heures de relance des deux workers) avant de la déclarer fonctionnelle.
+4. **Un test qui échoue au hasard est un défaut du test, pas de la règle.** La première version du conteneur d'essai ne consommait du processeur que 2 s sur un cycle de 11 s : le compteur restait à son plateau d'un échantillon (15 s) à l'autre, et la relance
+   n'était vue qu'une fois sur deux (réussite le matin, échec l'après-midi). Le conteneur d'essai consomme maintenant du processeur pendant **tout** son cycle, donc la baisse est visible quelle que soit la phase de l'échantillon.
+5. **Ne jamais lancer un test pendant qu'un autre tourne.** Chaque test se termine en supprimant tous les conteneurs `vpstest-*` : lancer le test des documents pendant le test `deploy` a détruit ses conteneurs et l'a fait échouer à tort.

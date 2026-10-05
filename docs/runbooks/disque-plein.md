@@ -23,7 +23,7 @@ $ docker system df              # ce que Docker occupe : images, conteneurs, vol
 | Journaux des conteneurs | `sudo du -sh /var/lib/docker/containers/*/*-json.log \| sort -h \| tail -5` | Un projet bavard sans rotation : cause la plus fréquente |
 | Images inutilisées, cache de build | `docker system df` (colonnes `RECLAIMABLE`) | Se récupère sans risque (section 3) |
 | Volumes | `docker system df -v` | **Données** : ne jamais supprimer sans analyse ([plus bas](#ce-quil-ne-faut-pas-faire)) |
-| Sauvegardes locales | `du -sh /app/backups` et les volumes `backups` des projets | Les copies anciennes sont gardées 7 fois par projet |
+| Copies de sauvegarde en attente | dans le conteneur `backup` de chaque projet : `ls -lh /backups` | **Normalement, seulement le marqueur** `.last-upload` : les copies vivent sur S3 et sont effacées après l'envoi. Des fichiers `.dump.enc` (trois au plus par projet) signalent un **envoi vers S3 qui échoue** : voir [Sauvegardes](../reference/sauvegardes.md) |
 | Autre | `sudo du -xh / --max-depth=2 \| sort -h \| tail -15` | Lecture seule, un peu longue |
 
 ## 3. Libérer de la place, du plus sûr au moins sûr
@@ -55,7 +55,7 @@ Puis **corriger la cause** : la rotation des journaux (`max-size`) dans le compo
   suppriment des **volumes**, donc des bases de données. Des volumes « orphelins » peuvent
   contenir les seules copies de données d'un projet arrêté.
 - Supprimer des fichiers dans `/var/lib/docker` à la main.
-- Supprimer les sauvegardes locales sans vérifier que la copie hors serveur existe.
+- Supprimer une copie `.dump.enc` en attente sans avoir vérifié que l'envoi vers S3 a réussi : c'est peut-être la seule copie.
 
 ## 5. Après
 

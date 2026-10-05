@@ -15,7 +15,7 @@
 | [`templates/`](../../templates/README.md) | **Modèles prêts à copier, testés** (`tests/test-templates.sh`) : Laravel PostgreSQL et MySQL/MariaDB, web générique, frontend (SPA et Next.js), un fichier d'environnement par environnement, la fiche de déploiement d'un projet (`docs-projet/`), [observabilité d'une application Laravel](../../templates/laravel-observabilite/README.md) (journaux JSON, `/metrics` privé, sauvegarde observée), [tableaux et alertes propres à un projet](../../templates/observabilite-projet/README.md) |
 | [`images/db-backup/`](../../images/db-backup) | Agent de sauvegarde PostgreSQL / MySQL / MariaDB → MEGA S4 (ou tout S3) |
 | [`observability/`](../../observability) | Grafana + Loki + Tempo + Prometheus mutualisés (backends) |
-| [`host/`](../../host) | Réglages du démon Docker (rotation des journaux, live-restore) et procédure sans coupure |
+| [`host/`](../../host) | Réglages du démon Docker : [`daemon.json`](../../host/daemon.json) (rotation des journaux, live-restore) et [`apply-daemon-config.sh`](../../host/apply-daemon-config.sh), qui le fusionne, le valide, redémarre Docker **sans arrêter les conteneurs** et compare les conteneurs avant et après ([guide 9](../../guides/09-rotation-journaux-hote.md)) |
 | [`tests/`](../../tests/README.md) | Tests **réels** de toute la plateforme, rejouables sur un poste avec Docker, et lancés par la CI GitHub sur chaque pull request ([`.github/workflows/tests.yml`](../../.github/workflows/tests.yml)) : une modification de la plateforme ne se merge qu'avec la CI verte |
 
 > **Où vit ce dossier.** Il est né dans le dépôt `core-system`, mais il concerne

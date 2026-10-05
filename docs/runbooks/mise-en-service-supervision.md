@@ -33,7 +33,7 @@ un composant : [README de l'observabilité](../../observability/README.md).
 | 5 | `cAdvisor`, **après observation** de la charge | Le plus gourmand ; cgroup v1 non vérifié sur ce serveur | Mémoire sous sa limite ; charge sans hausse notable après 15 minutes |
 | 6 | La liste des sites (`prometheus/targets/sites.yml`) | Fichier propre au serveur, jamais commité | Tableau « Sites » rempli, sondes en ligne |
 
-**Le piège de l'ordre (palier 2 avant 4).** L'alerte « aucune sauvegarde envoyée depuis 36 h » cherche, dans Loki, une ligne
+**Le piège de l'ordre (palier 2 avant 4).** L'alerte « Aucune sauvegarde envoyée hors du serveur depuis 36 heures » cherche, dans Loki, une ligne
 `uploaded to` sur le conteneur de sauvegarde **par ses labels**. Tant que le projet n'a pas ses labels, Loki ne la voit pas, et
 l'alerte part par e-mail au bout d'une heure alors que les sauvegardes fonctionnent. On ne charge donc ces règles **qu'une fois les
 projets branchés**.

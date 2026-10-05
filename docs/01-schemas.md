@@ -212,7 +212,7 @@ flowchart TB
         Sched["scheduler"]
         DB[("db<br/>volume db-data")]
         Cache[("redis / valkey<br/>volume redis-data")]
-        Backup["backup<br/>dump chiffré chaque nuit<br/>volume backups"]
+        Backup["backup<br/>dump chiffré chaque nuit, envoyé sur S3<br/>volume backups : marqueur d'envoi seulement"]
     end
 
     Web --> App
@@ -231,7 +231,7 @@ flowchart TB
 | `platform.env` | Dit à `deploy.sh` comment déployer : nom, contrôle de santé, migrations, sauvegarde | commité |
 | `.env` / `.env.staging` | Secrets et réglages de chaque environnement | **jamais commités** ; jamais les mêmes secrets en staging et en production |
 | Image `<projet>:<sha>` | Le code figé d'un commit précis | construite une fois, en staging |
-| Volumes | Les données (base, cache, sauvegardes locales) | survivent aux déploiements |
+| Volumes | Les données (base, cache) et le marqueur d'envoi des sauvegardes (les copies sont sur S3) | survivent aux déploiements |
 | Limites mémoire, rotation des journaux, healthcheck | Empêchent un projet de gêner les autres | vérifiés par l'audit |
 
 ---

@@ -23,7 +23,7 @@ Le dépôt a plusieurs métiers. Chacun a un point d'entrée.
 
 | Métier | Il répond à… | Contenu | Point d'entrée |
 | --- | --- | --- | --- |
-| **Le standard** | Que doit respecter un projet ? | Le contrat (clauses C1 à C12), les 16 règles, les noms | [Contrat](docs/05-contrat-projet.md) · [les 16 règles](docs/reference/les-16-regles.md) |
+| **Le standard** | Que doit respecter un projet ? | Le contrat (clauses C1 à C14), les 16 règles, les noms | [Contrat](docs/05-contrat-projet.md) · [les 16 règles](docs/reference/les-16-regles.md) |
 | **Les outils de déploiement** | Comment déploie-t-on, vérifie-t-on, restaure-t-on ? | `deploy.sh`, `vps-audit.sh`, `vps-inventory.sh`, `vps-hosts.sh`, `restore.sh` | [`bin/`](bin) · [outil par outil](docs/reference/contenu-du-depot.md) · [livraison](docs/reference/organisation-et-livraison.md) |
 | **Le serveur** | Comment installer et régler le VPS ? | Installation, DNS, journaux Docker, mises à jour, reprise après sinistre | [Guides](guides/README.md) · [`host/`](host) |
 | **L'observabilité** | Que se passe-t-il sur le serveur ? | Grafana, Loki, Prometheus, Tempo, Alloy | [`observability/`](observability/README.md) · [guide 17](guides/17-comprendre-et-lire-grafana.md) |

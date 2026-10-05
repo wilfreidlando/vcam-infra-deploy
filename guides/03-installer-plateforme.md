@@ -151,5 +151,5 @@ métriques. Suivre avec `docker system df -v | grep observability`.
 ```bash
 $ cd /app/vps-platform/observability
 $ docker compose --env-file .env down        # arrêt (données gardées)
-$ docker compose --env-file .env down -v     # + suppression des données
+$ docker compose --env-file .env down -v     # DÉSINSTALLATION seulement : supprime journaux, métriques, traces et tableaux ajoutés à la main (jamais sur un projet)
 ```

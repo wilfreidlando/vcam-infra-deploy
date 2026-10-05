@@ -44,7 +44,7 @@ contourner.
 | Ordre | Document | Pourquoi |
 | --- | --- | --- |
 | 1 | [README](../README.md), § 1 et 2 | Les réseaux, et les 16 règles |
-| 2 | [Contrat d'un projet](../docs/05-contrat-projet.md) | La référence : clauses C1 à C12, noms, mise en conformité (§ 4), évolution du contrat (§ 5) |
+| 2 | [Contrat d'un projet](../docs/05-contrat-projet.md) | La référence : clauses C1 à C14, noms, mise en conformité (§ 4), évolution du contrat (§ 5) |
 | 3 | [Glossaire](../docs/03-glossaire.md) et [schémas](../docs/01-schemas.md) | Le vocabulaire et les éléments |
 | 4 | [Retours d'expérience](../docs/retours-experience/README.md) | Ce qui a déjà mal tourné, et ce qui l'empêche maintenant |
 | 5 | [Runbooks d'incident](../docs/runbooks/README.md) | Quoi faire quand quelque chose tombe |
@@ -61,7 +61,7 @@ contourner.
 | Secrets d'un projet | `.env` (prod) et `.env.staging`, **uniquement sur le serveur**, jamais commités |
 | Version déployée, journal | `/var/lib/vps-platform/<projet>/<env>/` (`current`, `previous`) et `/var/lib/vps-platform/<projet>/deploy.log` |
 | Pile d'observabilité | `/app/vps-platform/observability/` ; secrets dans `observability/.env` |
-| Sauvegardes | volume `backups` de l'agent `db-backup` de chaque projet, puis copie hors serveur (guide 4) |
+| Sauvegardes | **sur S3 seulement** : l'agent `db-backup` de chaque projet envoie la copie chiffrée et l'efface du serveur (son volume `backups` ne garde que le marqueur d'envoi) : [guide 4](04-sauvegardes-mega-s4.md), [Sauvegardes](../docs/reference/sauvegardes.md) |
 | Projet Docker d'un environnement | `<projet>-<env>` (par exemple `skills-devops-prod`) |
 
 Les noms suivent le [contrat, § 3](../docs/05-contrat-projet.md#3-les-noms) : connaître

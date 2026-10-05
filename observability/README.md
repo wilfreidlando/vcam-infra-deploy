@@ -180,14 +180,14 @@ Vérifier : `up{job="node"}` vaut 1 dans Prometheus, et `node_load5` renvoie une
 
 | Composant | Ce qu'il apporte | Où |
 | --- | --- | --- |
-| **cAdvisor** | Consommation (processeur, mémoire et sa limite, réseau) et **redémarrages de chaque conteneur Docker** du serveur | Tableau **Plateforme → Conteneurs** ; alertes « conteneur en boucle » et « proche de sa limite de mémoire » |
-| **blackbox-exporter** | Les **sites publics** sondés depuis le serveur : en ligne ou non, délai, **expiration du certificat** | Tableau **Plateforme → Sites** ; alertes « site qui ne répond plus » et « certificat qui expire » |
+| **cAdvisor** | Consommation (processeur, mémoire et sa limite, réseau) et **redémarrages de chaque conteneur Docker** du serveur | Tableau **Plateforme → Conteneurs** ; alertes « Un conteneur redémarre en boucle » et « Un conteneur approche de sa limite de mémoire » |
+| **blackbox-exporter** | Les **sites publics** sondés depuis le serveur : en ligne ou non, délai, **expiration du certificat** | Tableau **Plateforme → Sites** ; alertes « Un site ne répond plus » et « Un certificat HTTPS expire bientôt » |
 
 **Déclarer les sites à sonder** : copier `prometheus/targets/sites.yml.example` en `prometheus/targets/sites.yml` **sur le serveur** (le fichier n'est pas commité :
 c'est la liste des sites hébergés), y mettre l'adresse de santé de chaque site, avec ses étiquettes `app` et `deployment`. Prometheus relit le dossier toutes les
 minutes, sans redémarrage. Une sonde ne remplace pas une [surveillance externe](../guides/08-surveillance-externe.md) : si le serveur entier tombe, rien ici ne le dit.
 
-**Sauvegardes** : une alerte vérifie que les journaux des agents de production contiennent une ligne `uploaded to s3://…` au moins toutes les 36 h. Elle suppose que
+**Sauvegardes** : une alerte vérifie que les journaux des agents de production contiennent, **tous projets confondus**, une ligne `uploaded to s3://…` au moins toutes les 36 h (elle ne détecte donc pas un projet isolé sans sauvegarde : [limite connue](../docs/reference/sauvegardes.md#limite-connue-de-lalerte-constat-du-2026-10-05)). Elle suppose que
 le conteneur `backup` du projet porte les labels `observability.*` (le [pilote](../guides/18-le-projet-pilote-skills-devops.md) le fait).
 
 **Mise en service progressive** (la charge du serveur est déjà élevée) : d'abord `node-exporter` et `blackbox-exporter`, puis `cadvisor` après avoir observé la charge. Voir

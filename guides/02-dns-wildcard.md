@@ -23,7 +23,7 @@ certificat HTTPS.
 >   personnalisée » avec `ns1/ns2/ns3.contabo.net` : **la zone DNS est chez Contabo**
 >   (*Network Services → DNS Management → visibilitycam.com*), environ 93
 >   enregistrements ;
-> - le **wildcard existe déjà** : `*.visibilitycam.com  A  207.180.203.19`. Ce guide
+> - le **wildcard existe déjà** : `*.visibilitycam.com  A  <IP-du-VPS>`. Ce guide
 >   est donc **déjà fait** : il reste seulement l'étape 5 (vérifier) ;
 > - pour les **sous-domaines créés à la volée par une app** (certificat wildcard),
 >   il faut une API DNS que acme.sh connaît ; ce n'est le cas ni de Contabo ni de
@@ -39,7 +39,7 @@ Sur le serveur (en SSH) :
 
 ```bash
 $ curl -4 -s https://ifconfig.me ; echo
-207.180.203.19                     # exemple : notez VOTRE résultat
+203.0.113.10                       # exemple (adresse de documentation) : notez VOTRE résultat
 $ curl -6 -s https://ifconfig.me ; echo
                                    # vide = pas d'IPv6 : ignorez tout ce qui parle d'AAAA
 ```
@@ -98,12 +98,12 @@ dont le nom est `*` ou `*.visibilitycam.com`.
    | --- | --- |
    | **Type** | `A` |
    | **Name** | `*` (une étoile seule ; Cloudflare affichera `*.visibilitycam.com`) |
-   | **IPv4 address** | l'adresse de l'étape 1, par exemple `207.180.203.19` |
+   | **IPv4 address** | l'adresse de l'étape 1, par exemple `<IP-du-VPS>` |
    | **Proxy status** | **désactivé** : cliquer sur le nuage pour qu'il soit **gris** et affiche **DNS only** |
    | **TTL** | `Auto` |
 
 6. Cliquer sur **Save**.
-7. La liste affiche une nouvelle ligne : `A | * | 207.180.203.19 | DNS only | Auto`.
+7. La liste affiche une nouvelle ligne : `A | * | <IP-du-VPS> | DNS only | Auto`.
 8. Seulement si le VPS a une IPv6 (étape 1) : refaire **Add record** avec
    **Type** `AAAA`, **Name** `*`, **IPv6 address** = l'IPv6, nuage **gris**, puis
    **Save**.
@@ -146,7 +146,7 @@ Attendre 5 à 30 minutes (parfois jusqu'à une heure), puis, sur le serveur :
 
 ```bash
 $ dig +short nimportequoi-test.visibilitycam.com
-207.180.203.19                     # ← l'IP du VPS : le wildcard fonctionne
+203.0.113.10                       # ← l'IP du VPS (ici une adresse d'exemple) : le wildcard fonctionne
 
 $ dig +short cpf.visibilitycam.com     # un sous-domaine existant
 ...                                    # ← la même valeur qu'avant (comparer avec l'export de l'étape 3)

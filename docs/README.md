@@ -43,8 +43,8 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Donner à mon projet **ses propres tableaux et alertes**, sans modifier la plateforme | [Guide 19](../guides/19-observabilite-de-mon-projet.md), [modèle](../templates/observabilite-projet/README.md) |
 | Brancher un projet à Grafana | [README de l'observabilité](../observability/README.md), [catalogue des besoins](reference/catalogue-des-besoins.md) |
 | Voir un projet complet au standard, fichier par fichier | [Guide 18, le projet pilote](../guides/18-le-projet-pilote-skills-devops.md) |
-| Savoir ce que la plateforme offre et ce que mon projet doit fournir | [Profils de projet](reference/profils-de-projet.md) | Sans staging, plusieurs productions, site simple : ce que chacun demande |
-| [Catalogue des besoins](reference/catalogue-des-besoins.md) |
+| Régler `platform.env` : **chaque clé**, son défaut, son effet | [Référence de `platform.env`](reference/platform-env.md) |
+| Savoir ce que la plateforme offre et ce que mon projet doit fournir | [Profils de projet](reference/profils-de-projet.md) (sans staging, plusieurs productions, site simple : ce que chacun demande), [catalogue des besoins](reference/catalogue-des-besoins.md) |
 | Un déploiement échoue | [Runbook : déploiement en échec](runbooks/deploiement-en-echec.md) |
 | Un conteneur redémarre en boucle | [Runbook : conteneur en boucle](runbooks/conteneur-en-boucle.md) |
 | Le serveur est chargé : où voir, ce qui cause | [Runbook : serveur chargé](runbooks/serveur-charge.md) |
@@ -62,7 +62,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 
 | Document | Contenu |
 | --- | --- |
-| [Contrat d'un projet](05-contrat-projet.md) | **Le référentiel** : clauses C1 à C12, noms, mise en conformité, évolution du contrat |
+| [Contrat d'un projet](05-contrat-projet.md) | **Le référentiel** : clauses C1 à C14, noms, mise en conformité, évolution du contrat |
 | [Les 16 règles](reference/les-16-regles.md) | Résumé du contrat en un tableau |
 | [Architecture du serveur](reference/architecture-du-serveur.md) | Vue d'ensemble, réseaux Docker |
 | [Schémas](01-schemas.md) | Un schéma par élément |

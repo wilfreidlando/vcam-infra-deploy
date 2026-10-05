@@ -57,7 +57,7 @@ contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf po
 | Un conteneur approche de sa limite de mémoire | plus de 90 % de sa limite | 10 min | idem |
 | Un site ne répond plus | sonde en échec (autre chose que 2xx) | 3 min | [Site en panne](../runbooks/site-en-panne.md) |
 | Un certificat HTTPS expire bientôt | moins de 14 jours | 1 h | [Certificat non émis](../runbooks/certificat-non-emis.md) |
-| Aucune sauvegarde envoyée hors du serveur depuis 36 heures | aucune ligne « uploaded to » en production | 1 h | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
+| Aucune sauvegarde envoyée hors du serveur depuis 36 heures | **plus aucune** ligne « uploaded to » dans **tous** les agents de production (alerte globale : un seul projet qui envoie suffit à la taire, [limite connue](sauvegardes.md#limite-connue-de-lalerte-constat-du-2026-10-05)) | 1 h | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
 | 6 règles du Core | **publiées par le dépôt du Core** (injoignable, file bloquée, erreurs 5xx…), évaluées sur ses métriques `deployment=prod` | variable | Elles ne sont fiables que **tant que le Core est branché** (labels et `/metrics`) |
 
 ## 4. Les tableaux de bord

@@ -62,7 +62,7 @@ Deux hypothèses du premier jet ne tenaient pas face aux projets réels :
   production a S3 ; son staging n'en a pas et doit déclarer `BACKUP_DISABLED=1` (ou recevoir son propre dossier S3).
 - **L'exercice de restauration part de S3**, plus d'un fichier local ([runbook](../runbooks/exercice-de-restauration.md)).
 - Le contrôle de santé de la sauvegarde change (marqueur) : les modèles et le pilote sont mis à jour ; un conteneur recréé avec la nouvelle image **et** l'ancien compose serait signalé non sain.
-- Coût : une dépendance plus forte à S3. Elle est compensée par l'alerte « aucune sauvegarde envoyée depuis 36 h », l'alerte disque, et le renvoi automatique des copies en attente.
+- Coût : une dépendance plus forte à S3. Elle est compensée par l'alerte « Aucune sauvegarde envoyée hors du serveur depuis 36 heures », l'alerte disque, et le renvoi automatique des copies en attente.
 - **Contrat 2.2** : C11 (S3 seulement), C12 (proportionnée), C13 (profils).
 - **Testé** : `tests/test-deploy.sh` (projet sans staging, deux productions indépendantes, noms invalides) ; `tests/test-backup.sh` (aucune copie locale après envoi, refus sans S3,
   `BACKUP_DISABLED`, S3 injoignable : trois copies au plus, rattrapage au retour de S3).

@@ -6,7 +6,7 @@
 
 ## 1. Première minute
 
-L'alerte « Un site ne répond plus » (sonde depuis le serveur, 3 minutes) et le tableau **Plateforme → Sites** disent quel site est en échec et depuis quand.
+L'alerte « Un site ne répond plus » (sonde depuis le serveur, 3 minutes) et le tableau **Plateforme → Sites — disponibilité et certificats** disent quel site est en échec et depuis quand : le panneau « Sites injoignables sur la période » ne montre que les sites tombés, et « Temps de réponse des 10 sites les plus lents » dit si un site ralentit avant de tomber.
 
 Trois questions, dans cet ordre :
 

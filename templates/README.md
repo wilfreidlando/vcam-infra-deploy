@@ -21,7 +21,7 @@ Dans tous les cas on ajoute aussi : [`platform.env`](platform.env) (comment `dep
 | Fichier | Où le copier | Rôle |
 | --- | --- | --- |
 | `compose.laravel.yaml`, `compose.laravel-mysql.yaml`, `compose.web.yaml`, `frontend/compose.frontend.yaml` | racine du projet, sous le nom **`compose.prod.yaml`** | La pile : **identique pour tous les environnements** (le projet Docker et le fichier d'environnement changent, rien d'autre) |
-| [`platform.env`](platform.env) (et [`frontend/platform.env`](frontend/platform.env)) | racine du projet | Nom, services, contrôle de santé, migrations, sauvegarde, environnements ([profils](../docs/reference/profils-de-projet.md)) |
+| [`platform.env`](platform.env) (et [`frontend/platform.env`](frontend/platform.env)) | racine du projet | Nom, services, contrôle de santé, migrations, sauvegarde, environnements ([profils](../docs/reference/profils-de-projet.md) ; [chaque clé, son défaut, son effet](../docs/reference/platform-env.md)) |
 | [`env.platform.production.example`](env.platform.production.example) | à fusionner dans le `.env` du serveur de **production** | Variables de la plateforme pour la production : sauvegarde S3 **obligatoire**, ressources de production |
 | [`env.platform.staging.example`](env.platform.staging.example) | à fusionner dans le `.env.staging` du serveur de **staging** | Les mêmes pour le staging : **non sauvegardé**, plus petit, jamais les secrets de la production |
 | [`docs-projet/DEPLOIEMENT.md`](docs-projet/DEPLOIEMENT.md) | `docs/DEPLOIEMENT.md` du projet | La fiche de déploiement du projet, environnement par environnement : **à remplir** |

@@ -33,13 +33,22 @@ flowchart LR
 | --- | --- | --- |
 | 1 | **Par construction** : aucune copie ne reste après un envoi réussi ; au plus trois si l'envoi échoue | agent `db-backup` |
 | 2 | **Une sauvegarde en échec est bruyante** : sortie en erreur, ligne dans les journaux, visible dans Grafana (et, pour un projet en `BACKUP_BEFORE_DEPLOY=always`, la promotion est refusée) | agent, `deploy.sh` |
-| 3 | **Alerte « aucune sauvegarde envoyée depuis 36 h »** (journaux de l'agent) ; contrôle de santé du conteneur sur le même critère | Grafana, `docker ps` |
+| 3 | **Alerte « Aucune sauvegarde envoyée hors du serveur depuis 36 heures »** (journaux de l'agent) ; contrôle de santé du conteneur sur le même critère. **L'alerte est globale, pas par projet** : voir « Limite connue » ci-dessous | Grafana, `docker ps` |
 | 4 | **Alerte disque** (« / » à plus de 85 %) pour tout ce qui ne serait pas dans ce cadre | Grafana |
 
 ### Le contrôle de santé
 
 Le conteneur de sauvegarde est `healthy` si **un envoi a réussi il y a moins de 36 heures** (marqueur `/backups/.last-upload`, quelques octets). Ce n'est plus
 « un fichier existe » : il n'y en a plus.
+
+### Limite connue de l'alerte (constat du 2026-10-05)
+
+L'alerte ne sonne que si **plus aucun** agent de production n'envoie quoi que ce soit : `absent_over_time` porte sur **l'ensemble** des agents. Tant qu'**un seul** projet envoie ses copies,
+elle reste silencieuse, **même si un autre projet n'est plus sauvegardé du tout**. Exemple réel : le pilote envoie ses copies sur S3 ; le Core de production a son agent désactivé
+(`BACKUP_DISABLED=1`, faute de bucket) : l'alerte ne dit rien du Core.
+
+Ce qui détecte l'absence de sauvegarde **projet par projet**, aujourd'hui : l'état de santé du conteneur `backup` (`docker ps` : `healthy`, voir ci-dessus) et `bin/vps-audit.sh`. Une règle par projet
+(« un agent de production qui journalise mais n'a envoyé aucune copie depuis 36 h ») est possible ; elle n'est pas en place, parce qu'elle sonnerait en permanence pour un projet **volontairement** sans sauvegarde.
 
 ## L'agent
 

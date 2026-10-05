@@ -92,7 +92,7 @@ Un chiffre dit **combien**, jamais **quoi**. Pour chaque nombre d'un tableau, vo
 | **Erreurs / Avertissements** (tableau Applications — journaux) | Les lignes elles-mêmes | **Cliquer sur le chiffre** : Explore s'ouvre avec la requête préremplie. Ou, plus bas, le panneau **Journaux** : taper `ERROR` ou `WARNING` dans la recherche |
 | **Erreurs / Avertissements** (Application — vue d'ensemble) | Le panneau **« Erreurs et avertissements récents »**, juste dessous | Rien à faire : le détail est sous le chiffre ; cliquer sur le chiffre ouvre Explore |
 | **Webhooks en DLQ** ou **taux d'erreur 5xx** (Core — Vue d'ensemble) | Le panneau **« Erreurs et avertissements récents »**, juste dessous ; pour une DLQ, la console du Core → Webhooks → DLQ | Cliquer sur le chiffre ; puis rejouer après correction du point d'arrivée du client |
-| **Redémarrages sur 24 h** | Le tableau **Plateforme → Conteneurs** (quel conteneur), puis son journal | `docker logs --tail 20 <conteneur>` ; jamais `--since` sur un gros journal |
+| **Redémarrages sur 24 h** | Le tableau **Plateforme → Conteneurs** (quel conteneur), puis son journal | `docker logs --tail 20 <conteneur>` ; jamais `--since` sur un gros journal. **24 par jour sur un worker de file d'attente (`--max-time=3600`) est normal** : un arrêt volontaire par heure, relancé par Docker ([lire un compteur](../docs/runbooks/conteneur-en-boucle.md#1-distinguer-une-boucle-dun-redémarrage-normal)) |
 | Un **conteneur en boucle** (alerte reçue par e-mail) | Le runbook cité dans le message de l'alerte | [Conteneur en boucle](../docs/runbooks/conteneur-en-boucle.md) |
 | Un **site hors ligne** ou un **certificat qui expire** | Le tableau **Sites**, puis le runbook de l'alerte | [Site en panne](../docs/runbooks/site-en-panne.md), [Certificat non émis](../docs/runbooks/certificat-non-emis.md) |
 
@@ -169,7 +169,7 @@ Silences → New silence*, avec une durée et un filtre sur le nom de la règle.
 | Quand | Où | Ce qu'on cherche |
 | --- | --- | --- |
 | Chaque jour, 30 secondes | Tableau **Plateforme → Serveur — vue d'ensemble** | Les quatre voyants du haut sont verts : processeur, mémoire disponible, disque « / », charge par processeur |
-| Chaque jour, 30 secondes | Tableau **Plateforme → Sites** | Tous les sites en ligne ; le certificat le plus proche de l'expiration à plus de 30 jours |
+| Chaque jour, 30 secondes | Tableau **Plateforme → Sites — disponibilité et certificats** | « Sites en ligne » égal à « Sites sondés » ; le panneau « Sites injoignables sur la période » est **vide** (c'est le bon état) ; le certificat le plus proche de l'expiration à plus de 30 jours |
 | Chaque semaine, 2 minutes | Tableau **Plateforme → Conteneurs** | Aucun conteneur en boucle ; qui consomme le plus ; redémarrages sur 24 h |
 | Chaque jour, 2 minutes | Tableau **Applications**, période « 24 h » | Les barres d'**erreurs** et d'**avertissements** montent-elles ? Un projet s'est-il tu (plus de journaux) ? |
 | Après chaque déploiement | Explore Loki, `{app="…", deployment="prod"}` | Des erreurs depuis l'heure du déploiement ? |
