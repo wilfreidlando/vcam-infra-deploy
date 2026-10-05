@@ -26,8 +26,8 @@ $ df -h / ; free -m                                                         # di
 
 ## 3. Restaurer une sauvegarde
 
-Une sauvegarde chiffrée est prise chaque nuit et avant chaque migration en production
-(`pre-deploy-*`). **Restaurer dans le staging d'abord**, pour vérifier le fichier, puis en
+Une sauvegarde chiffrée est prise chaque nuit, et à la main avant une migration risquée
+(`deploy.sh backup`). **Restaurer dans le staging d'abord**, pour vérifier le fichier, puis en
 production dans un créneau annoncé.
 
 ```bash
@@ -37,7 +37,7 @@ $ /app/vps-platform/bin/restore.sh staging <fichier>.dump.enc    # vérifier l'a
 ```
 
 Pour la production : `restore.sh prod <fichier>` après vérification et accord du responsable
-du projet. Si l'incident a suivi un déploiement, prendre la dernière sauvegarde `pre-deploy-*`.
+du projet. Si l'incident a suivi un déploiement, prendre la dernière sauvegarde : celle de la nuit, ou celle prise à la main avant la migration (`manual`) ; une `pre-deploy-*` n'existe que pour un projet en `BACKUP_BEFORE_DEPLOY=always`.
 Détails : [sauvegardes](../reference/sauvegardes.md) et [guide 12](../../guides/12-reprise-apres-sinistre.md).
 
 > Si aucune sauvegarde n'existe pour ce projet, **le dire tout de suite** au responsable :

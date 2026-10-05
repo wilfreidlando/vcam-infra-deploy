@@ -11,7 +11,7 @@
 ## Contexte
 
 La plateforme fournit un agent de sauvegarde ([`images/db-backup`](../../images/db-backup/README.md)) : un petit service par projet, dans
-son `compose.prod.yaml`, qui fait un dump chiffré chaque nuit et **avant chaque mise en production**, le copie sur S3, et sait le restaurer.
+son `compose.prod.yaml`, qui fait un dump chiffré chaque nuit et à la demande (**plus** automatiquement avant chaque mise en production, ADR-0067), le copie sur S3, et sait le restaurer.
 Il est testé sur PostgreSQL 18, MySQL 8.4, MariaDB 10.7 et 11.4.
 
 Mais l'inventaire du serveur montre où est le vrai risque : **la grande majorité des bases du serveur n'a aucune sauvegarde visible**, et la plupart

@@ -6,7 +6,7 @@ modèles (`templates/`), les outils (`bin/`) et les guides en découlent. En cas
 désaccord entre un de ces fichiers et ce document, c'est ce document qui fait foi,
 et l'écart est un défaut à corriger.
 
-Version du contrat : **2.2** (historique en fin de document).
+Version du contrat : **2.3** (historique en fin de document).
 
 ## Comment lire ce document
 
@@ -63,7 +63,7 @@ cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh check prod
 | --- | --- | --- | --- |
 | C9 | Le serveur lit le dépôt **par sa clé de déploiement SSH** en lecture seule (alias `github-<app>`, [guide 3](../guides/03-installer-plateforme.md)). Jamais par HTTPS. | Le staging se déploie sous cron : personne n'est là pour taper un mot de passe. `deploy.sh` ne l'attend jamais, il échoue avec la correction | **BLOQUANT** (message donnant la commande `git remote set-url`) |
 | C10 | Secrets dans `.env` / `.env.staging`, jamais commités ; **jamais les mêmes** en staging et en production. | Une fuite du staging ne compromet pas la production | Revue |
-| C11 | Toute base a sa sauvegarde chiffrée hors serveur (`BACKUP_SERVICE`), restaurée une fois par mois ([exercice](runbooks/exercice-de-restauration.md)). Une restauration remet la base **dans l'état exact de la sauvegarde** (PostgreSQL, MySQL, MariaDB ; non atomique pour MySQL/MariaDB). Une sauvegarde est faite avant chaque migration en production. **Les sauvegardes vivent sur S3, jamais sur le disque du serveur** : l'agent supprime la copie locale dès qu'elle est envoyée (seule une copie dont l'envoi a échoué reste, trois au plus) ; sans S3 configuré il **refuse** de sauvegarder, et un environnement volontairement non sauvegardé le déclare (`BACKUP_DISABLED=1`). Voir [Sauvegardes](reference/sauvegardes.md). | Le VPS est un point unique de défaillance ; un disque qui se remplit en silence fait tomber **tous** les sites | `deploy.sh` (refuse une promotion si la sauvegarde échoue), alerte « aucune sauvegarde envoyée depuis 36 h », alerte disque |
+| C11 | Toute base a sa sauvegarde chiffrée hors serveur (`BACKUP_SERVICE`), restaurée une fois par mois ([exercice](runbooks/exercice-de-restauration.md)). Une restauration remet la base **dans l'état exact de la sauvegarde** (PostgreSQL, MySQL, MariaDB ; non atomique pour MySQL/MariaDB). **La sauvegarde nocturne est le filet** : `deploy.sh` n'en prend pas de lui-même au déploiement (`BACKUP_BEFORE_DEPLOY=always` pour en avoir une avant chaque déploiement) ; avant une migration risquée, on en prend une à la main (`deploy.sh backup`). **Les sauvegardes vivent sur S3, jamais sur le disque du serveur** : l'agent supprime la copie locale dès qu'elle est envoyée (seule une copie dont l'envoi a échoué reste, trois au plus) ; sans S3 configuré il **refuse** de sauvegarder, et un environnement volontairement non sauvegardé le déclare (`BACKUP_DISABLED=1`). Voir [Sauvegardes](reference/sauvegardes.md). | Le VPS est un point unique de défaillance ; un disque qui se remplit en silence fait tomber **tous** les sites | alerte « aucune sauvegarde envoyée depuis 36 h », alerte disque |
 | C12 | **L'observabilité est proportionnée au projet** ([profils](reference/profils-de-projet.md)). Minimum de **tout** projet public : figurer dans la liste des sites sondés (disponibilité et certificat). Un backend ajoute les labels `observability.*` (journaux), puis, s'il le veut, `/metrics` privé. Un simple site web n'a besoin de rien de plus que la sonde. | Journaux et erreurs de tous les projets au même endroit, sans imposer à un site statique ce dont il n'a pas l'usage | Audit INFO |
 | C13 | **Un projet déclare son profil dans `platform.env`** : `ENVIRONMENTS` et `PROD_ENVIRONMENTS`. Il peut n'avoir **aucun staging** (une production seule), ou **plusieurs productions**. Dans tous les cas : une production n'est **jamais** déployée automatiquement, chaque production a son dossier, son `.env` et **ses propres secrets**, et la promotion est une décision humaine. Détail : [profils de projet](reference/profils-de-projet.md). | Les projets ne sont pas tous faits pareil ; l'outil ne doit ni les forcer dans un moule ni perdre ses garde-fous | **BLOQUANT** (noms d'environnements valides, productions déclarées parmi les environnements) |
 
@@ -110,8 +110,8 @@ non prévue**. Rien de ce qui suit ne touche la production avant l'étape 5.
    relancer.
 5. **Production, dans un créneau annoncé.** Même procédure. Si la base change de
    nom, la coupure dure de l'arrêt de l'ancien conteneur à la fin du contrôle de
-   santé, soit une à deux minutes en général. La sauvegarde `pre-deploy-*` est faite
-   juste avant les migrations.
+   santé, soit une à deux minutes en général. Avant une migration risquée, prendre une sauvegarde à la main
+   (`deploy.sh backup`).
 6. **Vérifier** : `deploy.sh check prod`, puis `vps-audit.sh`. Le projet ne doit
    plus avoir aucune ligne BLOQUANT, CRITIQUE ni ATTENTION.
 
@@ -151,3 +151,4 @@ sans conflit n'est pas bloqué, mais il reste un écart au contrat.
 | 2 | 2026-10-04 | C3 (noms propres au projet, BLOQUANT), C4 (healthcheck de base par le réseau), C5-C6 (`platform.env` lu dans le commit déployé, cohérent, jamais modifié sur le serveur), C9 (clé de déploiement SSH, jamais d'attente de mot de passe) ; commande `deploy.sh check` | [REX 2026-10-04](retours-experience/2026-10-04-premier-deploiement-skills-devops.md) |
 | 2.1 | 2026-10-05 | C11 précisée : la restauration remet la base dans l'état exact de la sauvegarde (PostgreSQL, MySQL, MariaDB), exercice mensuel avec table-témoin | [REX 2026-10-05](retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md) |
 | 2.2 | 2026-10-05 | C11 : sauvegardes **sur S3 seulement**, plus de copies qui s'accumulent sur le disque ; C12 proportionnée au projet ; **C13** : profils de projet (sans staging, plusieurs productions, site simple) | [ADR-0067](adr/0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) |
+| 2.3 | 2026-10-05 | C11 : plus de sauvegarde automatique au déploiement (la nocturne est le filet, `deploy.sh backup` à la main avant une migration risquée) ; remplace l'obligation de l'ADR-0064 | demande de l'équipe, [ADR-0067](adr/0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) |

@@ -278,9 +278,11 @@ sequenceDiagram
     alt nom pris, proxy en erreur ou volume occupé
         D-->>Ops: REFUS — rien n'a été modifié
     end
-    D->>K: sauvegarde chiffrée (pre-deploy)
-    alt sauvegarde en échec
-        D-->>Ops: REFUS — rien n'a été modifié
+    opt projet en BACKUP_BEFORE_DEPLOY=always
+        D->>K: sauvegarde chiffrée avant le déploiement
+        alt sauvegarde en échec
+            D-->>Ops: REFUS — rien n'a été modifié
+        end
     end
     D->>C: migrations avec la nouvelle image
     D->>C: bascule des conteneurs
@@ -296,7 +298,8 @@ sequenceDiagram
 
 **À retenir**
 - Tout ce qui peut échouer **avant** la bascule (nom pris, proxy cassé, volume
-  encore utilisé par une ancienne installation, sauvegarde ratée, migration ratée)
+  encore utilisé par une ancienne installation, migration ratée ; et la sauvegarde pour un projet
+  qui en prend une à chaque déploiement)
   laisse la production **intacte**.
 - Après la bascule, si l'application ne répond pas, **retour automatique**.
 - Seule limite : une migration déjà appliquée n'est pas annulée. D'où la sauvegarde
@@ -310,7 +313,7 @@ sequenceDiagram
 flowchart LR
     subgraph Serveur["VPS"]
         DB[("Base du projet")]
-        Agent["Conteneur backup<br/>chaque nuit à BACKUP_TIME<br/>+ avant chaque promotion"]
+        Agent["Conteneur backup<br/>chaque nuit à BACKUP_TIME<br/>et à la demande (deploy.sh backup)"]
         Local[("Aucune copie gardée<br/>(3 au plus si S3 est injoignable)")]
     end
     Pass{{"Phrase de passe<br/>dans le gestionnaire de mots de passe"}}

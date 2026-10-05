@@ -32,7 +32,7 @@ flowchart LR
 | # | Garde-fou | Où |
 | --- | --- | --- |
 | 1 | **Par construction** : aucune copie ne reste après un envoi réussi ; au plus trois si l'envoi échoue | agent `db-backup` |
-| 2 | **Une sauvegarde en échec est bruyante** : sortie en erreur, ligne dans les journaux, visible dans Grafana ; la promotion en production **est refusée** si la sauvegarde avant migration échoue | agent, `deploy.sh` |
+| 2 | **Une sauvegarde en échec est bruyante** : sortie en erreur, ligne dans les journaux, visible dans Grafana (et, pour un projet en `BACKUP_BEFORE_DEPLOY=always`, la promotion est refusée) | agent, `deploy.sh` |
 | 3 | **Alerte « aucune sauvegarde envoyée depuis 36 h »** (journaux de l'agent) ; contrôle de santé du conteneur sur le même critère | Grafana, `docker ps` |
 | 4 | **Alerte disque** (« / » à plus de 85 %) pour tout ce qui ne serait pas dans ce cadre | Grafana |
 
@@ -48,8 +48,23 @@ L'agent [`images/db-backup`](../../images/db-backup/README.md) tourne dans chaqu
 - copie sur S3 (MEGA S4, R2, B2…), **gardée 30 jours** (réglable), puis effacée du serveur ;
 - chaque projet et **chaque production** a son propre dossier sur S3 (`BACKUP_NAME`).
 
-`deploy.sh promote` en prend une juste avant les migrations, et **refuse de déployer** si elle échoue. Selon le [profil du projet](profils-de-projet.md#7-les-sauvegardes-selon-le-profil) :
-un site simple n'en a pas, un staging peut la désactiver.
+## Quand une sauvegarde est-elle faite ?
+
+| Quand | Comment | Qui |
+| --- | --- | --- |
+| **Chaque nuit**, à l'heure du projet (`BACKUP_TIME`) | Automatique : c'est **le filet** | l'agent |
+| **À la demande**, par exemple avant une migration risquée | `deploy.sh backup [env]` (envoyée sur S3 comme la nocturne) | la personne qui déploie |
+| **Avant chaque déploiement** | **Non, par défaut.** Un projet qui préfère la prudence met `BACKUP_BEFORE_DEPLOY=always` dans `platform.env` | `deploy.sh` |
+
+**Pourquoi pas à chaque déploiement ?** Cela coûte une minute et du trafic à chaque changement, même quand la base n'est pas touchée. Et décider automatiquement « cette version
+porte une migration » n'est pas fiable (chaque projet range ses migrations où il veut). Une règle simple et connue vaut mieux qu'une règle automatique qui se trompe.
+Décision : [ADR-0067](../adr/0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md).
+
+**Le risque accepté, dit clairement.** Si une migration ratée abîme les données, on ne revient qu'à la sauvegarde **de la nuit** : les écritures de la journée sont perdues.
+Pour s'en protéger : prendre une sauvegarde à la main **avant** une migration risquée (`deploy.sh backup`), ou déployer juste après la nocturne. Un déploiement qui ne touche pas la base
+n'a pas ce risque : revenir au code d'avant n'oblige à aucune restauration.
+
+Selon le [profil du projet](profils-de-projet.md#7-les-sauvegardes-selon-le-profil) : un site simple n'en a pas, un staging peut la désactiver (`BACKUP_DISABLED=1`).
 
 ## Restaurer
 

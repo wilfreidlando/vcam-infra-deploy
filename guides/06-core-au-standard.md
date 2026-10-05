@@ -160,5 +160,5 @@ $ docker volume rm <ces volumes>
 | --- | --- |
 | La promotion échoue avant la bascule (sauvegarde, migration) | Rien n'a basculé. Lire l'erreur, corriger, relancer |
 | Le retour automatique a eu lieu | La production tourne sur l'ancienne version. Les migrations éventuelles sont restées |
-| Il faut revenir aux données d'avant | `cd /app/core-system/prod && /app/vps-platform/bin/restore.sh prod <fichier pre-deploy-…>` |
+| Il faut revenir aux données d'avant | `cd /app/core-system/prod && /app/vps-platform/bin/restore.sh prod <fichier de sauvegarde sur S3>` |
 | Ultime recours | `docker exec -i core-system-postgres sh -c 'pg_restore --clean --if-exists -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /root/core-avant-standard-<date>.dump` |

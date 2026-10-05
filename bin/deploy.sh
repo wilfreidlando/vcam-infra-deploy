@@ -29,6 +29,9 @@
 # reached by promotion only. Productions are the environments of PROD_ENVIRONMENTS
 # (default "prod"): a project may have no staging (ENVIRONMENTS="prod") or several
 # productions (ENVIRONMENTS="staging prod prodeu", PROD_ENVIRONMENTS="prod prodeu").
+#                                  deploy.sh takes NO backup of its own by default: the nightly one is the safety
+#                                  net (BACKUP_BEFORE_DEPLOY=always to take one before every deploy)
+#   deploy.sh backup [env]         one backup now (a manual backup before a risky migration)
 #   deploy.sh rollback <env>       redeploy the previous SHA of that environment
 #   deploy.sh status               current/previous SHA and containers of each environment
 #   deploy.sh check [env]          pre-flight only (git access, platform.env ↔ compose,
@@ -55,7 +58,8 @@ export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes}"
 # KEEP_IMAGES, SKIP_BACKUP) are not project keys and keep their value.
 PROJECT_KEYS="APP_NAME COMPOSE_FILE ENV_FILE_PROD ENV_FILE_STAGING ENVIRONMENTS STAGING_BRANCH
     HEALTH_SERVICE HEALTH_CMD HEALTH_TIMEOUT MIGRATE_SERVICE MIGRATE_CMD
-    BACKUP_SERVICE BACKUP_CMD DB_SERVICE BUILD_PER_ENV PROD_ENVIRONMENTS"
+    BACKUP_SERVICE BACKUP_CMD DB_SERVICE BUILD_PER_ENV PROD_ENVIRONMENTS
+    BACKUP_BEFORE_DEPLOY"
 
 # Reads platform.env from the working tree: at start-up, then again after
 # each checkout (checkout()), so the services, commands and environments
@@ -94,6 +98,9 @@ load_defaults() {
 : "${MIGRATE_CMD:=}"
 : "${BACKUP_SERVICE:=}"
 : "${BACKUP_CMD:=backup.sh}"
+# Backup taken by deploy.sh before a production deploy: « never » (default: the nightly backup is the safety net,
+# and a manual one is one command away: deploy.sh backup) or « always » (every deploy, a minute each).
+: "${BACKUP_BEFORE_DEPLOY:=never}"
 : "${KEEP_IMAGES:=5}"
 : "${STATE_DIR:=/var/lib/vps-platform}"
 # 1 when the image bakes environment-specific values at build time (e.g.
@@ -447,8 +454,8 @@ cmd_up() {
 
     log "déploiement ${env} ${sha} (précédent : ${previous:-aucun})"
 
-    if is_prod "${env}" && [[ -n "${BACKUP_SERVICE}" && "${SKIP_BACKUP:-0}" != 1 ]]; then
-        log "sauvegarde avant migration"
+    if is_prod "${env}" && [[ -n "${BACKUP_SERVICE}" && "${SKIP_BACKUP:-0}" != 1 && "${BACKUP_BEFORE_DEPLOY}" == always ]]; then
+        log "sauvegarde avant déploiement (BACKUP_BEFORE_DEPLOY=always)"
         IMAGE_TAG="${tag}" dc "${env}" run --rm -T -e BACKUP_LABEL="pre-deploy-${sha:0:12}" "${BACKUP_SERVICE}" sh -c "${BACKUP_CMD}" \
             || die "sauvegarde en échec — déploiement annulé (SKIP_BACKUP=1 pour forcer)"
     fi
@@ -548,6 +555,24 @@ cmd_promote() {
     cmd_up "${env}" "${sha}"
 }
 
+# backup [env] — one backup now, uploaded to S3 like the nightly one. Before a risky migration, take it yourself.
+cmd_backup() {
+    local env="${1:-}"
+    if [[ -z "${env}" ]]; then
+        # shellcheck disable=SC2086
+        set -- ${PROD_ENVIRONMENTS}
+        [[ $# -eq 1 ]] || die "plusieurs productions (${PROD_ENVIRONMENTS}) : préciser l'environnement (deploy.sh backup <env>)"
+        env="$1"
+    fi
+    is_env "${env}" || die "environnement inconnu « ${env} » (${ENVIRONMENTS})"
+    [[ -n "${BACKUP_SERVICE}" ]] || die "ce projet n'a pas de BACKUP_SERVICE dans platform.env"
+    local sha; sha="$(state_get "${env}" current)"
+    log "sauvegarde manuelle ${env}"
+    IMAGE_TAG="$(tag_for "${env}" "${sha:-latest}")" dc "${env}" run --rm -T -e BACKUP_LABEL="manual" "${BACKUP_SERVICE}" sh -c "${BACKUP_CMD}" \
+        || die "sauvegarde manuelle en échec"
+    log "sauvegarde manuelle ${env} : OK"
+}
+
 cmd_rollback() {
     local env="${1:?env}" previous
     previous="$(state_get "${env}" previous)"
@@ -590,6 +615,7 @@ main() {
         watch) lock; cmd_watch "$@" ;;
         promote) lock; cmd_promote "$@" ;;
         rollback) lock; cmd_rollback "$@" ;;
+        backup) lock; cmd_backup "$@" ;;
         status) cmd_status ;;
         check) cmd_check "$@" ;;
         *) sed -n '2,35p' "$0"; exit 2 ;;

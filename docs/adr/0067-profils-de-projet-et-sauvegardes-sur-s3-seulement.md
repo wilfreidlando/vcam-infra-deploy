@@ -20,7 +20,7 @@ Deux hypothèses du premier jet ne tenaient pas face aux projets réels :
 ### 1. Des profils de projet, déclarés dans `platform.env`
 
 - `ENVIRONMENTS` liste les environnements ; **`PROD_ENVIRONMENTS`** (défaut `prod`) dit lesquels sont des productions.
-- Une production : jamais déployée automatiquement (`watch` refusé), sauvegarde avant chaque déploiement, promotion humaine, retour arrière automatique.
+- Une production : jamais déployée automatiquement (`watch` refusé), pas de sauvegarde automatique au déploiement (voir § 3), promotion humaine, retour arrière automatique.
 - **Sans staging** (`ENVIRONMENTS=prod`) : `promote <sha|ref>` **construit sur place** puis déploie ; `promote` sans version est refusé (on ne devine pas).
 - **Plusieurs productions** : `promote --env <nom>` ; sans `--env`, refus (« plusieurs productions »). Versions et états indépendants.
 - Les noms d'environnements sont des lettres minuscules et des chiffres (`prod`, `prodeu`) : ils servent à nommer projets Docker, images et variables.
@@ -35,6 +35,17 @@ Deux hypothèses du premier jet ne tenaient pas face aux projets réels :
   le disque est borné par construction. La sortie en erreur est visible (journaux, Grafana).
 - Le contrôle de santé du conteneur lit un **marqueur** de dernier envoi réussi (et non plus la présence d'un fichier).
 - **`BACKUP_LOCAL_KEEP=N`** reste possible : une exception explicite, documentée comme un risque pour le disque.
+
+### 3. Pas de sauvegarde automatique au déploiement
+
+- `deploy.sh` ne prend **plus** de sauvegarde avant un déploiement de production (`BACKUP_BEFORE_DEPLOY=never`, défaut). La sauvegarde **nocturne** est le filet.
+- Pour une migration risquée : **`deploy.sh backup [env]`**, une sauvegarde à la demande, envoyée sur S3 comme la nocturne.
+- Un projet qui préfère la prudence met `BACKUP_BEFORE_DEPLOY=always` : une sauvegarde avant **chaque** déploiement.
+- **Pourquoi** : la sauvegarde avant déploiement coûtait une minute et du trafic à chaque changement, même sans toucher à la base. Détecter « cette version porte une migration » par le dossier
+  des fichiers n'est pas fiable (chaque projet range les siennes ailleurs, et un `ALTER` peut venir d'un script). Une règle automatique qui se trompe est pire qu'une règle simple et connue.
+- **Risque accepté, écrit** : si une migration ratée abîme les données, on ne peut revenir qu'à la sauvegarde **de la nuit** : les écritures de la journée sont perdues. Se
+  protège en prenant une sauvegarde à la main avant une migration risquée, ou en déployant juste après la nocturne.
+- Cela **remplace** la ligne de l'[ADR-0064](0064-infrastructure-vps-staging-observabilite-mutualisee.md) selon laquelle « avant chaque migration de production, une sauvegarde est obligatoire ».
 
 ## Pourquoi
 

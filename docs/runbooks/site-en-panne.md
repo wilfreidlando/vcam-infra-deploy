@@ -24,7 +24,7 @@ $ cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh rollback prod
 
 Redéploie la version précédente. Limite : **les migrations ne sont pas annulées**. Si la
 dernière version a modifié la base de façon incompatible, voir
-[Base inaccessible](base-inaccessible.md) (restauration de la sauvegarde `pre-deploy-*`).
+[Base inaccessible](base-inaccessible.md) (restauration de la dernière sauvegarde).
 
 ## 3. Sans déploiement récent
 

@@ -33,7 +33,7 @@ dit `migrations` avant l'erreur) ?
 | `build <sha> (<env>) en échec` | Erreur dans le `Dockerfile` ou quota du registre d'images (`429`) | Lire la sortie du build ; pour un quota, réessayer plus tard |
 | `nginx-proxy est déjà en erreur — aucun déploiement ne serait pris en compte` | Une configuration invalide bloque tous les changements du serveur | [Site en panne, § 4](site-en-panne.md#4-nginx-proxy-en-erreur) |
 | `noms d'hôte déjà utilisés par un autre projet` | Deux projets pour un même nom public | `bin/vps-hosts.sh` pour voir qui porte quoi |
-| `sauvegarde en échec — déploiement annulé` | La sauvegarde `pre-deploy` n'a pas pu être faite (agent arrêté, S3, mot de passe) | Voir le journal de l'agent `backup` ; **ne forcer (`SKIP_BACKUP=1`) qu'avec l'accord du responsable** |
+| `sauvegarde en échec — déploiement annulé` | (projet en `BACKUP_BEFORE_DEPLOY=always` seulement) la sauvegarde avant déploiement n'a pas pu être faite (agent arrêté, S3, mot de passe) | Voir le journal de l'agent `backup` ; **ne forcer (`SKIP_BACKUP=1`) qu'avec l'accord du responsable** |
 | `migrations en échec — la version <v> tourne toujours, rien n'a été basculé` | Une migration a échoué | Voir § 3 |
 | `santé KO — retour automatique à <v>` | La nouvelle version ne répond pas à son healthcheck ; l'ancienne a été remise | Voir § 4 |
 | `ATTENTION : la version précédente <v> ne répond pas non plus` | **Rien ne tourne correctement** | Aller à [Site en panne](site-en-panne.md) **immédiatement** |
@@ -48,8 +48,8 @@ Le journal dit `migrations en échec — la version <précédente> tourne toujou
    [retour d'expérience](../retours-experience/2026-10-04-premier-deploiement-skills-devops.md)), une base pas encore prête, une erreur de la
    migration elle-même.
 3. Corriger **dans le dépôt**, pousser, relancer `deploy.sh up`. Rien n'a été basculé : le site continue de tourner.
-4. **Si des tables ont été créées à moitié** (migration non transactionnelle) : restaurer la sauvegarde `pre-deploy-*` du
-   projet. Depuis le 2026-10-05, la restauration remet la base **dans l'état exact** de la sauvegarde
+4. **Si des tables ont été créées à moitié** (migration non transactionnelle) : restaurer la **dernière sauvegarde** du
+   projet (celle de la nuit, ou celle prise à la main avant la migration). Depuis le 2026-10-05, la restauration remet la base **dans l'état exact** de la sauvegarde
    ([exercice de restauration](exercice-de-restauration.md)).
 
 ## 4. Le retour automatique a eu lieu
@@ -62,7 +62,7 @@ $ docker logs --tail 80 <conteneur web>          # pourquoi la nouvelle version 
 ```
 
 - Les **migrations de la version échouée ne sont pas annulées**. Si elles ne sont pas compatibles avec la version restaurée,
-  restaurer la sauvegarde `pre-deploy-*`.
+  restaurer la dernière sauvegarde (de la nuit, ou prise à la main avant la migration).
 - Corriger, pousser, redéployer : `deploy.sh up <env> <nouveau sha>`.
 
 ## 5. Revenir en arrière à la main

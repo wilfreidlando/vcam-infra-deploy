@@ -62,9 +62,8 @@ autres clauses en niveaux CRITIQUE, ATTENTION ou INFO.
    un volume. C'est voulu : deux bases sur les mêmes fichiers les corrompent. Supprimer **nommément**
    l'ancien conteneur (`docker rm -f <conteneur>`, les volumes restent), puis relancer. Jamais de
    `down -v`, jamais de `prune`.
-4. **Production, dans le créneau annoncé** : `deploy.sh promote` après une sauvegarde vérifiée.
-   La sauvegarde `pre-deploy-*` est faite juste avant les migrations ; `deploy.sh` refuse de
-   déployer si elle échoue.
+4. **Production, dans le créneau annoncé** : **prendre une sauvegarde à la main** (`deploy.sh backup`), puis `deploy.sh promote`.
+   `deploy.sh` ne prend pas de sauvegarde de lui-même (la nocturne est le filet) ; `BACKUP_BEFORE_DEPLOY=always` pour en avoir une avant chaque déploiement.
 5. **Vérifier** : `deploy.sh status`, `deploy.sh check prod`, puis `vps-audit.sh` : plus aucune
    ligne BLOQUANT, CRITIQUE ni ATTENTION pour ce projet.
 6. **Brancher l'observabilité** si le projet est un backend (labels, puis la vérification du
@@ -80,7 +79,7 @@ autres clauses en niveaux CRITIQUE, ATTENTION ou INFO.
 | Libérer les volumes | `docker rm -f` des **deux** anciens conteneurs de staging, nommément | volumes conservés |
 | Staging | `deploy.sh up staging <sha>` | migrations réussies, `OK staging = <sha>` |
 | Vérifier | `deploy.sh status`, site de staging en HTTP 200, `deploy.sh check staging` : OK | conforme |
-| Production | `deploy.sh promote <sha> -y` | sauvegarde `pre-deploy` prise, migrations, `OK prod = <sha>`, HTTP 200 |
+| Production | `deploy.sh promote <sha> -y` | migrations, `OK prod = <sha>`, HTTP 200 (une sauvegarde à la main avant : `deploy.sh backup`) |
 
 Le raisonnement complet de ce cas est dans le
 [retour d'expérience](../docs/retours-experience/2026-10-04-premier-deploiement-skills-devops.md).

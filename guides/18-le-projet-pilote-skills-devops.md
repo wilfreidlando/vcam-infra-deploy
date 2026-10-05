@@ -36,7 +36,7 @@ graph LR
         S["scheduler<br/>tâches planifiées"] --> DB & R
         B["backup<br/>sauvegarde chiffrée"] --> DB
     end
-    B -. "nuit + avant chaque mise en production" .-> S3[("S3 hors serveur")]
+    B -. "chaque nuit" .-> S3[("S3 hors serveur")]
     Web & W & S -. "journaux (label)" .-> Obs["observabilité"]
 ```
 
@@ -47,7 +47,7 @@ graph LR
 | `scheduler` | Lance les tâches planifiées chaque minute | non |
 | `skills-devops-db` | PostgreSQL, données dans un volume | non, jamais |
 | `skills-devops-redis` | Cache, sessions, file d'attente | non |
-| `backup` | Sauvegarde chiffrée chaque nuit et avant chaque mise en production | non |
+| `backup` | Sauvegarde chiffrée chaque nuit (et à la demande : `deploy.sh backup`) | non |
 
 ## 3. Anatomie du dépôt : chaque fichier a un rôle
 
@@ -76,7 +76,7 @@ Les noms de variables à renseigner sont dans les fichiers `.example` ; les vale
 | **C8** Redémarrage, mémoire, journaux | `restart: unless-stopped`, limite mémoire sur **chaque** service, rotation `max-size: 20m`, `max-file: 5` | `x-defaults`, `deploy.resources` |
 | **C9** Accès git par clé de déploiement | **Exception temporaire** : dépôt public lu en HTTPS (voir section 10) | `git remote -v` sur le serveur |
 | **C10** Secrets séparés | `.env` et `.env.staging` distincts, ignorés par git, mode `600` | `.gitignore`, `ls -l` sur le serveur |
-| **C11** Sauvegarde chiffrée hors serveur | Service `backup` : chaque nuit à 03:15 UTC et avant chaque promotion, copie sur S3, restauration par exercice | [Sauvegardes](../docs/reference/sauvegardes.md), [exercice](../docs/runbooks/exercice-de-restauration.md) |
+| **C11** Sauvegarde chiffrée hors serveur | Service `backup` : chaque nuit à 03:15 UTC (et à la demande), copie sur S3, restauration par exercice | [Sauvegardes](../docs/reference/sauvegardes.md), [exercice](../docs/runbooks/exercice-de-restauration.md) |
 | **C12** Labels d'observabilité | `observability.enable`, `.app`, `.deployment` sur web, worker et scheduler | `x-app`, `labels:` |
 
 **Note sur les noms `worker`, `scheduler`, `backup`.** Ils restent courts, comme dans les modèles. Cela ne pose aucun
@@ -92,7 +92,7 @@ graph LR
     B --> C["STAGING<br/>migrations → démarrage → santé"]
     C -->|"santé KO"| D["retour automatique"]
     C -->|"recette OK"| E["promotion MANUELLE<br/>deploy.sh promote"]
-    E --> F["sauvegarde pre-deploy"] --> G["migrations"] --> H["bascule"] --> I{"santé ?"}
+    E --> G["migrations"] --> H["bascule"] --> I{"santé ?"}
     I -->|OK| J["production = SHA"]
     I -->|KO| K["retour automatique"]
 ```
@@ -102,7 +102,7 @@ graph LR
 | Vérifier sans rien changer | `deploy.sh check <env>` | Accès git, cohérence `platform.env` et compose, noms sur les réseaux partagés |
 | Construire | `deploy.sh build origin/main staging` | Image `skills-devops:<sha>`, aucun conteneur touché |
 | Déployer en staging | `deploy.sh up staging <sha>` ou `deploy.sh watch` | Contrôle, migrations, démarrage, santé, retour automatique si échec |
-| Promouvoir en production | `deploy.sh promote` | **La même image** que staging, après une sauvegarde `pre-deploy-*` |
+| Promouvoir en production | `deploy.sh promote` | **La même image** que staging, sans sauvegarde automatique : la nocturne est le filet, `deploy.sh backup` avant une migration risquée |
 | Revenir en arrière | `deploy.sh rollback <env>` | Redéploie la version précédente (les migrations ne sont **pas** annulées) |
 | État | `deploy.sh status` | Version courante et précédente, conteneurs |
 
@@ -124,7 +124,7 @@ ligne `ERREUR` après `OK` est un défaut à comprendre (voir le [retour d'expé
 
 ## 7. Sauvegarde et restauration
 
-- Le service `backup` fait un `pg_dump` chiffré (AES-256) chaque nuit et **avant chaque promotion** (`pre-deploy-*`), l'envoie
+- Le service `backup` fait un `pg_dump` chiffré (AES-256) chaque nuit (et à la demande, avant une migration risquée : `deploy.sh backup`), l'envoie
   **sur S3** et ne le garde **pas** sur le serveur (une copie dont l'envoi échoue reste, trois au plus, et repart au passage suivant).
 - La phrase de chiffrement (`BACKUP_PASSPHRASE`) n'existe que dans le `.env` du serveur : **la conserver aussi hors du serveur**.
 - **Une sauvegarde jamais restaurée n'est pas une sauvegarde** : l'[exercice de restauration](../docs/runbooks/exercice-de-restauration.md)

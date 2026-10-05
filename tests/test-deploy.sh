@@ -79,7 +79,7 @@ check "checkout prod positionné sur le commit déployé" test \
 step "Version cassée"
 commit_version v2
 (cd "${WORK}/staging" && "${DEPLOY}" watch >/dev/null 2>&1)
-check "v2 en staging" test "$(page staging)" = v2
+check "v2 en staging" wait_for 20 sh -c 'test "$(docker exec vpstest-demo-staging-app cat /www/index.html 2>/dev/null)" = v2'
 commit_version v3 broken
 check_not "déploiement de v3 refusé (santé KO)" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
 check "retour automatique : v2 toujours en staging" test "$(page staging)" = v2
@@ -320,6 +320,49 @@ ENV
 mkdir -p "${WORK}/bad" && cp "${WORK}/bad.env" "${WORK}/bad/platform.env"
 check_not "nom d'environnement invalide (« prod-eu ») refusé avec explication" sh -c "cd '${WORK}/bad' && '${DEPLOY}' status"
 
+step "Sauvegarde : aucune au déploiement par défaut, une commande manuelle, ou à chaque déploiement si le projet le demande"
+# Décision de l'équipe : la sauvegarde nocturne est le filet ; deploy.sh n'en ajoute pas (une minute à chaque changement, même
+# sans toucher à la base). Avant une migration risquée, on en prend une à la main : deploy.sh backup.
+export BK_DIR="${WORK}/bk"; mkdir -p "${BK_DIR}"
+make_project "${WORK}/bk-origin" vpstest-bk 'ENVIRONMENTS=prod
+MIGRATE_SERVICE=app
+MIGRATE_CMD="true"
+BACKUP_SERVICE=backup
+BACKUP_CMD="echo run >> /out/count"'
+cat >> "${WORK}/bk-origin/compose.yaml" <<'YAML'
+  backup:
+    image: busybox
+    volumes: [ "${BK_DIR}:/out" ]
+YAML
+git -C "${WORK}/bk-origin" commit -qam "service de sauvegarde"
+git clone -q "${WORK}/bk-origin" "${WORK}/bk"
+echo "ENV_NAME=prod" > "${WORK}/bk/.env"
+runs() { { wc -l < "${BK_DIR}/count"; } 2>/dev/null | tr -d ' ' | grep . || echo 0; }
+bkpage() { docker exec vpstest-bk-prod-app cat /www/index.html 2>/dev/null; }
+promote_bk() { (cd "${WORK}/bk" && "${DEPLOY}" promote origin/main --yes >/dev/null 2>&1); }
+promote_bk
+check "premier déploiement en production" test "$(bkpage)" = v1
+check "défaut : AUCUNE sauvegarde au déploiement" test "$(runs)" = 0
+bump "${WORK}/bk-origin" v2
+promote_bk
+check "v2 en production, toujours sans sauvegarde de déploiement" sh -c "test \"\$(docker exec vpstest-bk-prod-app cat /www/index.html)\" = v2 && test \"$(runs)\" = 0"
+(cd "${WORK}/bk" && "${DEPLOY}" backup >/dev/null 2>&1)
+check "deploy.sh backup : une sauvegarde manuelle est faite" test "$(runs)" = 1
+check_not "deploy.sh backup refuse un environnement inconnu" sh -c "cd '${WORK}/bk' && '${DEPLOY}' backup nimporte"
+bump "${WORK}/bk-origin" v3
+printf 'BACKUP_BEFORE_DEPLOY=always\n' >> "${WORK}/bk-origin/platform.env"; git -C "${WORK}/bk-origin" commit -qam "sauvegarde à chaque déploiement"
+promote_bk
+check "BACKUP_BEFORE_DEPLOY=always : sauvegarde faite avant le déploiement" test "$(runs)" = 2
+check "v3 en production" test "$(bkpage)" = v3
+cat > "${WORK}/bk2.env" <<'ENV'
+APP_NAME=vpstest-bk2
+ENVIRONMENTS="prod prodb"
+PROD_ENVIRONMENTS="prod prodb"
+ENV
+mkdir -p "${WORK}/bk2" && cp "${WORK}/bk2.env" "${WORK}/bk2/platform.env" && echo "BACKUP_SERVICE=backup" >> "${WORK}/bk2/platform.env"
+check_not "plusieurs productions : deploy.sh backup sans environnement refusé" sh -c "cd '${WORK}/bk2' && '${DEPLOY}' backup"
+
 docker image ls vpstest-demo -q | xargs -r docker rmi -f >/dev/null 2>&1 || true
 docker image ls vpstest-solo -q | xargs -r docker rmi -f >/dev/null 2>&1 || true
 docker image ls vpstest-multi -q | xargs -r docker rmi -f >/dev/null 2>&1 || true
+docker image ls vpstest-bk -q | xargs -r docker rmi -f >/dev/null 2>&1 || true

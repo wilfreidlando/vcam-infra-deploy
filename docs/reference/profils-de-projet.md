@@ -29,7 +29,7 @@ flowchart TB
 | Règle | Pourquoi |
 | --- | --- |
 | Une production **n'est jamais déployée automatiquement** : c'est toujours une décision humaine (`deploy.sh promote`) | Une erreur ne doit jamais atteindre les clients toute seule |
-| Une sauvegarde est faite **avant** chaque déploiement d'une production qui a une base, et le déploiement est **refusé** si elle échoue | Pouvoir revenir en arrière après une migration |
+| Il n'y a **pas de sauvegarde automatique au déploiement** : la sauvegarde **nocturne** est le filet, et avant une migration risquée on en prend une à la main (`deploy.sh backup`). Un projet qui préfère la prudence met `BACKUP_BEFORE_DEPLOY=always` | Pouvoir revenir en arrière après une migration, **grâce à la sauvegarde nocturne** ou à celle prise à la main |
 | **Le retour arrière** est automatique si la nouvelle version ne répond pas | Un déploiement raté ne coupe pas le site |
 | Chaque production a **ses propres secrets** (jamais ceux d'un autre environnement) | Une fuite n'en compromet pas une autre ([clause C10](../05-contrat-projet.md)) |
 | Aucun port publié, un nom propre à chaque service, aucun projet ne rejoint le réseau d'un autre ([clauses C1 à C3](../05-contrat-projet.md)) | Les projets du serveur restent isolés |
@@ -48,7 +48,7 @@ ENVIRONMENTS=prod
 | Comment déployer ? | `cd /app/<projet>/prod && deploy.sh promote origin/main` : l'image est **construite sur place**, puis sauvegarde, migrations, santé |
 | Et `watch` (le déploiement automatique) ? | Refusé : « ce projet n'a que des productions ». Il n'y a rien à déployer automatiquement |
 | Et le retour arrière ? | `deploy.sh rollback prod` ; automatique si la santé échoue |
-| Comment limiter le risque sans staging ? | 1. **Tests automatiques** dans le dépôt avant de pousser. 2. `deploy.sh check` avant chaque promotion (il ne change rien). 3. Déployer **hors des heures d'activité**. 4. Faire **réellement** l'[exercice de restauration](../runbooks/exercice-de-restauration.md) : la sauvegarde avant migration est votre seul filet |
+| Comment limiter le risque sans staging ? | 1. **Tests automatiques** dans le dépôt avant de pousser. 2. `deploy.sh check` avant chaque promotion (il ne change rien). 3. Déployer **hors des heures d'activité**. 4. Faire **réellement** l'[exercice de restauration](../runbooks/exercice-de-restauration.md), et **prendre une sauvegarde à la main avant une migration risquée** (`deploy.sh backup`) : sans staging, c'est votre seul filet |
 | Quand passer au profil A ? | Dès que le projet a des utilisateurs qu'on ne veut pas surprendre : un second environnement coûte peu |
 
 ## 4. Profil C : plusieurs productions
@@ -113,7 +113,7 @@ Quoi qu'il arrive, **la plateforme observe déjà le serveur et chaque conteneur
 
 | Profil | Sauvegarde | Où | Détail |
 | --- | --- | --- | --- |
-| A, B, C avec base | Chaque nuit **et** avant chaque déploiement de production | **S3 uniquement** | [Sauvegardes](sauvegardes.md) |
+| A, B, C avec base | Chaque nuit ; à la demande (`deploy.sh backup`) | **S3 uniquement** | [Sauvegardes](sauvegardes.md) |
 | Staging | Facultative : `BACKUP_DISABLED=1` si l'on ne veut pas de sauvegarde. Sinon S3, avec son propre dossier | S3 | Un staging n'a pas de données précieuses ; mais il peut contenir une copie de production |
 | D (site simple) | Aucune | | Pas de base |
 
