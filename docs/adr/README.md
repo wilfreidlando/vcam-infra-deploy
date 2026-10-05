@@ -12,6 +12,7 @@ Retour au [sommaire de la documentation](../README.md).
 | ADR | Sujet | Statut | Date |
 | --- | --- | --- | --- |
 | [0064](0064-infrastructure-vps-staging-observabilite-mutualisee.md) | Standard d'hébergement du VPS : staging, déploiement par promotion d'image, observabilité et sauvegardes mutualisées | Accepté | 2026-10-03 |
+| [0066](0066-sauvegardes-agent-maison-ou-portabase.md) | Sauvegardes : notre agent, Portabase, ou les deux ? | **Proposé** (essai à faire) | 2026-10-05 |
 
 ## Quand écrire une ADR
 
