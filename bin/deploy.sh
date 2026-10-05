@@ -17,13 +17,18 @@
 #   deploy.sh build [ref] [env]    build images for ref (default origin/<branch of env>, env default staging)
 #   deploy.sh up <env> <sha>       deploy an already-built SHA to an environment
 #   deploy.sh watch [env]          cron-friendly: build + deploy env (default staging) if its branch moved
-#   deploy.sh promote [sha] [-y]   deploy to prod the SHA currently on staging (or the given one)
+#   deploy.sh promote [sha|ref] [-y] [--env <prod>]
+#                                  deploy to a production the SHA currently on staging (or the given one;
+#                                  required when the project has no staging). --env: which production,
+#                                  when the project has several (PROD_ENVIRONMENTS)
 #
 # Environments: ENVIRONMENTS in platform.env (default "staging prod"), e.g.
 # "dev staging prod". Each has its env file (ENV_FILE_<ENV>, default .env for
 # prod, .env.<env> otherwise) and, for watch, its branch (BRANCH_<ENV>;
-# staging defaults to STAGING_BRANCH). Only prod is never watched: it is
-# reached by promotion only.
+# staging defaults to STAGING_BRANCH). A production is never watched: it is
+# reached by promotion only. Productions are the environments of PROD_ENVIRONMENTS
+# (default "prod"): a project may have no staging (ENVIRONMENTS="prod") or several
+# productions (ENVIRONMENTS="staging prod prodeu", PROD_ENVIRONMENTS="prod prodeu").
 #   deploy.sh rollback <env>       redeploy the previous SHA of that environment
 #   deploy.sh status               current/previous SHA and containers of each environment
 #   deploy.sh check [env]          pre-flight only (git access, platform.env ↔ compose,
@@ -50,7 +55,7 @@ export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes}"
 # KEEP_IMAGES, SKIP_BACKUP) are not project keys and keep their value.
 PROJECT_KEYS="APP_NAME COMPOSE_FILE ENV_FILE_PROD ENV_FILE_STAGING ENVIRONMENTS STAGING_BRANCH
     HEALTH_SERVICE HEALTH_CMD HEALTH_TIMEOUT MIGRATE_SERVICE MIGRATE_CMD
-    BACKUP_SERVICE BACKUP_CMD DB_SERVICE BUILD_PER_ENV"
+    BACKUP_SERVICE BACKUP_CMD DB_SERVICE BUILD_PER_ENV PROD_ENVIRONMENTS"
 
 # Reads platform.env from the working tree: at start-up, then again after
 # each checkout (checkout()), so the services, commands and environments
@@ -79,6 +84,8 @@ load_defaults() {
 : "${ENV_FILE_PROD:=.env}"
 : "${ENV_FILE_STAGING:=.env.staging}"
 : "${ENVIRONMENTS:=staging prod}"
+# Environments that are production: never auto-deployed, backed up before each deploy, promoted by hand.
+: "${PROD_ENVIRONMENTS:=prod}"
 : "${STAGING_BRANCH:=main}"
 : "${HEALTH_SERVICE:=app}"
 : "${HEALTH_CMD:=}"
@@ -96,7 +103,14 @@ load_defaults() {
 : "${NGINX_PROXY_CONTAINER:=nginx-proxy}"
 APP_STATE="${STATE_DIR}/${APP_NAME}"
 local _env
-for _env in ${ENVIRONMENTS}; do mkdir -p "${APP_STATE}/${_env}"; done
+for _env in ${ENVIRONMENTS}; do
+    # Names end up in Docker project names, image tags and variable names (ENV_FILE_<ENV>).
+    [[ "${_env}" =~ ^[a-z][a-z0-9]*$ ]] || { echo "deploy: nom d'environnement « ${_env} » invalide : lettres minuscules et chiffres seulement (prod, prodeu, staging)" >&2; exit 2; }
+    mkdir -p "${APP_STATE}/${_env}"
+done
+for _env in ${PROD_ENVIRONMENTS}; do
+    [[ " ${ENVIRONMENTS} " == *" ${_env} "* ]] || { echo "deploy: PROD_ENVIRONMENTS contient « ${_env} », absent de ENVIRONMENTS (${ENVIRONMENTS})" >&2; exit 2; }
+done
 LOG="${APP_STATE}/deploy.log"
 }
 
@@ -114,6 +128,15 @@ die() {
 }
 
 is_env() { [[ " ${ENVIRONMENTS} " == *" $1 "* ]]; }
+is_prod() { [[ " ${PROD_ENVIRONMENTS} " == *" $1 "* ]]; }
+
+# First environment that is not a production (staging, dev…): where builds and watch happen. Empty when
+# the project has none.
+preprod_env() {
+    local e
+    if [[ " ${ENVIRONMENTS} " == *" staging "* ]]; then echo staging; return; fi
+    for e in ${ENVIRONMENTS}; do is_prod "${e}" || { echo "${e}"; return; }; done
+}
 
 env_file_for() {
     is_env "$1" || die "environnement inconnu « $1 » (${ENVIRONMENTS})"
@@ -129,6 +152,7 @@ branch_for() {
     local var="BRANCH_${1^^}"
     if [[ -n "${!var:-}" ]]; then echo "${!var}"
     elif [[ "$1" == staging ]]; then echo "${STAGING_BRANCH}"
+    elif is_prod "$1" && [[ -z "$(preprod_env)" ]]; then echo "${STAGING_BRANCH}"   # no staging: the production follows the main branch
     else die "aucune branche pour « $1 » : définir ${var} dans platform.env"
     fi
 }
@@ -191,7 +215,8 @@ build_for() {
 ensure_images() {
     local env="$1" sha="$2"
     missing_images "${env}" "${sha}" || return 0
-    if [[ "${BUILD_PER_ENV}" == 1 ]]; then
+    if [[ "${BUILD_PER_ENV}" == 1 || -z "$(preprod_env)" ]]; then
+        # Per-environment images, or a project without staging: nobody built it before, build here.
         build_for "${env}" "${sha}"
     else
         die "images de ${sha} absentes — lancer d'abord « deploy.sh build ${sha} » (dans le checkout de staging)"
@@ -383,7 +408,8 @@ prune_images() {
 
 # ── Commands ────────────────────────────────────────────────────────────
 cmd_build() {
-    local env="${2:-staging}"
+    local env="${2:-$(preprod_env)}"
+    [[ -n "${env}" ]] || env="${PROD_ENVIRONMENTS%% *}"
     local ref="${1:-origin/$(branch_for "${env}")}" sha
     if is_git; then
         fetch_origin || die "impossible de récupérer ${ref} (voir ci-dessus)"
@@ -421,7 +447,7 @@ cmd_up() {
 
     log "déploiement ${env} ${sha} (précédent : ${previous:-aucun})"
 
-    if [[ "${env}" == prod && -n "${BACKUP_SERVICE}" && "${SKIP_BACKUP:-0}" != 1 ]]; then
+    if is_prod "${env}" && [[ -n "${BACKUP_SERVICE}" && "${SKIP_BACKUP:-0}" != 1 ]]; then
         log "sauvegarde avant migration"
         IMAGE_TAG="${tag}" dc "${env}" run --rm -T -e BACKUP_LABEL="pre-deploy-${sha:0:12}" "${BACKUP_SERVICE}" sh -c "${BACKUP_CMD}" \
             || die "sauvegarde en échec — déploiement annulé (SKIP_BACKUP=1 pour forcer)"
@@ -464,11 +490,13 @@ cmd_up() {
 
 cmd_watch() {
     # watch [env] — or, for compatibility, watch [branch] (staging).
-    local env=staging branch target
+    local env branch target
+    env="$(preprod_env)"
+    [[ -n "${env}" ]] || die "ce projet n'a que des productions (${PROD_ENVIRONMENTS}) : rien ne se déploie automatiquement, voir « deploy.sh promote"
     if [[ -n "${1:-}" ]] && is_env "$1"; then env="$1"; branch="$(branch_for "${env}")"
-    else branch="${1:-$(branch_for staging)}"
+    else branch="${1:-$(branch_for "${env}")}"
     fi
-    [[ "${env}" == prod ]] && die "la production n'est jamais déployée automatiquement : deploy.sh promote"
+    is_prod "${env}" && die "la production n'est jamais déployée automatiquement : deploy.sh promote"
     is_git || die "watch exige un checkout git"
     fetch_origin || die "impossible de savoir si ${branch} a bougé (voir ci-dessus)"
     target="$(git -C "${PROJECT_DIR}" rev-parse "origin/${branch}^{commit}")"
@@ -480,24 +508,44 @@ cmd_watch() {
 }
 
 cmd_promote() {
-    local sha="" yes=0 arg
+    local sha="" yes=0 env="" arg prev=""
     for arg in "$@"; do
+        if [[ "${prev}" == --env ]]; then env="${arg}"; prev=""; continue; fi
         case "${arg}" in
             -y|--yes) yes=1 ;;
+            --env) prev=--env ;;
+            --env=*) env="${arg#--env=}" ;;
+            -e) prev=--env ;;
             *) sha="${arg}" ;;
         esac
     done
-    sha="${sha:-$(state_get staging current)}"
-    [[ -n "${sha}" ]] || die "aucune version en staging à promouvoir"
-    if [[ "${sha}" != "$(state_get staging current)" ]]; then
-        log "ATTENTION : ${sha} n'est pas la version actuellement en staging ($(state_get staging current))"
+    [[ "${prev}" == --env ]] && die "--env demande un nom d'environnement (${PROD_ENVIRONMENTS})"
+    if [[ -z "${env}" ]]; then
+        # shellcheck disable=SC2086
+        set -- ${PROD_ENVIRONMENTS}
+        [[ $# -eq 1 ]] || die "ce projet a plusieurs productions (${PROD_ENVIRONMENTS}) : préciser laquelle avec --env <nom>"
+        env="$1"
     fi
-    echo "Production : $(state_get prod current || true) → ${sha}"
+    is_env "${env}" || die "environnement inconnu « ${env} » (${ENVIRONMENTS})"
+    is_prod "${env}" || die "« ${env} » n'est pas une production (${PROD_ENVIRONMENTS}) : elle se déploie par « deploy.sh watch »"
+    local pre; pre="$(preprod_env)"
+    if [[ -z "${sha}" ]]; then
+        [[ -n "${pre}" ]] || die "ce projet n'a pas de staging : donner la version à déployer (deploy.sh promote <sha ou origin/main>)"
+        sha="$(state_get "${pre}" current)"
+        [[ -n "${sha}" ]] || die "aucune version en ${pre} à promouvoir"
+    elif [[ ! "${sha}" =~ ^[0-9a-f]{40}$ ]] && is_git; then
+        fetch_origin || die "impossible de résoudre ${sha} (voir ci-dessus)"
+        sha="$(git -C "${PROJECT_DIR}" rev-parse "${sha}^{commit}")" || die "version inconnue"
+    fi
+    if [[ -n "${pre}" && "${sha}" != "$(state_get "${pre}" current)" ]]; then
+        log "ATTENTION : ${sha} n'est pas la version actuellement en ${pre} ($(state_get "${pre}" current))"
+    fi
+    echo "Production ${env} : $(state_get "${env}" current || true) → ${sha}"
     if [[ "${yes}" != 1 ]]; then
-        read -r -p "Déployer en PRODUCTION ? Tapez « oui » : " answer
+        read -r -p "Déployer en PRODUCTION (${env}) ? Tapez « oui » : " answer
         [[ "${answer}" == "oui" ]] || die "promotion annulée"
     fi
-    cmd_up prod "${sha}"
+    cmd_up "${env}" "${sha}"
 }
 
 cmd_rollback() {
@@ -511,7 +559,8 @@ cmd_rollback() {
 # git access. Changes nothing: safe on a project already in production,
 # which is how an existing project is brought to the standard.
 cmd_check() {
-    local env="${1:-staging}" ok=1
+    local env="${1:-$(preprod_env)}" ok=1
+    [[ -n "${env}" ]] || env="${PROD_ENVIRONMENTS%% *}"
     is_env "${env}" || die "environnement inconnu « ${env} » (${ENVIRONMENTS})"
     if is_git; then
         fetch_origin && log "check : accès git OK ($(git -C "${PROJECT_DIR}" remote get-url origin))" || ok=0

@@ -5,6 +5,9 @@
 - **Décideurs** : responsable de la plateforme
 - **Complète** : [ADR-0064](0064-infrastructure-vps-staging-observabilite-mutualisee.md) (sauvegardes mutualisées), [contrat](../05-contrat-projet.md) clause C11
 
+> **Mise à jour du 2026-10-05 :** [ADR-0067](0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) fixe une contrainte pour **tout** outil de sauvegarde, le nôtre
+> comme Portabase : **les sauvegardes ne vivent que sur S3**, aucune copie ne reste sur le disque du serveur. Le critère est à ajouter à l'essai.
+
 ## Contexte
 
 La plateforme fournit un agent de sauvegarde ([`images/db-backup`](../../images/db-backup/README.md)) : un petit service par projet, dans

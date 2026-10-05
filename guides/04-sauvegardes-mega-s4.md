@@ -95,7 +95,7 @@ AWS_ACCESS_KEY_ID=<clé>
 AWS_SECRET_ACCESS_KEY=<secret>
 AWS_DEFAULT_REGION=<région>
 BACKUP_RETENTION_DAYS=30
-BACKUP_LOCAL_KEEP=7
+# Pas de BACKUP_LOCAL_KEEP : les copies vivent sur S3, pas sur le disque du serveur (voir docs/reference/sauvegardes.md)
 ```
 
 **Noms des variables selon le projet** : le Core (et les projets issus de

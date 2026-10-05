@@ -1,7 +1,7 @@
 # db-backup — agent de sauvegarde standard du VPS
 
 Une image pour tous les projets du serveur : dump de la base, chiffrement AES-256
-(openssl, clé dérivée par PBKDF2), copie locale et copie vers un stockage S3 compatible (MEGA S4, R2, B2…).
+(openssl, clé dérivée par PBKDF2) et envoi vers un stockage S3 compatible (MEGA S4, R2, B2…). **Les sauvegardes vivent sur S3, jamais sur le disque du serveur** : la copie locale est supprimée dès qu'elle est envoyée ([pourquoi](../../docs/reference/sauvegardes.md)).
 Planifiée par `crond` dans le conteneur, rien à installer sur l'hôte.
 
 ## Ajouter à un projet
@@ -29,9 +29,11 @@ Planifiée par `crond` dans le conteneur, rien à installer sur l'hôte.
 | --- | --- | --- |
 | `BACKUP_PASSPHRASE` | — (obligatoire) | Phrase de chiffrement. **À conserver hors du serveur** (gestionnaire de mots de passe) : sans elle, aucune restauration possible. |
 | `BACKUP_TIME` | `02:30` | Heure quotidienne (UTC, HH:MM). Décalez les projets entre eux (02:30, 02:45…). |
-| `BACKUP_LOCAL_KEEP` | `7` | Nombre de copies gardées sur le VPS. |
+| `BACKUP_LOCAL_KEEP` | `0` | Copies gardées sur le VPS **après** un envoi réussi. `0` = aucune (recommandé). Une valeur positive est une exception : elle occupe le disque de tous les sites. |
+| `BACKUP_PENDING_MAX` | `3` | Copies **en attente** gardées quand S3 est injoignable (renvoyées au passage suivant). Borne le disque. |
+| `BACKUP_DISABLED` | `0` | `1` : cet environnement n'est volontairement pas sauvegardé (un staging jetable) : l'agent ne fait rien, le dit, et reste `healthy`. |
 | `BACKUP_S3_ENDPOINT` | — | MEGA S4 : `https://s3.<région>.s4.mega.io` (voir votre console MEGA). |
-| `BACKUP_S3_BUCKET` | — | Sans bucket : copie locale seulement. |
+| `BACKUP_S3_BUCKET` | — (**obligatoire**) | Sans bucket, l'agent **refuse** de sauvegarder (sortie en erreur) : pas de sauvegarde « locale seulement ». |
 | `BACKUP_S3_PREFIX` | `backups` | Dossier dans le bucket. |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_DEFAULT_REGION` | — | Clés S3 (MEGA S4 fournit des clés compatibles). |
 | `BACKUP_RETENTION_DAYS` | `30` | Les copies distantes plus anciennes sont supprimées. |
@@ -40,8 +42,9 @@ Planifiée par `crond` dans le conteneur, rien à installer sur l'hôte.
 ## Utilisation
 
 ```bash
-docker compose exec backup backup.sh                       # sauvegarde immédiate
-docker compose exec backup ls -lh /backups                 # copies locales
+docker compose exec backup backup.sh                       # sauvegarde immédiate (sa sortie reste dans VOTRE terminal)
+docker compose exec backup sh -c 'backup.sh >/proc/1/fd/1 2>&1'   # idem, mais visible dans docker logs et Grafana
+docker compose exec backup ls -lh /backups                 # normalement vide : seules les copies dont l'envoi a échoué (3 au plus)
 docker compose exec backup restore.sh <fichier>            # restauration (arrêtez l'app avant)
 RESTORE_MODE=merge …                                       # ancien comportement, voir la variable ci-dessus
 docker compose exec backup restore.sh s3://bucket/backups/mon-saas-prod/<fichier>

@@ -45,7 +45,6 @@ AWS_ACCESS_KEY_ID=k
 AWS_SECRET_ACCESS_KEY=s
 AWS_DEFAULT_REGION=us-east-1
 BACKUP_RETENTION_DAYS=30
-BACKUP_LOCAL_KEEP=2
 ENV
 
 pg_sql() { docker exec vpstest-pg psql -U app -d app -tAc "$1"; }
@@ -74,12 +73,18 @@ test_engine() {  # test_engine <label> <image> <name> <ENGINE env…>
     check "copie envoyée sur S3" grep -q "${name}-.*-scheduled.dump.enc" <<< "${listing}"
     check_not "sauvegarde expirée supprimée" grep -q "20200101T000000Z" <<< "${listing}"
     check "fichier étranger conservé" grep -q "notes.txt" <<< "${listing}"
-    check_not "contenu chiffré (aucune donnée en clair)" \
-        run_agent "${image}" "${name}" "${engine_env[@]}" -- sh -c 'grep -a "commande-secrete" /backups/*.enc'
+    local obj; obj="$(aws s3 ls "s3://vps-backups/backups/${name}/" | awk '{print $4}' | grep scheduled | sort | tail -1 || true)"
+    check_not "contenu chiffré tel que S3 le voit (aucune donnée en clair)" \
+        sh -c "aws s3 cp --quiet 's3://vps-backups/backups/${name}/${obj}' - | grep -a 'commande-secrete'"
 
-    for _ in 1 2; do run_agent "${image}" "${name}" "${engine_env[@]}" -- backup.sh >/dev/null 2>&1 || true; sleep 1; done
-    check "rotation locale (BACKUP_LOCAL_KEEP=2)" \
-        test "$(run_agent "${image}" "${name}" "${engine_env[@]}" -- sh -c 'ls /backups/*.enc | wc -l' | tr -d ' ')" = 2
+    # Règle : les sauvegardes vivent sur S3, pas sur le disque du serveur.
+    check "aucune copie ne reste sur le serveur après l'envoi" \
+        test "$(run_agent "${image}" "${name}" "${engine_env[@]}" -- sh -c 'ls /backups/*.dump.enc 2>/dev/null | wc -l' | tr -d ' ')" = 0
+    check "marqueur de la dernière copie envoyée (sert au contrôle de santé)" \
+        run_agent "${image}" "${name}" "${engine_env[@]}" -- sh -c 'test -s /backups/.last-upload'
+    for _ in 1 2 3; do run_agent "${image}" "${name}" "${engine_env[@]}" BACKUP_LOCAL_KEEP=2 -- backup.sh >/dev/null 2>&1 || true; sleep 1; done
+    check "exception explicite BACKUP_LOCAL_KEEP=2 : deux copies gardées, pas plus" \
+        test "$(run_agent "${image}" "${name}" "${engine_env[@]}" -- sh -c 'ls /backups/*.dump.enc | wc -l' | tr -d ' ')" = 2
 
     step "${label} — restauration"
     local key; key="$(aws s3 ls "s3://vps-backups/backups/${name}/" | awk '{print $4}' | grep scheduled | sort | tail -1 || true)"
@@ -89,10 +94,38 @@ test_engine() {  # test_engine <label> <image> <name> <ENGINE env…>
         run_agent "${image}" "${name}" "${engine_env[@]}" -- restore.sh "s3://vps-backups/backups/${name}/${key}"
 }
 
+# ── Politique « S3 seulement » : jamais de copies qui s'accumulent sur le disque du serveur ───
+test_s3_policy() {
+    local image="$1" name="policy" count
+    count() { run_agent "${image}" "${name}" "${PG_ENV[@]}" -- sh -c 'ls /backups/*.dump.enc 2>/dev/null | wc -l' | tr -d ' '; }
+    step "Politique S3 seulement"
+    check_not "sans bucket : refus, pas de sauvegarde sur le disque du serveur" \
+        run_agent "${image}" "${name}" "${PG_ENV[@]}" BACKUP_S3_BUCKET= -- backup.sh
+    check "sans bucket : aucun fichier laissé sur le serveur" test "$(count)" = 0
+    check "BACKUP_DISABLED=1 : réussit sans rien écrire" \
+        run_agent "${image}" "${name}" "${PG_ENV[@]}" BACKUP_DISABLED=1 BACKUP_S3_BUCKET= -- backup.sh
+    check "BACKUP_DISABLED=1 : aucune copie sur le serveur" test "$(count)" = 0
+    check "BACKUP_DISABLED=1 : le conteneur reste « healthy » (marqueur), il n'est pas « arrêté »" \
+        run_agent "${image}" "${name}" "${PG_ENV[@]}" BACKUP_DISABLED=1 BACKUP_S3_BUCKET= -- sh -c 'backup.sh >/dev/null && test -s /backups/.last-upload'
+
+    for _ in 1 2 3 4; do
+        run_agent "${image}" "${name}" "${PG_ENV[@]}" BACKUP_S3_ENDPOINT=http://127.0.0.1:1 -- backup.sh >/dev/null 2>&1 || true
+        sleep 1
+    done
+    check "S3 injoignable : la copie reste, mais au plus 3 (le disque ne se remplit pas)" test "$(count)" = 3
+    check_not "S3 injoignable : la sauvegarde sort en erreur (visible, jamais silencieuse)" \
+        run_agent "${image}" "${name}" "${PG_ENV[@]}" BACKUP_S3_ENDPOINT=http://127.0.0.1:1 -- backup.sh
+    check "S3 de retour : la sauvegarde réussit" run_agent "${image}" "${name}" "${PG_ENV[@]}" -- backup.sh
+    check "S3 de retour : les copies en attente sont envoyées puis supprimées du serveur" test "$(count)" = 0
+    check "les copies en attente sont bien arrivées sur S3 (au moins 4)" \
+        test "$(aws s3 ls "s3://vps-backups/backups/${name}/" | grep -c 'dump.enc' || true)" -ge 4
+}
+
 # ── PostgreSQL ──────────────────────────────────────────────────────────
 pg_sql "create table orders(id int primary key, label text); insert into orders values (1, 'commande-secrete é'), (2, 'deux');" >/dev/null
 PG_ENV=(BACKUP_ENGINE=postgres PGHOST=vpstest-pg PGDATABASE=app PGUSER=app PGPASSWORD=pgpass)
 test_engine "PostgreSQL 18" vpstest-db-backup:pg pgapp "${PG_ENV[@]}"
+test_s3_policy vpstest-db-backup:pg
 # data was overwritten in between? restore must bring back the original rows
 pg_sql "delete from orders; insert into orders values (99, 'après la sauvegarde'); create table creee_apres_la_sauvegarde(id int); create view vue_creee_apres as select 1 as x;" >/dev/null
 key="$(aws s3 ls s3://vps-backups/backups/pgapp/ | awk '{print $4}' | grep scheduled | sort | tail -1 || true)"

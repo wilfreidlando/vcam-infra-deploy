@@ -124,8 +124,8 @@ ligne `ERREUR` après `OK` est un défaut à comprendre (voir le [retour d'expé
 
 ## 7. Sauvegarde et restauration
 
-- Le service `backup` fait un `pg_dump` chiffré (AES-256) chaque nuit et **avant chaque promotion** (`pre-deploy-*`), le garde
-  7 fois sur le serveur, et le **copie sur S3** si `BACKUP_S3_*` est renseigné.
+- Le service `backup` fait un `pg_dump` chiffré (AES-256) chaque nuit et **avant chaque promotion** (`pre-deploy-*`), l'envoie
+  **sur S3** et ne le garde **pas** sur le serveur (une copie dont l'envoi échoue reste, trois au plus, et repart au passage suivant).
 - La phrase de chiffrement (`BACKUP_PASSPHRASE`) n'existe que dans le `.env` du serveur : **la conserver aussi hors du serveur**.
 - **Une sauvegarde jamais restaurée n'est pas une sauvegarde** : l'[exercice de restauration](../docs/runbooks/exercice-de-restauration.md)
   se fait chaque mois. Le premier exercice du pilote a révélé que la restauration ne remplaçait pas réellement la base

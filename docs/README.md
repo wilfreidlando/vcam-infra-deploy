@@ -28,6 +28,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Les 16 règles en un tableau | [Les 16 règles](reference/les-16-regles.md) |
 | Comprendre comment le serveur est construit | [Architecture du serveur](reference/architecture-du-serveur.md), [schémas](01-schemas.md) |
 | Un mot que je ne connais pas | [Glossaire](03-glossaire.md) |
+| Savoir quel **profil** est le mien (sans staging, plusieurs productions, site simple) | [Profils de projet](reference/profils-de-projet.md) |
 | Mettre mon projet en ligne | [Démarrage rapide](04-demarrage-rapide-dev.md), [brancher un projet](reference/brancher-et-corriger-un-projet.md) |
 | Amener un projet existant au standard | [Guide 16](../guides/16-mettre-un-projet-au-standard.md), [contrat § 4](05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) |
 | Déployer, promouvoir, revenir en arrière | [Organisation et livraison](reference/organisation-et-livraison.md) |
@@ -39,7 +40,8 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Savoir **tout** ce que la plateforme observe, où le voir et qui prévient | [Carte complète de l'observabilité](reference/observabilite-carte-complete.md) |
 | Brancher un projet à Grafana | [README de l'observabilité](../observability/README.md), [catalogue des besoins](reference/catalogue-des-besoins.md) |
 | Voir un projet complet au standard, fichier par fichier | [Guide 18, le projet pilote](../guides/18-le-projet-pilote-skills-devops.md) |
-| Savoir ce que la plateforme offre et ce que mon projet doit fournir | [Catalogue des besoins](reference/catalogue-des-besoins.md) |
+| Savoir ce que la plateforme offre et ce que mon projet doit fournir | [Profils de projet](reference/profils-de-projet.md) | Sans staging, plusieurs productions, site simple : ce que chacun demande |
+| [Catalogue des besoins](reference/catalogue-des-besoins.md) |
 | Un déploiement échoue | [Runbook : déploiement en échec](runbooks/deploiement-en-echec.md) |
 | Un conteneur redémarre en boucle | [Runbook : conteneur en boucle](runbooks/conteneur-en-boucle.md) |
 | Réagir à une panne | [Runbooks](runbooks/README.md) |

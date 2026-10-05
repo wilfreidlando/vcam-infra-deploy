@@ -86,7 +86,7 @@ $ nano .env.staging
 | `DB_PASSWORD`, `TRUSTED_PROXY_TOKEN`, `BACKUP_PASSPHRASE` | **nouvelles**, jamais celles de la production |
 | `CORE_ENVIRONMENT` | `sandbox` |
 | `WAHA_*` | une session WhatsApp de **test** (un numéro dédié), jamais celle des clients |
-| Clés S3 | facultatives : sans `BACKUP_S3_BUCKET`, copies locales seulement |
+| Clés S3 | un **dossier S3 de test** (`BACKUP_S3_PREFIX` distinct), ou `BACKUP_DISABLED=1` si le staging ne doit pas être sauvegardé : sans l'un des deux, l'agent **refuse** de sauvegarder (les sauvegardes ne vivent jamais sur le disque du serveur) |
 
 Les applications MyCoolPay ne se configurent pas ici. Elles s'enregistrent dans la
 console du staging, avec les clés **sandbox** de MyCoolPay (étape 5).

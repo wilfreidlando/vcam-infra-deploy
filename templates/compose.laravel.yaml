@@ -124,10 +124,11 @@ services:
       observability.enable: "true"
       observability.app: mon-saas
       observability.deployment: ${DEPLOYMENT:-prod}
-    # « healthy » = une copie chiffrée de moins de 36 h existe : une sauvegarde qui cesse de tourner devient
+    # « healthy » = un envoi sur S3 a réussi il y a moins de 36 h (marqueur /backups/.last-upload ; les copies ne restent pas
+    # sur le serveur) : une sauvegarde qui cesse de tourner devient
     # visible (docker ps, audit). Le premier créneau nocturne peut n'arriver que le lendemain d'un premier déploiement.
     healthcheck:
-      test: [ "CMD-SHELL", "find /backups -name '*.dump.enc' -mmin -2160 | grep -q ." ]
+      test: [ "CMD-SHELL", "find /backups -maxdepth 1 -name .last-upload -mmin -2160 | grep -q ." ]
       interval: 1h
       timeout: 10s
       retries: 1

@@ -236,4 +236,90 @@ check "v5 en production, depuis un dossier qui n'a que son .env" test "$(page pr
 check_not "aucune erreur « fichier … absent » dans le journal après la promotion (nettoyage des images)" \
     sh -c "tail -n +$((lines + 1)) '${STATE_DIR}/vpstest-demo/deploy.log' | grep -q 'absent (copier'"
 
+# Projet témoin minimal pour les scénarios ci-dessous : make_project <dossier> <app> "<lignes de platform.env>"
+make_project() {
+    local dir="$1" app="$2" extra="$3"
+    mkdir -p "${dir}"
+    git -C "${dir}" init -q -b main
+    git -C "${dir}" config user.email test@example.com
+    git -C "${dir}" config user.name test
+    cat > "${dir}/compose.yaml" <<YAML
+services:
+  app:
+    image: ${app}:\${IMAGE_TAG:-latest}
+    build: { context: . }
+    container_name: ${app}-\${ENV_NAME}-app
+    environment:
+      VIRTUAL_HOST: \${ENV_NAME}.${app}.vpstest.test
+YAML
+    cat > "${dir}/platform.env" <<ENV
+APP_NAME=${app}
+COMPOSE_FILE=compose.yaml
+HEALTH_SERVICE=app
+HEALTH_CMD="wget -qO- http://127.0.0.1:8080/health"
+HEALTH_TIMEOUT=15
+${extra}
+ENV
+    cat > "${dir}/Dockerfile" <<'DOCKERFILE'
+FROM busybox
+RUN mkdir /www && echo v1 > /www/index.html && echo ok > /www/health
+CMD ["httpd", "-f", "-p", "8080", "-h", "/www"]
+DOCKERFILE
+    git -C "${dir}" add -A && git -C "${dir}" commit -qm v1
+}
+bump() {  # bump <dossier> <texte>
+    sed -i "s/echo v[0-9]* > \/www\/index.html/echo $2 > \/www\/index.html/" "$1/Dockerfile"
+    git -C "$1" commit -qam "$2"
+}
+solo_page() { docker exec "vpstest-solo-$1-app" cat /www/index.html 2>/dev/null; }
+multi_page() { docker exec "vpstest-multi-$1-app" cat /www/index.html 2>/dev/null; }
+
+step "Projet sans staging : il se construit et se déploie lui-même en production"
+make_project "${WORK}/solo-origin" vpstest-solo 'ENVIRONMENTS=prod'
+git clone -q "${WORK}/solo-origin" "${WORK}/solo"
+echo "ENV_NAME=prod" > "${WORK}/solo/.env"
+check_not "watch refusé : rien ne se déploie automatiquement" sh -c "cd '${WORK}/solo' && '${DEPLOY}' watch"
+check_not "promote sans version refusé : on ne devine pas quoi mettre en production" sh -c "cd '${WORK}/solo' && '${DEPLOY}' promote --yes"
+(cd "${WORK}/solo" && "${DEPLOY}" promote origin/main --yes >/dev/null 2>&1)
+check "v1 en production, construite sur place (aucun staging)" test "$(solo_page prod)" = v1
+bump "${WORK}/solo-origin" v2
+(cd "${WORK}/solo" && "${DEPLOY}" promote origin/main --yes >/dev/null 2>&1)
+check "v2 en production" test "$(solo_page prod)" = v2
+(cd "${WORK}/solo" && "${DEPLOY}" rollback prod >/dev/null 2>&1)
+check "retour arrière : v1" test "$(solo_page prod)" = v1
+check "check sans staging : contrôle la production" sh -c "cd '${WORK}/solo' && '${DEPLOY}' check >/dev/null 2>&1"
+
+step "Plusieurs productions : staging, prod et prodb"
+make_project "${WORK}/multi-origin" vpstest-multi 'ENVIRONMENTS="staging prod prodb"
+PROD_ENVIRONMENTS="prod prodb"'
+for env in staging prod prodb; do git clone -q "${WORK}/multi-origin" "${WORK}/multi-${env}"; done
+echo "ENV_NAME=staging" > "${WORK}/multi-staging/.env.staging"
+echo "ENV_NAME=prod" > "${WORK}/multi-prod/.env"
+echo "ENV_NAME=prodb" > "${WORK}/multi-prodb/.env.prodb"
+(cd "${WORK}/multi-staging" && "${DEPLOY}" watch >/dev/null 2>&1)
+check "v1 en staging" test "$(multi_page staging)" = v1
+check_not "promote sans --env refusé : laquelle des deux productions ?" sh -c "cd '${WORK}/multi-prod' && '${DEPLOY}' promote --yes"
+check_not "--env staging refusé : ce n'est pas une production" sh -c "cd '${WORK}/multi-staging' && '${DEPLOY}' promote --env staging --yes"
+check_not "watch d'une production refusé" sh -c "cd '${WORK}/multi-prodb' && '${DEPLOY}' watch prodb"
+(cd "${WORK}/multi-prod" && "${DEPLOY}" promote --env prod --yes >/dev/null 2>&1)
+(cd "${WORK}/multi-prodb" && "${DEPLOY}" promote --env prodb --yes >/dev/null 2>&1)
+check "v1 en prod" test "$(multi_page prod)" = v1
+check "v1 en prodb" test "$(multi_page prodb)" = v1
+check "même image dans les trois environnements" test \
+    "$(docker inspect -f '{{.Image}}' vpstest-multi-staging-app)" = "$(docker inspect -f '{{.Image}}' vpstest-multi-prodb-app)"
+bump "${WORK}/multi-origin" v2
+(cd "${WORK}/multi-staging" && "${DEPLOY}" watch >/dev/null 2>&1)
+(cd "${WORK}/multi-prod" && "${DEPLOY}" promote --env prod --yes >/dev/null 2>&1)
+check "prod passe en v2, prodb reste en v1 : les productions sont indépendantes" \
+    test "$(multi_page prod)-$(multi_page prodb)" = v2-v1
+check "status liste les trois environnements" sh -c "cd '${WORK}/multi-prod' && '${DEPLOY}' status | grep -c '^── ' | grep -qx 3"
+cat > "${WORK}/bad.env" <<'ENV'
+APP_NAME=vpstest-bad
+ENVIRONMENTS="staging prod-eu"
+ENV
+mkdir -p "${WORK}/bad" && cp "${WORK}/bad.env" "${WORK}/bad/platform.env"
+check_not "nom d'environnement invalide (« prod-eu ») refusé avec explication" sh -c "cd '${WORK}/bad' && '${DEPLOY}' status"
+
 docker image ls vpstest-demo -q | xargs -r docker rmi -f >/dev/null 2>&1 || true
+docker image ls vpstest-solo -q | xargs -r docker rmi -f >/dev/null 2>&1 || true
+docker image ls vpstest-multi -q | xargs -r docker rmi -f >/dev/null 2>&1 || true

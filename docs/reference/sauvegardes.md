@@ -4,26 +4,65 @@
 > Retour au [sommaire de la documentation](../README.md).
 
 
-L'agent [`images/db-backup`](../../images/db-backup/README.md) tourne dans chaque projet
-qui a une base de données :
-- dump chaque nuit, chiffré AES-256 avec une phrase de passe propre au projet ;
-- 7 copies sur le serveur ;
-- copie sur MEGA S4, gardée 30 jours.
+## Le principe : les sauvegardes vivent sur S3, jamais sur le serveur
 
-`deploy.sh promote` en prend une juste avant les migrations, et **refuse de
-déployer** si elle échoue.
+Toutes les copies de tous les projets se partageraient **le même disque** que les sites. Un disque qui se remplit **sans que personne ne le voie** les
+fait tomber **tous**. Et une copie gardée sur le serveur ne protège pas d'un sinistre du serveur. La règle est donc : **la copie part sur S3, puis elle est supprimée du serveur.**
 
-**Test de restauration mensuel**, obligatoire pour qu'une sauvegarde compte :
-
-```bash
-# 1. télécharger la dernière sauvegarde de production depuis MEGA, puis :
-docker cp <fichier>.dump.enc "$(docker ps -q -f label=com.docker.compose.project=<projet>-staging -f label=com.docker.compose.service=backup)":/backups/
-# 2. restaurer dans le staging, avec la phrase de passe de PRODUCTION donnée
-#    ponctuellement (jamais écrite dans .env.staging) :
-cd /app/<projet>/staging
-read -rs RESTORE_PASSPHRASE && export RESTORE_PASSPHRASE
-/app/vps-platform/bin/restore.sh staging <fichier>.dump.enc
+```mermaid
+flowchart LR
+    DB[("Base du projet")] -->|"dump"| Agent["Agent de sauvegarde<br/>chiffre en AES-256"]
+    Agent -->|"envoi"| S3[("S3<br/>30 jours de copies")]
+    Agent -->|"envoi réussi : copie locale supprimée"| Disk["Disque du serveur<br/>aucune copie"]
+    Agent -. "envoi en échec : la copie reste<br/>3 au plus, renvoyée au passage suivant" .-> Disk
+    Agent -->|"erreur visible"| Alert["Journaux, Grafana, alerte 36 h"]
 ```
 
-Cela restaure la production dans le staging. Attention aux données personnelles : le
-staging contient alors des données réelles. Le réinitialiser ensuite si besoin.
+| Situation | Ce que fait l'agent | Effet sur le disque |
+| --- | --- | --- |
+| **Cas normal** : S3 répond | Dump, chiffrement, envoi, **suppression de la copie locale** | Rien ne s'accumule |
+| **S3 injoignable** | Garde la copie chiffrée (c'est peut-être la seule), **sort en erreur**, la renvoie au prochain passage | **Trois copies au plus** : le disque est borné par construction |
+| **S3 revient** | Envoie la nouvelle copie **et** celles en attente, puis les supprime | Retour à zéro |
+| **Pas de S3 configuré** | **Refuse** de sauvegarder (sortie en erreur) : pas de sauvegarde « locale seulement » par défaut | Rien d'écrit |
+| **Environnement volontairement non sauvegardé** (un staging jetable) | `BACKUP_DISABLED=1` : ne fait rien, le dit | Rien d'écrit |
+| **Exception explicite** `BACKUP_LOCAL_KEEP=N` | Garde aussi N copies après l'envoi | N copies : **à n'utiliser que sciemment** |
+
+### Les quatre garde-fous qui empêchent « de saturer sans le savoir »
+
+| # | Garde-fou | Où |
+| --- | --- | --- |
+| 1 | **Par construction** : aucune copie ne reste après un envoi réussi ; au plus trois si l'envoi échoue | agent `db-backup` |
+| 2 | **Une sauvegarde en échec est bruyante** : sortie en erreur, ligne dans les journaux, visible dans Grafana ; la promotion en production **est refusée** si la sauvegarde avant migration échoue | agent, `deploy.sh` |
+| 3 | **Alerte « aucune sauvegarde envoyée depuis 36 h »** (journaux de l'agent) ; contrôle de santé du conteneur sur le même critère | Grafana, `docker ps` |
+| 4 | **Alerte disque** (« / » à plus de 85 %) pour tout ce qui ne serait pas dans ce cadre | Grafana |
+
+### Le contrôle de santé
+
+Le conteneur de sauvegarde est `healthy` si **un envoi a réussi il y a moins de 36 heures** (marqueur `/backups/.last-upload`, quelques octets). Ce n'est plus
+« un fichier existe » : il n'y en a plus.
+
+## L'agent
+
+L'agent [`images/db-backup`](../../images/db-backup/README.md) tourne dans chaque projet qui a une base de données :
+- dump chaque nuit, chiffré AES-256 avec une phrase de passe propre au projet ;
+- copie sur S3 (MEGA S4, R2, B2…), **gardée 30 jours** (réglable), puis effacée du serveur ;
+- chaque projet et **chaque production** a son propre dossier sur S3 (`BACKUP_NAME`).
+
+`deploy.sh promote` en prend une juste avant les migrations, et **refuse de déployer** si elle échoue. Selon le [profil du projet](profils-de-projet.md#7-les-sauvegardes-selon-le-profil) :
+un site simple n'en a pas, un staging peut la désactiver.
+
+## Restaurer
+
+**La restauration se fait depuis S3** : `restore.sh <env> s3://<bucket>/<préfixe>/<projet>-<env>/<fichier>`. Le runbook pas à pas, avec la table-témoin qui
+prouve que la base est bien **remplacée** : [exercice de restauration](../runbooks/exercice-de-restauration.md).
+
+**Test de restauration mensuel**, obligatoire pour qu'une sauvegarde compte : restaurer **directement depuis S3**, par exemple la production dans le staging.
+
+```bash
+cd /app/<projet>/staging
+# La phrase de passe de PRODUCTION est donnée ponctuellement, jamais écrite dans .env.staging :
+read -rs RESTORE_PASSPHRASE && export RESTORE_PASSPHRASE
+/app/vps-platform/bin/restore.sh staging s3://<bucket>/<préfixe>/<projet>-prod/<fichier>
+```
+
+Cela restaure la production dans le staging. Attention aux données personnelles : le staging contient alors des données réelles. Le réinitialiser ensuite si besoin.

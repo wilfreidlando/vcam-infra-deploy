@@ -4,6 +4,9 @@
 > Pour apprendre à lire Grafana : [guide 17](../../guides/17-comprendre-et-lire-grafana.md). Pour installer et brancher un projet :
 > [README de l'observabilité](../../observability/README.md). Retour au [sommaire](../README.md).
 
+> **Tous les projets n'ont pas besoin de tout.** Un site simple se contente de la sonde de disponibilité ; les journaux, les métriques et les traces
+> s'ajoutent selon le projet : voir les [quatre niveaux](profils-de-projet.md#6-lobservabilité-proportionnée-au-projet).
+
 ## 1. Les neuf composants
 
 Une seule pile pour tout le serveur, dans son propre projet Docker `observability`. **Un seul composant est joignable depuis Internet : Grafana**, et

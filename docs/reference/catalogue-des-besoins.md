@@ -4,6 +4,9 @@
 > carte de ces échanges. Pour chaque service : ce qu'on obtient, ce que le projet doit fournir, comment vérifier, et où le voir
 > dans le [projet pilote](../../guides/18-le-projet-pilote-skills-devops.md). Retour au [sommaire](../README.md).
 
+**Tous les projets n'ont pas besoin de tout** : un site simple se contente de la sonde de disponibilité, un projet peut n'avoir pas de staging ou avoir
+plusieurs productions. Voir les [profils de projet](profils-de-projet.md) avant de lire ce catalogue.
+
 Légende : ✅ disponible aujourd'hui · 🟡 disponible mais à brancher · 🔜 prévu (chantier en préparation).
 
 ## 1. Mise en ligne
@@ -20,10 +23,10 @@ Légende : ✅ disponible aujourd'hui · 🟡 disponible mais à brancher · �
 
 | Service | Ce qu'on obtient | Ce que le projet doit fournir | Comment vérifier | Dans le pilote |
 | --- | --- | --- | --- | --- |
-| ✅ **Sauvegarde chiffrée** | Dump chaque nuit et avant chaque promotion, chiffré AES-256, 7 copies locales | Un service `backup` (image de l'agent) avec les variables du moteur (`PGHOST`… ou `MYSQL_*`), `BACKUP_PASSPHRASE`, `BACKUP_NAME` | `docker exec <projet>-<env>-backup-1 ls -l /backups` | service `backup` |
+| ✅ **Sauvegarde chiffrée** | Dump chaque nuit et avant chaque promotion, chiffré AES-256, envoyé sur S3 : **aucune copie ne reste sur le serveur** ([sauvegardes](sauvegardes.md)) | Un service `backup` (image de l'agent) avec les variables du moteur (`PGHOST`… ou `MYSQL_*`), `BACKUP_PASSPHRASE`, `BACKUP_NAME` | `docker logs <projet>-<env>-backup-1` : « uploaded to s3://… » ; liste du bucket | service `backup` |
 | ✅ **Copie hors serveur** | La même sauvegarde sur S3 | `BACKUP_S3_ENDPOINT` (avec `https://`), `BACKUP_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` dans le `.env` | Le message `uploaded to s3://…` ; liste du bucket | `.env` de production |
 | ✅ **Restauration prouvée** | La base revient à l'état exact de la sauvegarde (PostgreSQL, MySQL, MariaDB) | La phrase de chiffrement **conservée hors du serveur** ; un exercice mensuel | [Exercice de restauration](../runbooks/exercice-de-restauration.md) | premier exercice du 2026-10-04 |
-| ✅ **Santé du conteneur de sauvegarde** | `docker ps` et l'audit signalent une sauvegarde qui cesse de tourner | Un healthcheck « une copie de moins de 36 h existe » sur `backup` | `docker ps` | service `backup` |
+| ✅ **Santé du conteneur de sauvegarde** | `docker ps` et l'audit signalent une sauvegarde qui cesse de tourner | Un healthcheck « un envoi réussi de moins de 36 h » sur `backup` (marqueur `/backups/.last-upload`) | `docker ps` | service `backup` |
 
 ## 3. Voir ce qui se passe
 

@@ -311,14 +311,14 @@ flowchart LR
     subgraph Serveur["VPS"]
         DB[("Base du projet")]
         Agent["Conteneur backup<br/>chaque nuit à BACKUP_TIME<br/>+ avant chaque promotion"]
-        Local[("7 dernières copies<br/>sur le serveur")]
+        Local[("Aucune copie gardée<br/>(3 au plus si S3 est injoignable)")]
     end
     Pass{{"Phrase de passe<br/>dans le gestionnaire de mots de passe"}}
     Remote[("MEGA S4<br/>30 jours de copies")]
 
     DB -->|"pg_dump / mariadb-dump"| Agent
-    Agent -->|"chiffrement AES-256"| Local
-    Agent -->|"envoi S3"| Remote
+    Agent -->|"chiffrement AES-256, envoi S3"| Remote
+    Agent -. "copie locale supprimée après l'envoi" .-> Local
     Pass -.-> Agent
 
     Remote -->|"restore.sh"| Restore["Restauration<br/>app arrêtée → base REMPLACÉE → app relancée"]
@@ -328,6 +328,8 @@ flowchart LR
 
 **À retenir**
 - MEGA ne voit **que des données chiffrées**.
+- **Les sauvegardes ne vivent que sur S3** : aucune copie ne reste sur le disque du serveur après l'envoi, pour qu'il ne se remplisse jamais
+  sans qu'on le sache ([sauvegardes](reference/sauvegardes.md)).
 - **Sans la phrase de passe, aucune restauration n'est possible.** Elle doit être
   conservée hors du serveur.
 - Une sauvegarde ne compte que si l'on a déjà réussi à la restaurer : une fois par
