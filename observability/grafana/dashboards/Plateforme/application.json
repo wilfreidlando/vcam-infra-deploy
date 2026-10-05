@@ -319,6 +319,178 @@
       }
     },
     {
+      "id": 101,
+      "type": "stat",
+      "title": "Erreurs (période choisie)",
+      "description": "Lignes de journal de niveau ERROR ou plus grave. 0 = bon état. Cliquer sur le chiffre : ouvre ces lignes (Explore) ; elles sont aussi dans « Erreurs et avertissements récents » juste dessous.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum(count_over_time({app=~\"$app\", deployment=~\"$deployment\", level=~\"ERROR|CRITICAL|ALERT|EMERGENCY\"} [$__range])) or vector(0)",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "Voir ces lignes (Explore)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%7B%22datasource%22%3A%22loki%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bapp%3D~%5C%22${app:percentencode}%5C%22%2C%20deployment%3D~%5C%22${deployment:percentencode}%5C%22%2C%20level%3D~%5C%22ERROR%7CCRITICAL%7CALERT%7CEMERGENCY%5C%22%7D%22%2C%22queryType%22%3A%22range%22%2C%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22loki%22%7D%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 102,
+      "type": "stat",
+      "title": "Avertissements (période choisie)",
+      "description": "Lignes de niveau WARNING. Cliquer sur le chiffre : ouvre ces lignes (Explore) ; elles sont aussi dans « Erreurs et avertissements récents » juste dessous.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum(count_over_time({app=~\"$app\", deployment=~\"$deployment\", level=~\"WARNING\"} [$__range])) or vector(0)",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "Voir ces lignes (Explore)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%7B%22datasource%22%3A%22loki%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bapp%3D~%5C%22${app:percentencode}%5C%22%2C%20deployment%3D~%5C%22${deployment:percentencode}%5C%22%2C%20level%3D~%5C%22WARNING%5C%22%7D%22%2C%22queryType%22%3A%22range%22%2C%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22loki%22%7D%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 103,
+      "type": "logs",
+      "title": "Erreurs et avertissements récents",
+      "description": "Le détail des chiffres ci-dessus : les lignes d'erreur et d'avertissement de l'application, les plus récentes en premier. Vide = rien à signaler.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{app=~\"$app\", deployment=~\"$deployment\", level=~\"ERROR|CRITICAL|ALERT|EMERGENCY|WARNING\"}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Aucune erreur ni avertissement sur la période"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    },
+    {
       "id": 5,
       "type": "timeseries",
       "title": "Disponibilité (1 = en ligne)",
@@ -331,7 +503,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 4
+        "y": 16
       },
       "targets": [
         {
@@ -379,7 +551,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 4
+        "y": 16
       },
       "targets": [
         {
@@ -427,7 +599,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 12
+        "y": 24
       },
       "targets": [
         {
@@ -475,7 +647,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 12
+        "y": 24
       },
       "targets": [
         {
@@ -532,7 +704,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 20
+        "y": 32
       },
       "targets": [
         {
@@ -589,7 +761,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 20
+        "y": 32
       },
       "targets": [
         {
@@ -637,7 +809,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 40
       },
       "targets": [
         {
@@ -684,7 +856,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 47
       },
       "targets": [
         {

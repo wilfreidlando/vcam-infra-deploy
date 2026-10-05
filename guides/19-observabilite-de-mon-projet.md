@@ -81,6 +81,15 @@ Pour les chiffres que **seul le projet connaît**. Tout vit dans le dépôt du p
 
 **Une publication refusée ne bloque jamais un déploiement** : l'erreur est écrite dans le journal (`/var/lib/vps-platform/<projet>/deploy.log`) et **le dépôt précédent reste intact**. La commande explicite `deploy.sh obs-sync`, elle, échoue pour qu'on le voie.
 
+### Écrire un bon tableau
+
+| Bonne pratique | Pourquoi |
+| --- | --- |
+| **Un chiffre mène toujours à ses lignes** : un lien (clic sur le chiffre → Explore) et un panneau de lignes **juste dessous** | Un nombre sans détail oblige à chercher ; voir [du chiffre à la ligne](17-comprendre-et-lire-grafana.md#4-bis-du-chiffre-à-la-ligne--où-voir-le-détail-dun-nombre) |
+| Un compteur d'**exceptions** (erreurs, échecs) ajoute `or vector(0)` à sa requête | Sans cela, un état sain affiche « No data » au lieu de **0** |
+| Un panneau qui peut légitimement être vide a un **`noValue` explicite** (« Aucun paiement sur 24 h ») | « No data » ressemble à une panne |
+| Une `description` dit **ce qu'est le bon état** et **où agir** | Quelqu'un qui n'était pas là doit comprendre sans demander |
+
 ### Écrire une bonne alerte
 
 | Bonne pratique | Pourquoi |

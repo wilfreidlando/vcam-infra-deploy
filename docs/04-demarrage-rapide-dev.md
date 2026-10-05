@@ -27,11 +27,12 @@ sans point.
 
 ## 2. Ajouter 3 fichiers à votre dépôt
 
-Selon votre projet, copier depuis `templates/` :
+Selon votre projet, copier depuis `templates/` (le [README des modèles](../templates/README.md) dit lequel choisir) :
 
 | Mon projet est… | Fichiers à copier | Renommer en |
 | --- | --- | --- |
-| Laravel (avec base, queue…) | `compose.laravel.yaml`, `platform.env`, `env.platform.example` | `compose.prod.yaml`, `platform.env`, à fusionner dans votre `.env.example` |
+| Laravel avec **PostgreSQL** | `compose.laravel.yaml`, `platform.env`, `env.platform.production.example` et `env.platform.staging.example` | `compose.prod.yaml`, `platform.env`, à fusionner dans le `.env` de chaque environnement |
+| Laravel avec **MySQL ou MariaDB** | `compose.laravel-mysql.yaml` (le reste comme ci-dessus) | `compose.prod.yaml` |
 | React, Vite, Angular, Vue (site statique) | `frontend/Dockerfile.spa`, `frontend/nginx-spa.conf`, `frontend/40-runtime-env.sh`, `frontend/compose.frontend.yaml`, `frontend/platform.env` | `compose.frontend.yaml` → `compose.prod.yaml` |
 | Next.js | `frontend/Dockerfile.nextjs`, `frontend/compose.frontend.yaml` (variante B), `frontend/platform.env` avec `BUILD_PER_ENV=1` | idem |
 | Autre backend web (Node, Python, Go…) | `compose.web.yaml`, `platform.env` | `compose.prod.yaml` |
@@ -68,7 +69,7 @@ cp prod/.env.example prod/.env                   # puis le remplir (valeurs de P
 
 **Règle d'or** : jamais les mêmes secrets en staging et en production. Les
 variables propres à la plateforme (`DEPLOYMENT`, `APP_PUBLIC_HOST`, `BACKUP_*`…) sont
-expliquées dans `templates/env.platform.example`.
+expliquées dans `templates/env.platform.production.example` (production) et `templates/env.platform.staging.example` (staging).
 
 ## 4. Premier déploiement
 

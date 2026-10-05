@@ -1,0 +1,154 @@
+# VPS standard — Laravel project on MYSQL / MARIADB (README.md). Same as compose.laravel.yaml (PostgreSQL) except the database service
+# and the backup agent's engine. Copy as compose.prod.yaml,
+# replace « mon-saas », adapt the Dockerfile target / commands. Used for BOTH
+# staging and production by bin/deploy.sh (project name and env file
+# differ, nothing else).
+#
+# The rules this file applies (checked by bin/vps-audit.sh):
+#   - no `ports:` — traffic only through nginx-proxy (VIRTUAL_HOST on the web
+#     container ONLY; the env file says APP_PUBLIC_HOST, because every
+#     container loads it and workers must not claim the name too)
+#   - database/cache on the project's private network only
+#   - restart policy, memory limit, healthcheck, log rotation everywhere
+#   - images tagged by commit (IMAGE_TAG), never a moving `latest`
+#   - observability labels + shared `observability` network for app containers
+#   - project-unique host names (mon-saas-web, mon-saas-db, mon-saas-redis),
+#     never bare « app », « db », « redis »: the web service also sits on the
+#     shared nginx-proxy network, where another project's « db » can win the
+#     DNS lookup (seen on the VPS: migrations hitting a foreign database)
+
+x-defaults: &defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+x-app: &app
+  <<: *defaults
+  image: mon-saas:${IMAGE_TAG:-latest}
+  build: { context: ., target: production }
+  env_file: [ "${ENV_FILE:-.env}" ]
+  environment: &app-env
+    # Override the env file on purpose: see the header.
+    DB_HOST: mon-saas-db
+    REDIS_HOST: mon-saas-redis
+  depends_on:
+    mon-saas-db: { condition: service_healthy }
+    mon-saas-redis: { condition: service_healthy }
+  networks: [ default, observability ]
+  labels:
+    observability.enable: "true"
+    observability.app: mon-saas
+    observability.deployment: ${DEPLOYMENT:-prod}
+
+services:
+  mon-saas-web:
+    <<: *app
+    # Serves HTTP on 8000 (FrankenPHP, Octane, or php-fpm + nginx in the image).
+    environment:
+      <<: *app-env
+      VIRTUAL_HOST: ${APP_PUBLIC_HOST}
+      VIRTUAL_PORT: "8000"
+      LETSENCRYPT_HOST: ${APP_PUBLIC_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    networks: [ default, observability, nginx-proxy ]
+    labels:
+      observability.enable: "true"
+      observability.app: mon-saas
+      observability.deployment: ${DEPLOYMENT:-prod}
+      observability.metrics.port: "8000"     # retirer si pas de /metrics
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://127.0.0.1:8000/up" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy: { resources: { limits: { cpus: "${APP_CPUS:-1.0}", memory: "${APP_MEMORY:-768M}" } } }
+
+  queue:
+    <<: *app
+    command: php artisan queue:work --tries=3 --max-time=3600   # ou: php artisan horizon
+    healthcheck: { disable: true }
+    deploy: { resources: { limits: { cpus: "0.5", memory: "${QUEUE_MEMORY:-512M}" } } }
+
+  scheduler:
+    <<: *app
+    command: php artisan schedule:work
+    healthcheck: { disable: true }
+    deploy: { resources: { limits: { cpus: "0.25", memory: "256M" } } }
+
+  mon-saas-db:
+    <<: *defaults
+    # MariaDB 11.4 (or 10.7 to stay identical to an existing server) or MySQL 8.4: the MYSQL_* variables work for both images.
+    # Pin the SAME version on every environment, and test a restore on THAT version (tests/test-backup.sh covers 10.7, 11.4 and 8.4).
+    image: mariadb:11.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"      # no root password to keep: the project's own user is enough
+    volumes: [ db-data:/var/lib/mysql ]
+    healthcheck:
+      # By the NETWORK (127.0.0.1), not the socket: on first start the server answers on the socket while it initialises
+      # (seen with PostgreSQL: the migration ran against a database not yet ready). mysqladmin for the MySQL image.
+      test: [ "CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u${DB_USERNAME} -p${DB_PASSWORD} --silent || mysqladmin ping -h 127.0.0.1 -u${DB_USERNAME} -p${DB_PASSWORD} --silent" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    deploy: { resources: { limits: { cpus: "1.0", memory: "${DB_MEMORY:-768M}" } } }
+
+  mon-saas-redis:
+    <<: *defaults
+    image: valkey/valkey:8.1-alpine
+    command: valkey-server --appendonly yes --maxmemory 192mb --maxmemory-policy noeviction
+    volumes: [ redis-data:/data ]
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy: { resources: { limits: { cpus: "0.25", memory: "256M" } } }
+
+  backup:
+    <<: *defaults
+    build: { context: /app/vps-platform/images/db-backup }   # chemin du dépôt plateforme sur le VPS
+    image: vps/db-backup:1
+    env_file: [ "${ENV_FILE:-.env}" ]        # BACKUP_PASSPHRASE, BACKUP_S3_*, AWS_*
+    environment:
+      BACKUP_NAME: mon-saas-${DEPLOYMENT:-prod}
+      BACKUP_ENGINE: mysql
+      MYSQL_HOST: mon-saas-db
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes: [ backups:/backups ]
+    depends_on: { mon-saas-db: { condition: service_healthy } }
+    deploy: { resources: { limits: { cpus: "0.5", memory: "256M" } } }
+    # Journaux de la sauvegarde dans Grafana : « backup: uploaded to s3://… » chaque nuit, ou son absence
+    # (alerte « aucune sauvegarde envoyée depuis 36 h »). Label seul : pas de réseau `observability`.
+    labels:
+      observability.enable: "true"
+      observability.app: mon-saas
+      observability.deployment: ${DEPLOYMENT:-prod}
+    # « healthy » = un envoi sur S3 a réussi il y a moins de 36 h (marqueur /backups/.last-upload ; les copies ne restent pas
+    # sur le serveur) : une sauvegarde qui cesse de tourner devient
+    # visible (docker ps, audit). Le premier créneau nocturne peut n'arriver que le lendemain d'un premier déploiement.
+    healthcheck:
+      test: [ "CMD-SHELL", "find /backups -maxdepth 1 -name .last-upload -mmin -2160 | grep -q ." ]
+      interval: 1h
+      timeout: 10s
+      retries: 1
+      start_period: 30h
+
+volumes:
+  db-data:
+  redis-data:
+  backups:
+
+networks:
+  default:
+    name: mon-saas-${DEPLOYMENT:-prod}-internal
+  nginx-proxy:
+    external: true
+  observability:
+    external: true

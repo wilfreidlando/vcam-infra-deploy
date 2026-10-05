@@ -107,3 +107,37 @@ check "le test ne laisse rien dans l'arbre de Grafana réel du dépôt" \
 step "Le modèle du dépôt est lui-même valide"
 check "templates/observabilite-projet passe la validation (un projet qui le copie n'est pas refusé)" \
     python3 "${BUNDLE}" validate --app mon-projet --src "${INFRA_DIR}/templates/observabilite-projet/observability" --grafana-dir "${G}"
+
+step "Du chiffre à la ligne : chaque chiffre d'erreurs ou d'avertissements mène aux lignes concernées"
+# Incident du 2026-10-05 : un tableau montrait « 3 avertissements » sans dire OÙ lire les lignes. Les compteurs d'erreurs et d'avertissements portent donc
+# un lien vers Explore (requête préremplie) et le tableau a juste dessous le panneau de lignes. Le lien doit rester VALIDE : on le décode et on lit son JSON.
+cat > "${WORK}/links.py" <<'PY'
+import glob, json, re, sys, urllib.parse
+bad, seen = [], 0
+for f in sorted(glob.glob(sys.argv[1] + "/**/*.json", recursive=True)):
+    d = json.load(open(f, encoding="utf-8"))
+    titles = [p.get("title", "") for p in d.get("panels", [])]
+    for p in d.get("panels", []):
+        links = (p.get("fieldConfig", {}).get("defaults", {}) or {}).get("links") or []
+        counts = re.search(r"(Erreurs|Avertissements) \(", p.get("title", "")) and p.get("type") == "stat"
+        if counts and not links:
+            bad.append(f"{f}: « {p['title']} » n'a pas de lien vers les lignes")
+        for l in links:
+            u = l.get("url", "")
+            if not u.startswith("/explore?") or "panes=" not in u:
+                continue
+            seen += 1
+            raw = urllib.parse.unquote(u.split("panes=", 1)[1])
+            raw = re.sub(r"\$\{[^}]*\}", "x", raw)
+            try:
+                pane = json.loads(raw)["a"]
+                assert pane["queries"][0]["expr"].startswith("{")
+            except Exception as e:
+                bad.append(f"{f}: lien invalide dans « {p['title']} » ({e})")
+        if counts and "Erreurs et avertissements" not in " ".join(titles) and "Journaux" not in " ".join(titles):
+            bad.append(f"{f}: le tableau n'a pas de panneau de lignes sous ses compteurs")
+print("\n".join(bad)); print(f"{seen} lien(s) Explore vérifié(s)", file=sys.stderr)
+sys.exit(1 if bad else 0)
+PY
+check "les liens Explore des compteurs sont valides, et chaque compteur d'erreurs en a un" python3 "${WORK}/links.py" "${INFRA_DIR}/observability/grafana/dashboards"
+

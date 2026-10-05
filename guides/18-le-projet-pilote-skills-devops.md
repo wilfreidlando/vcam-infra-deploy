@@ -20,7 +20,7 @@ intervenir** quand quelque chose ne va pas.
 | Pourquoi elle est utile | Elle exerce **tout** : HTTPS, base de données persistante, cache, file, tâches planifiées, sauvegarde, journaux dans Grafana, déploiement avec retour arrière |
 | Technologie | Laravel 13, FrankenPHP (PHP 8.4), PostgreSQL 18, Valkey (compatible Redis) |
 | Environnements | `staging` (déployé automatiquement) et `prod` (promotion manuelle de **la même image**) |
-| Où | `/app/skills-devops/staging` et `/app/skills-devops/prod`, projets Docker `skills-devops-staging` et `skills-devops-prod` |
+| Où | `/app/skills-devops/staging` et `/app/skills-devops/prod`, projets Docker `skills-devops-staging` et `skills-devops-prod`. **La fiche de déploiement du projet : `docs/DEPLOIEMENT.md` dans son dépôt** (modèle de la plateforme, clause C14) |
 | Ce qu'il ne montre pas | Une base MySQL/MariaDB (la majorité du serveur : voir la [variante](#9-adapter-ce-projet-à-un-autre)), un frontend statique, une application multi-domaines |
 
 ## 2. Les six services

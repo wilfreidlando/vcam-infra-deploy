@@ -108,6 +108,9 @@ docker exec vpstest-obs-demo wget -qO- --header 'Content-Type: application/json'
     --post-data "{\"resourceSpans\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"demo\"}}]},\"scopeSpans\":[{\"spans\":[{\"traceId\":\"${TID}\",\"spanId\":\"eee19b7ec3c1b174\",\"name\":\"GET /\",\"kind\":2,\"startTimeUnixNano\":\"${NOW}000000000\",\"endTimeUnixNano\":\"${NOW}500000000\"}]}]}]}" \
     http://vpstest-obs-alloy:4318/v1/traces >/dev/null
 check "trace OTLP reçue par Tempo" wait_for 60 graf "http://tempo:3200/api/traces/${TID}"
+# Le tableau « Traces » de Grafana calcule des courbes (TraceQL metrics : rate…) : sans générateur de métriques, Tempo répond « empty ring » (500).
+check "les requêtes TraceQL de métriques (rate) répondent : générateur de métriques actif" wait_for 120 sh -c \
+    "docker exec vpstest-obs-grafana wget -qO- \"http://tempo:3200/api/metrics/query_range?q=%7B%7D%20%7C%20rate()&start=\$(( \$(date +%s) - 900 ))&end=\$(date +%s)&step=60\" | grep -q series"
 
 step "Le serveur lui-même (node-exporter)"
 # La plateforme observe le serveur sans qu'aucun projet n'ait rien à faire : processeur, mémoire, swap,

@@ -27,5 +27,23 @@ compactor:
     # 30 days of traces.
     block_retention: 720h
 
+# TraceQL METRICS (rate, count_over_time… over traces). Grafana's « Traces » drill-down calls them; without a metrics-generator
+# Tempo answers « empty ring » (HTTP 500). Only the local-blocks processor is enabled: it answers these queries from recent
+# traces, without producing Prometheus series (no remote write, so no extra load on Prometheus).
+metrics_generator:
+  processor:
+    local_blocks:
+      filter_server_spans: false
+      flush_to_storage: true
+  storage:
+    path: /var/tempo/generator/wal
+  traces_storage:
+    path: /var/tempo/generator/traces
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [ local-blocks ]
+
 usage_report:
   reporting_enabled: false

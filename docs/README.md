@@ -31,7 +31,9 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Savoir quel **profil** est le mien (sans staging, plusieurs productions, site simple) | [Profils de projet](reference/profils-de-projet.md) |
 | Mettre mon projet en ligne | [Démarrage rapide](04-demarrage-rapide-dev.md), [brancher un projet](reference/brancher-et-corriger-un-projet.md) |
 | Amener un projet existant au standard | [Guide 16](../guides/16-mettre-un-projet-au-standard.md), [contrat § 4](05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) |
+| **Je suis dans telle situation : que faire, avec quelle commande, par environnement ?** | [Déployer selon la situation](reference/deployer-selon-la-situation.md) |
 | Déployer, promouvoir, revenir en arrière | [Organisation et livraison](reference/organisation-et-livraison.md) |
+| Par quel **modèle** partir (Laravel PostgreSQL ou MySQL, back end web, front) | [Modèles de projet](../templates/README.md) |
 | Installer le serveur de zéro | [Feuille de route](../guides/00-feuille-de-route.md), puis les [guides](../guides/README.md) |
 | Régler le DNS, un sous-domaine | [Domaines et DNS](reference/domaines-et-dns.md), [guide 2](../guides/02-dns-wildcard.md) |
 | Régler le serveur lui-même (journaux, pare-feu) | [Réglages de l'hôte](reference/reglages-de-lhote.md), [guide 9](../guides/09-rotation-journaux-hote.md) |
@@ -72,6 +74,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Document | Contenu |
 | --- | --- |
 | [Démarrage rapide pour les développeurs](04-demarrage-rapide-dev.md) | Mettre son projet en ligne |
+| [Déployer selon la situation](reference/deployer-selon-la-situation.md) | Environnements, situations (nouveau projet, mise à jour, migration, variable…), commandes, règles |
 | [Organisation et livraison](reference/organisation-et-livraison.md) | Dossiers du serveur, staging, promotion, retour arrière |
 | [Brancher et corriger un projet](reference/brancher-et-corriger-un-projet.md) | Liste de contrôle et table des corrections |
 | [Catalogue des besoins](reference/catalogue-des-besoins.md) | Chaque service de la plateforme, ce qu'il apporte et ce que le projet doit fournir |

@@ -42,12 +42,13 @@ Noter chaque ligne **BLOQUANT**, **CRITIQUE** et **ATTENTION** : ce sont les éc
 | **C6** `platform.env` jamais modifié sur le serveur | `git status` propre dans `/app/<app>/<env>` | Faire le changement par commit |
 | **C7** Images taguées | `image: <app>:${IMAGE_TAG:-latest}` | Voir `templates/` |
 | **C8** `restart`, mémoire, journaux | `restart: unless-stopped`, `deploy.resources.limits.memory`, bloc `logging` | Partir de 2 fois la consommation observée (`docker stats --no-stream`) |
-| **C9** Clé de déploiement | `git remote -v` en `git@github-<app>:…`, jamais en HTTPS | `git remote set-url origin git@github-<app>:<compte>/<dépôt>.git` |
+| **C9** Accès au dépôt | **Dépôt privé** : `git remote -v` en `git@github-<app>:…`, jamais en HTTPS avec un identifiant. **Dépôt public** : HTTPS sans identifiant | privé : `git remote set-url origin git@github-<app>:<compte>/<dépôt>.git` |
 | **C10** Secrets séparés | `.env` et `.env.staging` différents ; jamais commités | — |
 | **C11** Sauvegarde chiffrée hors serveur | Service `backup` (agent `images/db-backup`) et restauration mensuelle | [Guide 4](04-sauvegardes-mega-s4.md) |
-| **C12** Observabilité (backends) | Labels `observability.*` sur les services à observer | [README de l'observabilité](../observability/README.md) |
+| **C12** Observabilité (backends) | Labels `observability.*` sur les services à observer ; ses propres tableaux et alertes dans `observability/` | [Guide 19](19-observabilite-de-mon-projet.md) |
+| **C14** Fiche de déploiement | `docs/DEPLOIEMENT.md` à jour : environnements, variables (noms et rôles), livraison, retour arrière | [modèle](../templates/docs-projet/DEPLOIEMENT.md) ; [déployer selon la situation](../docs/reference/deployer-selon-la-situation.md) |
 
-Le contrôle `deploy.sh check` couvre C3, C5 et C9 de façon bloquante, et une modification
+Le contrôle `deploy.sh check` couvre C3, C5 et C9 de façon bloquante, signale l'absence de la fiche C14 (INFO), et une modification
 locale de `platform.env` (C6) fait échouer le changement de commit. L'audit couvre les
 autres clauses en niveaux CRITIQUE, ATTENTION ou INFO.
 

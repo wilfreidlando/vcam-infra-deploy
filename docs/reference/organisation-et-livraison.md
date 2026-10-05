@@ -3,6 +3,8 @@
 > Où se trouve chaque chose sur le serveur, et comment une version arrive du développement à la production.
 > Retour au [sommaire de la documentation](../README.md).
 
+> **Une situation précise (nouveau projet, variable, migration, retour arrière…) ?** [Déployer selon la situation](deployer-selon-la-situation.md).
+>
 > **Ce protocole décrit le profil standard (staging puis production).** Un projet peut n'avoir **pas de staging**, ou **plusieurs productions** :
 > voir les [profils de projet](profils-de-projet.md). Dans tous les cas, une production n'est jamais déployée automatiquement.
 

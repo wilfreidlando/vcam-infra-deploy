@@ -83,6 +83,21 @@ Menu de gauche :
 > **L'état d'une seule application ?** *Dashboards → Plateforme → « Application — vue d'ensemble »* : choisir l'application en haut. **Les tableaux et alertes propres à un projet**
 > (ses chiffres métier) sont dans un dossier à son nom, publiés depuis son dépôt : [guide 19](19-observabilite-de-mon-projet.md).
 
+## 4 bis. Du chiffre à la ligne : où voir le détail d'un nombre
+
+Un chiffre dit **combien**, jamais **quoi**. Pour chaque nombre d'un tableau, voici où lire les lignes concernées :
+
+| Je vois… | Où je lis le détail | Comment |
+| --- | --- | --- |
+| **Erreurs / Avertissements** (tableau Applications — journaux) | Les lignes elles-mêmes | **Cliquer sur le chiffre** : Explore s'ouvre avec la requête préremplie. Ou, plus bas, le panneau **Journaux** : taper `ERROR` ou `WARNING` dans la recherche |
+| **Erreurs / Avertissements** (Application — vue d'ensemble) | Le panneau **« Erreurs et avertissements récents »**, juste dessous | Rien à faire : le détail est sous le chiffre ; cliquer sur le chiffre ouvre Explore |
+| **Webhooks en DLQ** ou **taux d'erreur 5xx** (Core — Vue d'ensemble) | Le panneau **« Erreurs et avertissements récents »**, juste dessous ; pour une DLQ, la console du Core → Webhooks → DLQ | Cliquer sur le chiffre ; puis rejouer après correction du point d'arrivée du client |
+| **Redémarrages sur 24 h** | Le tableau **Plateforme → Conteneurs** (quel conteneur), puis son journal | `docker logs --tail 20 <conteneur>` ; jamais `--since` sur un gros journal |
+| Un **conteneur en boucle** (alerte reçue par e-mail) | Le runbook cité dans le message de l'alerte | [Conteneur en boucle](../docs/runbooks/conteneur-en-boucle.md) |
+| Un **site hors ligne** ou un **certificat qui expire** | Le tableau **Sites**, puis le runbook de l'alerte | [Site en panne](../docs/runbooks/site-en-panne.md), [Certificat non émis](../docs/runbooks/certificat-non-emis.md) |
+
+Un chiffre **à 0** est en général le bon état ; un panneau qui liste seulement des exceptions et qui est vide l'affiche aussi (voir plus haut « No data : défaut ou bon état ? »).
+
 ## 5. Premiers pas : six exercices guidés
 
 À faire dans l'ordre, avec un projet branché (par exemple `skills-devops`).

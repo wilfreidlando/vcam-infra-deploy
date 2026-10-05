@@ -1,6 +1,12 @@
 # VPS standard — frontend (React / Angular / Vue SPA, or Next.js)
-# (README.md). No observability, no database: one container behind
-# nginx-proxy. Copy as compose.prod.yaml, keep ONE of the two `app` variants.
+# (templates/README.md). No database: one container behind nginx-proxy. Copy as compose.prod.yaml, keep ONE of the two
+# variants. The container health check is in the Dockerfile (HEALTHCHECK).
+#
+# Observability, proportionate to a site that has no back end (docs/reference/profils-de-projet.md, level 0):
+#   - the platform probes the site FROM the server (up or down, certificate expiry): ask the platform manager to add
+#     it to the list of probed sites (prometheus/targets/sites.yml). Nothing to write here.
+#   - its access logs are NOT collected by default (noisy, little value). For a Next.js server whose logs you do want
+#     in Grafana, add the three labels and the observability network shown below.
 
 x-defaults: &defaults
   restart: unless-stopped
@@ -25,6 +31,11 @@ services:
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
       # Runtime config → window.__ENV__ (PUBLIC_* only, never a secret)
       PUBLIC_API_URL: ${PUBLIC_API_URL}
+    # Optional (logs in Grafana) — also add `observability` to `networks:` and as an external network at the bottom:
+    # labels:
+    #   observability.enable: "true"
+    #   observability.app: mon-front
+    #   observability.deployment: ${DEPLOYMENT:-prod}
     networks: [ nginx-proxy ]
     deploy: { resources: { limits: { cpus: "0.25", memory: "64M" } } }
 

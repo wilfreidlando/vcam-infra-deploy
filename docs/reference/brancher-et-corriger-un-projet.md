@@ -17,7 +17,7 @@
 2. **`platform.env`** (commité) : nom, healthcheck, migrations, sauvegarde. Modèle :
    `templates/platform.env`, ou `templates/frontend/platform.env` pour un frontend.
 3. **Fichiers d'environnement** (non commités) : `.env` et `.env.staging`, avec les
-   variables de `templates/env.platform.example`. Les ajouter au `.gitignore`.
+   variables de `templates/env.platform.production.example` (production) et `templates/env.platform.staging.example` (staging). Les ajouter au `.gitignore`.
 4. **Sur le serveur** :
    ```bash
    # clé de déploiement + alias SSH github-<projet> : guide 3, étape 0 (règle 16)

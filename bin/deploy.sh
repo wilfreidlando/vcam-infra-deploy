@@ -635,6 +635,9 @@ cmd_check() {
     else
         ok=0
     fi
+    # Not blocking: a missing deployment sheet is a gap in the project's documentation, not a reason to refuse a deploy.
+    [[ -f "${PROJECT_DIR}/docs/DEPLOIEMENT.md" ]] \
+        || log "check : INFO — pas de docs/DEPLOIEMENT.md : la fiche de déploiement du projet, environnement par environnement (modèle : templates/docs-projet/DEPLOIEMENT.md, clause C14)"
     [[ "${ok}" == 1 ]] || die "check ${env} : problème(s) ci-dessus"
     log "check ${env} : OK"
 }

@@ -44,6 +44,7 @@ Le dépôt a plusieurs métiers. Chacun a un point d'entrée.
 | **Nouveau**, je veux comprendre comment le serveur fonctionne | [Schémas](docs/01-schemas.md), [glossaire](docs/03-glossaire.md), [architecture](docs/reference/architecture-du-serveur.md) |
 | **La personne qui installe** la plateforme | La [feuille de route](guides/00-feuille-de-route.md), puis les [guides](guides/README.md) |
 | **Je veux voir ce qui tourne** sur le serveur | `vps-inventory.sh` et les [inventaires](docs/inventaire/README.md) |
+| **Je veux déployer ou mettre à jour : que faire selon ma situation et mon environnement ?** | [Déployer selon la situation](docs/reference/deployer-selon-la-situation.md) · [modèles](templates/README.md) |
 | **Je veux comprendre Grafana** | [Guide 17](guides/17-comprendre-et-lire-grafana.md) |
 | **Je veux que mon projet ait ses tableaux et ses alertes** | [Guide 19](guides/19-observabilite-de-mon-projet.md) |
 | **Responsable technique** | [Résilience et évolutivité](docs/02-resilience-evolutivite.md), [ADR-0064](docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md) |
