@@ -88,6 +88,9 @@ networks:
 Les **journaux** sont lus par le socket Docker : le label suffit, aucun réseau
 n'est requis (un conteneur sur plusieurs réseaux n'est collecté qu'une fois —
 vérifié). Les **métriques** et les **traces** exigent le réseau `observability`.
+Un projet est en général sur **plusieurs** réseaux (`nginx-proxy`, `observability`, son réseau privé) : Alloy les examine
+tous (`match_first_network = false`) et ne scrute que celui qui s'appelle `observability`
+([retour d'expérience](../docs/retours-experience/2026-10-05-metriques-du-pilote-absentes-reseau-alloy.md)).
 Ne branchez jamais la base de données, Redis ni un conteneur **PHP-FPM** (FastCGI
 sur le port 9000, sans authentification : quiconque le joint exécute du PHP) sur
 ce réseau partagé : mettez-leur le label seul.
@@ -158,8 +161,8 @@ joignable que depuis le réseau privé de la pile.
 | Cinq alertes génériques : serveur plus observé, disque > 85 %, mémoire disponible < 10 %, swap > 50 %, charge > 2,5 par processeur | Grafana, **Alerting**, dossier **Plateforme** ([`generic-alerts.yaml`](grafana/provisioning/alerting/generic-alerts.yaml)) |
 
 Ces alertes partent vers le point de contact par défaut (`core-oncall`, nom historique : il reçoit **toutes** les alertes). Chacune
-a un délai (`for`) pour éviter le bruit. Les métriques **par conteneur** (consommation, redémarrages) ne sont pas encore collectées :
-[ADR-0065](../docs/adr/0065-supervision-du-serveur-node-exporter.md) (cAdvisor, voir ci-dessous). Guide de lecture : [guide 17](../guides/17-comprendre-et-lire-grafana.md).
+a un délai (`for`) pour éviter le bruit. Les métriques **par conteneur** (consommation, redémarrages) viennent de cAdvisor, voir la section suivante et
+l'[ADR-0065](../docs/adr/0065-supervision-du-serveur-node-exporter.md). Guide de lecture : [guide 17](../guides/17-comprendre-et-lire-grafana.md).
 
 Vérifier : `up{job="node"}` vaut 1 dans Prometheus, et `node_load5` renvoie une valeur.
 

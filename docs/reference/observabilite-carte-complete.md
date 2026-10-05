@@ -90,7 +90,8 @@ La charge du serveur est déjà élevée : on n'ajoute pas tout d'un coup.
 | 2 | `cAdvisor` | Mémoire de `observability-cadvisor` sous sa limite ; charge du serveur sans hausse notable après 15 minutes |
 | 3 | La liste des sites (`prometheus/targets/sites.yml`) | Tableau « Sites » rempli ; sondes « en ligne » |
 
-Retour arrière à chaque étape : `docker compose … stop <composant>` (les données restent).
+Retour arrière à chaque étape : `docker compose … stop <composant>` (les données restent). Le déroulé complet, avec les commandes, les
+vérifications et les pièges : [runbook de mise en service](../runbooks/mise-en-service-supervision.md).
 
 ## 7. Exploitation
 

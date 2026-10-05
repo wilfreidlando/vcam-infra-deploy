@@ -43,6 +43,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Un déploiement échoue | [Runbook : déploiement en échec](runbooks/deploiement-en-echec.md) |
 | Un conteneur redémarre en boucle | [Runbook : conteneur en boucle](runbooks/conteneur-en-boucle.md) |
 | Réagir à une panne | [Runbooks](runbooks/README.md) |
+| Mettre en service ou mettre à jour la supervision | [Runbook : mise en service de la supervision](runbooks/mise-en-service-supervision.md) |
 | Savoir pourquoi on a fait ce choix | [ADR](adr/README.md) |
 | Savoir ce qui a déjà mal tourné | [Retours d'expérience](retours-experience/README.md) |
 | Savoir l'état du serveur à une date | [Inventaires](inventaire/README.md) |
@@ -90,7 +91,8 @@ Classés par thème dans l'[index des guides](../guides/README.md) : **installer
 [disque plein](runbooks/disque-plein.md), [certificat non émis](runbooks/certificat-non-emis.md),
 [base inaccessible](runbooks/base-inaccessible.md), [déploiement en échec](runbooks/deploiement-en-echec.md),
 [conteneur en boucle](runbooks/conteneur-en-boucle.md),
-[exercice de restauration](runbooks/exercice-de-restauration.md).
+[exercice de restauration](runbooks/exercice-de-restauration.md),
+[mise en service de la supervision](runbooks/mise-en-service-supervision.md).
 
 ### Mémoire
 

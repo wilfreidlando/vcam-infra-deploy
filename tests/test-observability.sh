@@ -29,10 +29,15 @@ graf() { docker exec vpstest-obs-grafana wget -qO- "$@"; }
 check "Grafana répond" wait_for 120 graf "http://admin:vpstest-pass@localhost:3000/api/health"
 
 step "Projets observés"
-docker run -d --name vpstest-obs-demo --network "${OBS_NETWORK}" \
+# Le projet est sur DEUX réseaux et le réseau partagé n'est PAS le premier par ordre alphabétique (cas réel : nginx-proxy,
+# observability, <projet>-internal). Alloy ne retient par défaut que le premier réseau : sans match_first_network = false, la
+# cible de métriques disparaît (incident constaté sur le serveur au premier déploiement du pilote).
+docker network create vpstest-a-first >/dev/null
+docker run -d --name vpstest-obs-demo --network vpstest-a-first \
     -l observability.enable=true -l observability.app=demo-laravel -l observability.deployment=staging \
     -l observability.metrics.port=8080 -l com.docker.compose.service=app \
     busybox sh -c 'mkdir -p /www && printf "# TYPE demo_up gauge\ndemo_up 1\n" > /www/metrics && httpd -p 8080 -h /www && while true; do echo "{\"message\":\"hello\",\"level_name\":\"ERROR\",\"extra\":{\"correlation_id\":\"corr-123\"}}"; sleep 2; done' >/dev/null
+docker network connect "${OBS_NETWORK}" vpstest-obs-demo
 docker run -d --name vpstest-obs-ignored --network "${OBS_NETWORK}" -l com.docker.compose.project=secret-project \
     busybox sh -c 'while true; do echo ignored-line; sleep 2; done' >/dev/null
 

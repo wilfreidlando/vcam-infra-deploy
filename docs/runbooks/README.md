@@ -21,6 +21,7 @@ action, vérification, **ce qu'il ne faut pas faire**, et ce qu'on écrit après
 | Quand | Runbook |
 | --- | --- |
 | Chaque mois, par projet | [Exercice de restauration](exercice-de-restauration.md) : prouver qu'une sauvegarde se restaure |
+| À chaque évolution de la supervision | [Mise en service de la supervision](mise-en-service-supervision.md) : par paliers, un signal à la fois |
 
 ## Les cinq règles de tout incident
 

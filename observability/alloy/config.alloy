@@ -22,6 +22,9 @@
 
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
+  // Par défaut Alloy ne retient que le PREMIER réseau (par ordre alphabétique) de chaque conteneur : un projet sur
+  // nginx-proxy, observability et son réseau privé n'aurait jamais sa cible de métriques sur « observability ».
+  match_first_network = false
 }
 
 // Common to logs and metrics: opted-in containers. A container on several
