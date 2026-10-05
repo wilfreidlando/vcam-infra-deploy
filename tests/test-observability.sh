@@ -205,6 +205,12 @@ check "chaque requête des tableaux Serveur, Conteneurs, Application et des aler
     wait_for 240 python3 "${WORK}/exprs.py" "${INFRA_DIR}/observability"
 python3 "${WORK}/exprs.py" "${INFRA_DIR}/observability" >&2 || true   # en cas d'échec, le journal nomme les requêtes vides
 
+# Constat du 2026-10-05 : « Temps de réponse par site » traçait UNE COURBE PAR SITE (75), soit ~1 Mo par affichage contre 12 Ko pour un panneau normal. Sur une
+# connexion qui change de réseau (ERR_NETWORK_CHANGED) c'est le panneau le plus lourd qui échoue et affiche « No data » ; 75 courbes superposées sont de toute façon
+# illisibles. Un panneau ne trace jamais un sélecteur de sondes brut : il agrège (topk, sum…) ou filtre (< 1).
+check_not "aucun panneau ne trace un sélecteur brut de sondes de sites (une courbe par site : lourd et illisible)" \
+    sh -c "grep -rE '\"expr\": \"probe_[a-z_]+\\{job=\\\\\"sites\\\\\"\\}\"' '${INFRA_DIR}/observability/grafana/dashboards'"
+
 step "Grafana"
 search="$(graf "http://admin:vpstest-pass@localhost:3000/api/search?query=")"
 check_not "plus aucun tableau du Core dans la plateforme (il les livre dans son dépôt)" grep -q '"Core System"' <<< "${search}"

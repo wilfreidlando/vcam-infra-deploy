@@ -313,8 +313,8 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "Temps de réponse par site",
-      "description": "",
+      "title": "Temps de réponse des 10 sites les plus lents",
+      "description": "Les 10 sites qui répondent le plus lentement, en secondes (la plus lente de toutes est aussi dans le carré « Réponse la plus lente »). Au-delà de 2 s, un site mérite un regard. Pour suivre UN site précis : Explore → Prometheus → probe_duration_seconds{instance=\"https://…\"}.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -332,7 +332,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "probe_duration_seconds{job=\"sites\"}",
+          "expr": "topk(10, max by (instance) (probe_duration_seconds{job=\"sites\"}))",
           "legendFormat": "{{instance}}"
         }
       ],
@@ -360,8 +360,8 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Disponibilité (1 = en ligne)",
-      "description": "",
+      "title": "Sites injoignables sur la période (0 = hors ligne)",
+      "description": "Seuls les sites qui ont été hors ligne à un moment de la période apparaissent. Vide = aucun site injoignable : c'est le bon état. Pour un site précis : Explore → Prometheus → probe_success{instance=\"https://…\"}.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -379,13 +379,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "probe_success{job=\"sites\"}",
+          "expr": "probe_success{job=\"sites\"} < 1",
           "legendFormat": "{{instance}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "noValue": "Aucun site injoignable sur la période",
           "custom": {
             "fillOpacity": 10,
             "lineWidth": 1,
