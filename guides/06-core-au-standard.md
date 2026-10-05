@@ -6,6 +6,12 @@
 - `core-system.visibilitycam.com` : production, mise à jour **uniquement** par
   promotion manuelle de l'image validée en staging.
 
+> **Avant de commencer : où est le standard ?** Les fichiers du standard (`platform.env`, `compose.prod.yaml`, `Makefile`, `.env.staging.example`) doivent être **sur la branche que le
+> serveur peut récupérer** (publiée sur GitHub). Sinon, ni le staging ni la promotion ne peuvent les lire. Choisir aussi **quelle branche** le staging construit (`STAGING_BRANCH` dans
+> `platform.env`) : `main` pour une standardisation seule, une autre branche pour valider d'abord du code non encore en production.
+>
+> **Le Core n'a, au départ, aucune sauvegarde** : l'étape 1 n'est donc pas une précaution de plus, c'est la **seule** copie qui existe jusqu'à ce que le service `backup` tourne.
+
 **Coupure de la production** : quelques secondes, au moment de la promotion
 (étape 6). Les noms des conteneurs, le réseau `core-system-internal` et les volumes
 (donc la base) **ne changent pas**.
@@ -32,8 +38,11 @@ en `CORE_PUBLIC_HOST` (étape 3).
 ```bash
 $ docker exec core-system-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' \
     > /root/core-avant-standard-$(date +%F).dump
-$ ls -lh /root/core-avant-standard-*.dump          # doit faire plus que quelques Ko
-$ cp <ANCIEN>/.env /root/core-env-avant-standard
+$ chmod 600 /root/core-avant-standard-*.dump         # lisible par root seulement
+$ ls -lh /root/core-avant-standard-*.dump          # non vide ; la base est petite, quelques centaines de Ko compressés suffisent
+$ docker exec -i core-system-postgres pg_restore -l < /root/core-avant-standard-*.dump | head   # lisible : doit lister des tables
+$ chmod 600 <ANCIEN>/.env                           # secrets de paiement : jamais lisibles par tous (clause C10)
+$ cp -p <ANCIEN>/.env /root/core-env-avant-standard
 ```
 
 ## Étape 2 — Dossiers
@@ -121,12 +130,14 @@ $ cd /app/core-system/prod
 $ make prod-promote            # tape « oui » pour confirmer
 ```
 
+**Avant de promouvoir**, prendre une sauvegarde à la main : `/app/vps-platform/bin/deploy.sh backup` (envoyée sur S3, aucune copie ne reste sur le serveur). `deploy.sh` n'en prend pas de lui-même
+au déploiement (la nocturne est le filet), sauf si `BACKUP_BEFORE_DEPLOY=always` est dans `platform.env`.
+
 Le script :
-1. fait une sauvegarde chiffrée (envoyée sur MEGA) ;
-2. applique les migrations avec la nouvelle image ;
-3. recrée les conteneurs ;
-4. vérifie `/health/ready` pendant 2 minutes ;
-5. revient automatiquement à la version précédente en cas d'échec.
+1. applique les migrations avec la nouvelle image ;
+2. recrée les conteneurs ;
+3. vérifie `/health/ready` pendant 2 minutes ;
+4. revient automatiquement à la version précédente en cas d'échec.
 
 Si le script s'arrête avec « noms d'hôte déjà utilisés par un autre projet », c'est
 la protection du guide 1. Rien n'a été modifié : corriger le nom en cause, puis
@@ -146,8 +157,8 @@ d'un paiement.
 ## Ancienne observabilité
 
 Si l'ancienne stack d'observabilité tournait dans le projet `core-system-prod`,
-l'étape 6 a retiré ses conteneurs. Après vérification, supprimer ses anciens
-volumes :
+l'étape 6 a retiré ses conteneurs. Après vérification, **la personne qui gère le serveur** peut supprimer ses anciens
+volumes (la plateforme, elle, ne supprime jamais un volume) :
 
 ```bash
 $ docker volume ls | grep core-system-prod_ | grep -E 'loki|tempo|prometheus|grafana|alloy'
@@ -161,4 +172,5 @@ $ docker volume rm <ces volumes>
 | La promotion échoue avant la bascule (sauvegarde, migration) | Rien n'a basculé. Lire l'erreur, corriger, relancer |
 | Le retour automatique a eu lieu | La production tourne sur l'ancienne version. Les migrations éventuelles sont restées |
 | Il faut revenir aux données d'avant | `cd /app/core-system/prod && /app/vps-platform/bin/restore.sh prod <fichier de sauvegarde sur S3>` |
-| Ultime recours | `docker exec -i core-system-postgres sh -c 'pg_restore --clean --if-exists -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /root/core-avant-standard-<date>.dump` |
+| Ultime recours | `docker exec -i core-system-postgres sh -c 'pg_restore --clean --if-exists --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /root/core-avant-standard-<date>.dump` (attention : `--clean` ne supprime pas ce qui a été créé **après** la copie ; l'outil `restore.sh` le fait, voir le [retour d'expérience](../docs/retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md)) |
+| Quand tout est bon | Supprimer la copie `/root/core-avant-standard-*.dump` : à partir de là, les sauvegardes vivent sur S3 |
