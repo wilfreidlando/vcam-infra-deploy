@@ -54,6 +54,9 @@ $ curl -sI https://<un site> | head -1                       # les sites répond
 - Libérer tout de suite l'espace d'un conteneur bavard, sans le redémarrer :
   `truncate -s 0 $(docker inspect -f '{{.LogPath}}' <conteneur>)`. **Cela efface l'historique de ce conteneur** : pour le proxy, ce sont les journaux d'accès de tous les sites,
   qui ne sont collectés nulle part. S'assurer qu'on n'en a pas besoin, ou les copier avant.
+- **Effet de bord observé : après une troncature en place, `docker logs <conteneur>` peut ne plus répondre** (la commande reste bloquée) jusqu'à ce que le conteneur soit recréé. Le fichier, lui, reste sain
+  et continue de se remplir : on le lit **directement** (`tail -n 50 $(docker inspect -f '{{.LogPath}}' <conteneur>)`, chaque ligne est un JSON `{"log": …}`). La voie propre est donc de **recréer le conteneur**
+  (ce qui lui applique aussi la rotation), en heure creuse ; pour le proxy, cela coupe brièvement **tous** les sites.
 - **Lire un gros journal : `docker logs --tail N`, jamais `--since`.** `--since` relit tout le fichier depuis le début (des minutes pour plusieurs Go) et ajoute de la charge.
 
 ## Retour arrière

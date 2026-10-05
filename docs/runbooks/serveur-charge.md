@@ -92,6 +92,8 @@ Un proxy dont le journal d'accès pèse plusieurs Go, ou des journaux sans rotat
 - **Supprimer un conteneur ou un volume** d'un autre projet pour faire cesser une boucle. Arrêter, oui ; supprimer, jamais sans l'accord.
 - **Conclure sur la seule « charge moyenne »** sans regarder `vmstat` : elle peut être haute sans que le serveur soit plein.
 
+- **Tronquer le journal d'un conteneur en marche** pour gagner de la place, sans prévoir la suite : `docker logs` peut ne plus répondre pour lui ensuite (voir le [guide 9](../../guides/09-rotation-journaux-hote.md)). Lire alors le fichier directement.
+
 ## 6. Ce qu'on écrit après
 
 | Quoi | Où |

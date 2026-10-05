@@ -117,4 +117,5 @@ vérifications et les pièges : [runbook de mise en service](../runbooks/mise-en
 | Alertes **par projet** (taux d'erreur, latence) | Une application lente mais « en ligne » passe inaperçue | Après les métriques applicatives |
 | **Sonde externe** | Si le serveur entier tombe, rien ici ne le dit | [Guide 8](../../guides/08-surveillance-externe.md) |
 | Alertes du Core | Fausses alertes tant que le Core n'est pas branché | Brancher le Core, ou les mettre en sourdine |
+| Arrêts par manque de mémoire (OOM) | cAdvisor ne peut pas lire `/dev/kmsg` dans ce conteneur : le compteur d'événements OOM n'existe pas. L'alerte « approche de sa limite de mémoire » ne dépend pas de lui | Lire `dmesg` sur le serveur, ou surveiller la mémoire par conteneur |
 | Alerte vers un second canal | Un seul e-mail : s'il est mal configuré, personne n'est prévenu | Un canal de plus dans Grafana |

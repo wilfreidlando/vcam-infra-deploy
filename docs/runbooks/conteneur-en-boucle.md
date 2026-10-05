@@ -10,7 +10,7 @@ dizaines de milliers de redémarrages peuvent s'accumuler sans que rien n'alerte
 
 > **Une boucle ne gêne pas que le conteneur concerné.** À chaque démarrage ou arrêt de conteneur, `nginx-proxy` régénère sa configuration pour **tous** les sites et recharge nginx :
 > une boucle déclenche cela plusieurs fois par minute, pour tout le serveur, et fait grossir les journaux. Un conteneur oublié en boucle pendant des semaines peut cumuler des **centaines de milliers**
-> de redémarrages. Voir [Serveur chargé](serveur-charge.md).
+> de redémarrages. Voir [Serveur chargé](serveur-charge.md). **Vérifié** : après l'arrêt de deux boucles, les régénérations du proxy sont passées de 3 à 4 par minute à **zéro**.
 
 ## 1. Distinguer une boucle d'un redémarrage normal
 
