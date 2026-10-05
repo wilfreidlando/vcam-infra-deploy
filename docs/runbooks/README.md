@@ -9,6 +9,8 @@ action, vérification, **ce qu'il ne faut pas faire**, et ce qu'on écrit après
 | Symptôme | Runbook |
 | --- | --- |
 | Un site ne répond plus, erreur 502 ou 503, tous les sites tombés | [Site en panne](site-en-panne.md) |
+| `deploy.sh` s'arrête avec une erreur, la nouvelle version n'est pas en ligne | [Déploiement en échec](deploiement-en-echec.md) |
+| Un conteneur redémarre sans cesse (`Restarting`, compteur de redémarrages énorme) | [Conteneur en boucle](conteneur-en-boucle.md) |
 | Alerte « disque » ou `no space left on device` | [Disque plein](disque-plein.md) |
 | Erreur de certificat, `HTTP 000`, HTTPS qui ne marche pas pour un nouveau nom | [Certificat non émis](certificat-non-emis.md) |
 | `Connection refused` vers la base, migrations en échec, base qui ne démarre pas | [Base de données inaccessible](base-inaccessible.md) |

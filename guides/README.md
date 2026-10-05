@@ -13,6 +13,7 @@ Retour au [sommaire de la documentation](../docs/README.md).
 | --- | --- |
 | Voir l'ordre complet, du début à la fin | [0. Feuille de route](00-feuille-de-route.md) |
 | Reprendre le serveur sans l'avoir construit | [15. Prise en main par une nouvelle équipe](15-prise-en-main-equipe-it.md) |
+| Voir un projet complet au standard, fichier par fichier | [18. Le projet pilote skills-devops](18-le-projet-pilote-skills-devops.md) |
 | Mettre un projet au standard | [16. Fiche de conformité](16-mettre-un-projet-au-standard.md) |
 | Comprendre Grafana | [17. Comprendre l'observabilité et lire Grafana](17-comprendre-et-lire-grafana.md) |
 
@@ -55,6 +56,7 @@ Retour au [sommaire de la documentation](../docs/README.md).
 | --- | --- | --- | --- |
 | 0 | [Feuille de route : l'ordre complet (inventaire, serveur, Core, WILMANAGER), qui fait quoi, rendez-vous réguliers](00-feuille-de-route.md) | — | — |
 | 15 | [Prise en main par une nouvelle équipe informatique](15-prise-en-main-equipe-it.md) | aucun | 30 min de lecture |
+| 18 | [Le projet pilote skills-devops : étude de cas](18-le-projet-pilote-skills-devops.md) | aucun | 30 min de lecture |
 
 ## Pour aller plus loin
 

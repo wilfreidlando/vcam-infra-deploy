@@ -36,7 +36,11 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Régler le serveur lui-même (journaux, pare-feu) | [Réglages de l'hôte](reference/reglages-de-lhote.md), [guide 9](../guides/09-rotation-journaux-hote.md) |
 | Sauvegarder et restaurer une base | [Sauvegardes](reference/sauvegardes.md), [exercice de restauration](runbooks/exercice-de-restauration.md) |
 | Voir ce qui se passe (journaux, métriques) | [Guide 17, lire Grafana](../guides/17-comprendre-et-lire-grafana.md) |
-| Brancher un projet à Grafana | [README de l'observabilité](../observability/README.md) |
+| Brancher un projet à Grafana | [README de l'observabilité](../observability/README.md), [catalogue des besoins](reference/catalogue-des-besoins.md) |
+| Voir un projet complet au standard, fichier par fichier | [Guide 18, le projet pilote](../guides/18-le-projet-pilote-skills-devops.md) |
+| Savoir ce que la plateforme offre et ce que mon projet doit fournir | [Catalogue des besoins](reference/catalogue-des-besoins.md) |
+| Un déploiement échoue | [Runbook : déploiement en échec](runbooks/deploiement-en-echec.md) |
+| Un conteneur redémarre en boucle | [Runbook : conteneur en boucle](runbooks/conteneur-en-boucle.md) |
 | Réagir à une panne | [Runbooks](runbooks/README.md) |
 | Savoir pourquoi on a fait ce choix | [ADR](adr/README.md) |
 | Savoir ce qui a déjà mal tourné | [Retours d'expérience](retours-experience/README.md) |
@@ -65,6 +69,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | [Démarrage rapide pour les développeurs](04-demarrage-rapide-dev.md) | Mettre son projet en ligne |
 | [Organisation et livraison](reference/organisation-et-livraison.md) | Dossiers du serveur, staging, promotion, retour arrière |
 | [Brancher et corriger un projet](reference/brancher-et-corriger-un-projet.md) | Liste de contrôle et table des corrections |
+| [Catalogue des besoins](reference/catalogue-des-besoins.md) | Chaque service de la plateforme, ce qu'il apporte et ce que le projet doit fournir |
 | [Domaines et DNS](reference/domaines-et-dns.md) | Wildcard, collisions, Cloudflare |
 | [Réglages de l'hôte](reference/reglages-de-lhote.md) | Journaux Docker, pare-feu, mises à jour, SSH |
 | [Sauvegardes](reference/sauvegardes.md) | Agent, fréquence, test de restauration |
@@ -74,13 +79,15 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 ### Guides pas à pas
 
 Classés par thème dans l'[index des guides](../guides/README.md) : **installer le serveur**,
-**mettre un projet au standard**, **surveiller et exploiter**, **comprendre et reprendre**.
+**mettre un projet au standard**, **surveiller et exploiter**, **comprendre et reprendre** (dont le
+[projet pilote](../guides/18-le-projet-pilote-skills-devops.md), étude de cas complète).
 
 ### Runbooks d'incident
 
 [Index](runbooks/README.md) : [site en panne](runbooks/site-en-panne.md),
 [disque plein](runbooks/disque-plein.md), [certificat non émis](runbooks/certificat-non-emis.md),
-[base inaccessible](runbooks/base-inaccessible.md),
+[base inaccessible](runbooks/base-inaccessible.md), [déploiement en échec](runbooks/deploiement-en-echec.md),
+[conteneur en boucle](runbooks/conteneur-en-boucle.md),
 [exercice de restauration](runbooks/exercice-de-restauration.md).
 
 ### Mémoire

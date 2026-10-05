@@ -78,7 +78,7 @@ services:
 
   mon-saas-db:
     <<: *defaults
-    image: postgres:18-alpine        # ou mysql:8.4 / mariadb:11 (adapter healthcheck et backup)
+    image: postgres:18-alpine        # ou mysql:8.4 / mariadb:11.4 (adapter healthcheck et backup)
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}

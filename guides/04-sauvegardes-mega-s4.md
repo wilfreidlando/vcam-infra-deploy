@@ -111,7 +111,7 @@ BACKUP_S3_REGION=<région>
 
 Le service `backup` à ajouter au compose de chaque projet est décrit dans
 `images/db-backup/README.md`. Il est déjà présent dans le Core. Pour une base
-MySQL ou MariaDB, construire l'image avec `BASE=mariadb:11` et mettre
+MySQL ou MariaDB, construire l'image avec `BASE=mariadb:11.4` et mettre
 `BACKUP_ENGINE=mysql`, avec les variables `MYSQL_*`.
 
 ## Étape 5 — Première sauvegarde et vérification

@@ -34,7 +34,10 @@ IFS=':' read -ra parts <<< "${COMPOSE_FILE}"
 for f in "${parts[@]}"; do files+=(-f "${f}"); done
 dc() { docker compose -p "${APP_NAME}-${env}" "${files[@]}" --env-file "${envfile}" "$@"; }
 
-echo "Restaurer ${src} dans ${APP_NAME}-${env} ? Les données actuelles seront REMPLACÉES."
+echo "Restaurer ${src} dans ${APP_NAME}-${env} ?"
+echo "  PostgreSQL : la base reviendra EXACTEMENT à l'état de la sauvegarde (mode ${RESTORE_MODE:-replace}) :"
+echo "               tout ce qui a été créé ou modifié depuis, tables comprises, sera perdu."
+echo "  MySQL/MariaDB : les tables sauvegardées sont recréées ; celles créées depuis restent."
 read -r -p "Tapez « ${APP_NAME}-${env} » pour confirmer : " answer
 [[ "${answer}" == "${APP_NAME}-${env}" ]] || { echo "annulé"; exit 1; }
 
@@ -51,6 +54,8 @@ restart() { [[ ${#services[@]} -eq 0 ]] || dc up -d --no-build "${services[@]}";
 # passphrase (production into staging) without storing it in .env.staging.
 extra=()
 [[ -n "${RESTORE_PASSPHRASE:-}" ]] && extra=(-e "BACKUP_PASSPHRASE=${RESTORE_PASSPHRASE}")
+# RESTORE_MODE=replace (default) | merge: see images/db-backup/restore.sh.
+[[ -n "${RESTORE_MODE:-}" ]] && extra+=(-e "RESTORE_MODE=${RESTORE_MODE}")
 
 if dc run --rm -T "${extra[@]}" "${BACKUP_SERVICE}" restore.sh "${src}"; then
     echo "restauration OK — redémarrage"

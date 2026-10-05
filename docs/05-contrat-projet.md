@@ -6,7 +6,7 @@ modèles (`templates/`), les outils (`bin/`) et les guides en découlent. En cas
 désaccord entre un de ces fichiers et ce document, c'est ce document qui fait foi,
 et l'écart est un défaut à corriger.
 
-Version du contrat : **2** (historique en fin de document).
+Version du contrat : **2.1** (historique en fin de document).
 
 ## Comment lire ce document
 
@@ -63,7 +63,7 @@ cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh check prod
 | --- | --- | --- | --- |
 | C9 | Le serveur lit le dépôt **par sa clé de déploiement SSH** en lecture seule (alias `github-<app>`, [guide 3](../guides/03-installer-plateforme.md)). Jamais par HTTPS. | Le staging se déploie sous cron : personne n'est là pour taper un mot de passe. `deploy.sh` ne l'attend jamais, il échoue avec la correction | **BLOQUANT** (message donnant la commande `git remote set-url`) |
 | C10 | Secrets dans `.env` / `.env.staging`, jamais commités ; **jamais les mêmes** en staging et en production. | Une fuite du staging ne compromet pas la production | Revue |
-| C11 | Toute base a sa sauvegarde chiffrée hors serveur (`BACKUP_SERVICE`), restaurée une fois par mois. Une sauvegarde est faite avant chaque migration en production. | Le VPS est un point unique de défaillance | `deploy.sh` (refuse une promotion si la sauvegarde échoue) |
+| C11 | Toute base a sa sauvegarde chiffrée hors serveur (`BACKUP_SERVICE`), restaurée une fois par mois ([exercice](runbooks/exercice-de-restauration.md)). Une restauration remet la base **dans l'état exact de la sauvegarde** (PostgreSQL, MySQL, MariaDB ; non atomique pour MySQL/MariaDB). Une sauvegarde est faite avant chaque migration en production. | Le VPS est un point unique de défaillance | `deploy.sh` (refuse une promotion si la sauvegarde échoue) |
 | C12 | Backends : labels d'observabilité (`observability.*`). | Journaux et erreurs de tous les projets au même endroit | Audit INFO |
 
 ## 3. Les noms
@@ -148,3 +148,4 @@ sans conflit n'est pas bloqué, mais il reste un écart au contrat.
 | --- | --- | --- | --- |
 | 1 | 2026-09 | 12 règles, audit en lecture seule, déploiement par promotion | [ADR-0064](adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md) |
 | 2 | 2026-10-04 | C3 (noms propres au projet, BLOQUANT), C4 (healthcheck de base par le réseau), C5-C6 (`platform.env` lu dans le commit déployé, cohérent, jamais modifié sur le serveur), C9 (clé de déploiement SSH, jamais d'attente de mot de passe) ; commande `deploy.sh check` | [REX 2026-10-04](retours-experience/2026-10-04-premier-deploiement-skills-devops.md) |
+| 2.1 | 2026-10-05 | C11 précisée : la restauration remet la base dans l'état exact de la sauvegarde (PostgreSQL, MySQL, MariaDB), exercice mensuel avec table-témoin | [REX 2026-10-05](retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md) |

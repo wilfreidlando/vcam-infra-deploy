@@ -100,7 +100,8 @@ Si un critère échoue : **ne pas écrire dans l'application**, relancer `restor
 | `uploaded to s3://…` n'apparaît pas, `backup: BACKUP_S3_BUCKET not set — local copy only` | Variables S3 vides, ou conteneur non recréé après modification du `.env` (un conteneur ne relit son `.env` qu'à sa création) | Renseigner le `.env`, recréer **seulement** le service : `docker compose -p <projet>-<env> -f compose.prod.yaml --env-file <fichier> up -d --no-deps --no-build backup` |
 | Erreur de connexion S3 | `BACKUP_S3_ENDPOINT` sans `https://` : `aws --endpoint-url` exige une URL complète | Ajouter le schéma |
 | `bad decrypt` | Mauvaise phrase de chiffrement (staging et production en ont deux) | Saisir la phrase de l'environnement d'origine de la copie |
-| La table-témoin existe toujours après la restauration | La restauration n'a pas eu lieu (erreur avant de toucher à la base) | Lire la sortie de `restore.sh`, ne pas conclure que la sauvegarde est bonne |
+| La table-témoin existe toujours après la restauration | **L'image de l'agent est antérieure au 2026-10-05** : l'ancien `restore.sh` ne supprimait pas ce qui avait été créé après la sauvegarde (voir le [retour d'expérience](../retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md)) | Mettre la plateforme à jour, puis **reconstruire l'image** de l'agent (`deploy.sh build`) et recréer le service `backup` ; un `git pull` seul ne suffit pas |
+| Même après mise à jour, la table-témoin existe | `RESTORE_MODE=merge` est défini | Retirer `RESTORE_MODE` |
 
 ## Après
 

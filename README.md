@@ -38,6 +38,7 @@ Le dépôt a plusieurs métiers. Chacun a un point d'entrée.
 | Je suis… | Je lis |
 | --- | --- |
 | **Une nouvelle équipe informatique** qui reprend le serveur | [Guide 15, prise en main](guides/15-prise-en-main-equipe-it.md), puis les [runbooks d'incident](docs/runbooks/README.md) |
+| **Je veux voir un projet complet au standard**, fichier par fichier | [Guide 18, le projet pilote](guides/18-le-projet-pilote-skills-devops.md) et le [catalogue des besoins](docs/reference/catalogue-des-besoins.md) |
 | **Responsable d'un projet déjà en production** à mettre au standard | [Guide 16, fiche de conformité](guides/16-mettre-un-projet-au-standard.md) et le [contrat, § 4](docs/05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) |
 | **Mainteneur de la plateforme** (je change une règle, un outil) | [Contrat, § 5](docs/05-contrat-projet.md#5-faire-évoluer-le-contrat), les [retours d'expérience](docs/retours-experience/README.md) et les [tests](tests/README.md) |
 | **Développeur** qui veut mettre son projet en ligne | [Démarrage rapide](docs/04-demarrage-rapide-dev.md), puis les [schémas](docs/01-schemas.md) |
