@@ -75,11 +75,13 @@ docker run -d --name vpstest-obs-demo --network vpstest-a-first \
 docker network connect "${OBS_NETWORK}" vpstest-obs-demo
 docker run -d --name vpstest-obs-ignored --network "${OBS_NETWORK}" -l com.docker.compose.project=secret-project \
     busybox sh -c 'while true; do echo ignored-line; sleep 2; done' >/dev/null
-# Un conteneur qui s'arrête tout seul (code 0) toutes les ~10 s et que Docker relance, comme un worker --max-time. Il consomme du processeur avant
-# de s'arrêter : c'est ce qui permet de voir son compteur repartir de zéro à chaque relance (voir plus bas).
+# Un conteneur qui s'arrête tout seul (code 0) toutes les ~11 s et que Docker relance, comme un worker --max-time. Il consomme du processeur PENDANT TOUT
+# son cycle (11 s, au moins 10 s : en dessous, Docker allonge le délai entre deux relances) : son compteur monte puis repart de zéro à chaque relance, et ce
+# retour à zéro est visible quelle que soit la phase où tombe l'échantillon de 15 s. Une première version ne consommait que 2 s sur 11 : le compteur restait
+# à son plateau d'un échantillon à l'autre et le test échouait au hasard (constaté le 2026-10-05).
 docker run -d --name vpstest-obs-flapper --restart=always --network "${OBS_NETWORK}" \
     -l observability.enable=true -l observability.app=demo-flapper -l observability.deployment=staging \
-    busybox sh -c 'i=0; while [ $i -lt 400000 ]; do i=$((i+1)); done; sleep 8' >/dev/null
+    busybox sh -c 'timeout 11 sh -c "while :; do :; done"; exit 0' >/dev/null
 
 # PHP-FPM case: labelled, kept OFF the shared network, on two private networks.
 docker network create vpstest-obs-priv1 >/dev/null

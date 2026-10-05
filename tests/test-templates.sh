@@ -101,8 +101,8 @@ check_not "aucune copie locale (BACKUP_LOCAL_KEEP) dans les modèles : exception
 
 step "La fiche de déploiement : un modèle à remplir, sans valeur secrète"
 D="${TPL}/docs-projet/DEPLOIEMENT.md"
-check "elle décrit chaque environnement (carte, premier déploiement, livraison, mise à jour, retour arrière, sauvegarde, observabilité)" \
-    sh -c "for s in 'La carte du projet' 'Premier déploiement' 'Livrer une nouvelle version' 'Mettre à jour ce qui est déjà là' 'Retour arrière' 'Sauvegarde et restauration' 'Observabilité de ce projet' 'En cas de problème'; do grep -q \"\$s\" '${D}' || exit 1; done"
+check "elle décrit chaque environnement (carte, premier déploiement, livraison, mise à jour, retour arrière, sauvegarde, observabilité, écarts connus)" \
+    sh -c "for s in 'La carte du projet' 'Premier déploiement' 'Livrer une nouvelle version' 'Mettre à jour ce qui est déjà là' 'Retour arrière' 'Sauvegarde et restauration' 'Observabilité de ce projet' 'En cas de problème' 'Écarts connus avec le standard'; do grep -q \"\$s\" '${D}' || exit 1; done"
 check_not "aucun lien relatif vers la plateforme (les liens doivent survivre à la copie dans un projet)" grep -q -E '\]\((\.\./|\.\./\.\./)' "${D}"
 check_not "aucun secret : ni mot de passe, ni jeton, ni clé privée" grep -q -i -E 'password=[^ ]|token=[A-Za-z0-9]{12}|BEGIN [A-Z ]*PRIVATE KEY' "${D}"
 

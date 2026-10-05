@@ -128,7 +128,16 @@ La production reçoit **exactement l'image testée en staging**. Elle n'est **ja
 
 **Qui prévenir** : <responsable du projet, contact> ; plateforme : <responsable de la plateforme, contact>.
 
-## 11. Historique de ce document
+## 11. Écarts connus avec le standard (à résorber)
+
+> Tout ce qui, aujourd'hui, **n'est pas conforme** au [contrat](https://github.com/wilfreidlando/vcam-infra-deploy/blob/main/docs/05-contrat-projet.md), et pourquoi. Une fiche qui affirme le standard alors que le projet s'en écarte
+> est **pire** qu'une fiche qui avoue l'écart : quelqu'un s'y fierait. S'il n'y a aucun écart, écrire « aucun ».
+
+| Écart | Pourquoi | Risque | Pour le résorber | Échéance |
+| --- | --- | --- | --- | --- |
+| <par exemple : production sans sauvegarde sur S3> | <décision et date> | <ce qui peut arriver> | <l'action> | <date> |
+
+## 12. Historique de ce document
 
 | Date | Changement | Par |
 | --- | --- | --- |

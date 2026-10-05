@@ -92,3 +92,47 @@ check "chaque document de docs/ figure dans docs/README.md" test -z "$(liste doc
 step "Aucun secret dans la documentation"
 secrets() { grep -rIn -E 'ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----' --include='*.md' . | grep -v '^./.git/' || true; }
 check "aucun jeton ni clé privée dans les fichiers Markdown" test -z "$(secrets)"
+
+step "Cohérence interne de la documentation"
+# Constats du 2026-10-05, tous passés au travers du contrôle des seuls liens : un tableau d'index cassé (une ligne à 3 colonnes, une autre à 1),
+# « clauses C1 à C12 » dans trois documents alors que le contrat en compte 14, l'adresse réelle du serveur dans un guide.
+cat > "${WORK}/coherence.py" <<'PY'
+import os, re, sys
+md = []
+for racine, dossiers, fichiers in os.walk("."):
+    dossiers[:] = [d for d in dossiers if d not in (".git", "node_modules")]
+    md += [os.path.join(racine, f) for f in fichiers if f.endswith(".md")]
+bad = []
+dernier = max(int(m) for m in re.findall(r"^\| C(\d+) ", open("docs/05-contrat-projet.md", encoding="utf-8").read(), flags=re.M))
+OKIP = re.compile(r"^(10\.|127\.|0\.0\.0\.0|255\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|203\.0\.113\.|198\.51\.100\.|192\.0\.2\.|1\.1\.1\.1$|8\.8\.8\.8$|9\.9\.9\.9$)")
+for f in sorted(md):
+    fence, lignes = False, []
+    for l in open(f, encoding="utf-8").read().split("\n"):
+        if l.lstrip().startswith("```"): fence = not fence; continue
+        lignes.append((l, fence))
+    # tableaux : même nombre de colonnes sur toutes les lignes
+    i = 0
+    while i < len(lignes):
+        l, fc = lignes[i]
+        if not fc and re.match(r"\s*\|.*\|\s*$", l) and i + 1 < len(lignes) and re.match(r"\s*\|[\s:|-]+\|\s*$", lignes[i + 1][0]):
+            n = lambda s: re.sub(r"`[^`]*`", "x", s.strip()).replace("\\|", "x").count("|") - 1
+            attendu, j = n(l), i + 2
+            while j < len(lignes) and re.match(r"\s*\|.*\|\s*$", lignes[j][0]):
+                if n(lignes[j][0]) != attendu: bad.append(f"{f[2:]}: tableau mal formé ({n(lignes[j][0])} colonnes au lieu de {attendu}) : {lignes[j][0].strip()[:60]}")
+                j += 1
+            i = j; continue
+        i += 1
+    for l, fc in lignes:
+        for m in re.finditer(r"clauses? C1 (?:à|-) ?C(\d+)", l):
+            # « C1 à C3 » peut désigner un sous-ensemble voulu (profil « site simple ») : on ne signale que les plages presque complètes mais en retard sur le contrat
+            if 10 <= int(m.group(1)) < dernier: bad.append(f"{f[2:]}: « clauses C1 à C{m.group(1)} » alors que le contrat va jusqu'à C{dernier}")
+        for m in re.finditer(r"(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.])", l):
+            ip = m.group(0)
+            if all(int(x) <= 255 for x in m.groups()) and not OKIP.match(ip) and not re.search(r"(?i)version|v\d|image|:\d|PostgreSQL|MariaDB|MySQL|Valkey|nginx|PHP", l):
+                bad.append(f"{f[2:]}: adresse IP publique « {ip} » (mettre <IP-du-VPS> ou une adresse de documentation 203.0.113.x)")
+        if not fc and re.search(r"\bClaude\b|\bAnthropic\b|\bChatGPT\b|\bCopilot\b|\bl'IA\b|\bagent IA\b|\bassistant IA\b", l):
+            bad.append(f"{f[2:]}: mention d'un assistant IA : {l.strip()[:70]}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+check "tableaux bien formés, clauses citées = clauses du contrat, aucune adresse IP publique, aucun assistant IA cité" python3 "${WORK}/coherence.py"
+python3 "${WORK}/coherence.py" >&2 || true   # en cas d'échec, le journal nomme chaque écart

@@ -3,7 +3,7 @@
 Ces tests vérifient **pour de vrai** que les outils de ce dépôt fonctionnent : de
 vrais conteneurs, de vraies bases, le vrai nginx-proxy 1.7, un vrai stockage S3.
 Aucune simulation de code. Ce sont les tests qui ont servi à valider la plateforme
-avant livraison : **197 vérifications**. Ils tournent sur chaque pull request (CI GitHub, sauf `test-platform`, qui demande un clone du Core). Ils ont trouvé quatre défauts réels, depuis
+avant livraison : **364 vérifications** (dont 27 pour `test-platform`, qui demande un clone du Core ; les autres suites rejouées le 2026-10-05 : 337). Ils tournent sur chaque pull request (CI GitHub, sauf `test-platform`, qui demande un clone du Core). Ils ont trouvé quatre défauts réels, depuis
 corrigés (voir ADR-0064).
 
 ## Prérequis
@@ -33,7 +33,7 @@ Un code de sortie différent de 0 signale un échec.
 
 | Test | Ce qu'il vérifie | Résultat à la livraison | Durée |
 | --- | --- | --- | --- |
-| `test-docs.sh` | La **documentation** : chaque lien relatif et chaque ancre existent, chaque guide, runbook, retour d'expérience, ADR, inventaire et page de référence est référencé dans l'index de son dossier, aucun jeton ni clé privée dans les fichiers Markdown. Sans Docker ni réseau | 10 vérifications | quelques secondes |
+| `test-docs.sh` | La **documentation** : chaque lien relatif et chaque ancre existent, chaque guide, runbook, retour d'expérience, ADR, inventaire et page de référence est référencé dans l'index de son dossier, aucun jeton ni clé privée dans les fichiers Markdown, **cohérence interne** (tableaux bien formés, clauses citées = clauses du contrat, aucune adresse IP publique, aucune mention d'un outil d'intelligence artificielle). Sans Docker ni réseau | 11 vérifications | quelques secondes |
 | `test-obs-bundle.sh` | **Observabilité propre à un projet** (`bin/obs-bundle.py`), sans Docker : un bundle valide est déposé dans un dossier au nom du projet ; JSON, YAML invalides, tableau sans `uid` **refusés sans toucher au dépôt précédent** ; un fichier d'alertes ne peut pas contenir de points de contact, de politique de notification ni de suppression de règles, ni ranger ses règles dans le dossier d'un autre ; aucun `uid` déjà pris (plateforme ou autre projet) n'est écrasé ; un fichier retiré du projet est retiré du dépôt ; noms dangereux refusés ; le modèle du dépôt est valide | 30/30 | 10 s |
 | `test-templates.sh` | **Les modèles de projet sont déployables** : chaque modèle (Laravel PostgreSQL, Laravel MySQL/MariaDB, back end web, front SPA) est copié dans un projet factice avec ses fichiers d'environnement d'exemple et passe `deploy.sh check` pour **la production et le staging** ; sur le compose rendu : aucun port publié, un seul service sur `nginx-proxy` (le web, avec `VIRTUAL_HOST`), base et cache privés, redémarrage, limite mémoire et rotation des journaux partout, images taguées par commit ; un fichier d'environnement par environnement (staging non sauvegardé, production avec S3 obligatoire) ; la fiche de déploiement sans secret ni lien relatif | 31/31 | 1 min |
 | `test-hosts.sh` | Avec un vrai nginx-proxy 1.7 : routage d'un SaaS à sous-domaines wildcard ; collision de casse qui rend la configuration invalide pour tout le serveur, puis sa réparation ; inventaire (arrêtés, certificats orphelins, wildcard) ; garde de déploiement ; audit | 24/24 | 1 min |
