@@ -39,9 +39,9 @@ environ 230 Mo pour les cinq composants d'origine).
 | **Sauvegardes** : une copie part-elle sur S3 ? | Journaux de l'agent (`uploaded to s3://…`) | **Explore → Loki**, `{service="backup"}` | 1 règle | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
 | **Métriques de l'application** | `/metrics` du projet (si exposé) | **Explore → Prometheus**, `up{app="…"}` | selon le projet | [README de l'observabilité](../../observability/README.md) |
 | **Traces** | OTLP vers Alloy (si configuré) | **Explore → Tempo** | — | idem |
-| **Le Core** | Ses métriques et tableaux dédiés | Dossier **Core System** | 6 règles propres au Core | voir ci-dessous |
+| **Le Core** | Ses métriques, ses tableaux et ses alertes, **livrés par son propre dépôt** | Dossier **core-system** | 6 règles propres au Core | voir ci-dessous |
 
-## 3. Les alertes (16)
+## 3. Les alertes (10 de la plateforme, plus celles que les projets publient)
 
 Toutes partent vers le même point de contact (`core-oncall`, nom historique : il reçoit **toutes** les alertes) par e-mail. Chacune a un **délai** (`for`)
 contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf pour celle qui surveille l'observateur lui-même.
@@ -58,7 +58,7 @@ contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf po
 | Un site ne répond plus | sonde en échec (autre chose que 2xx) | 3 min | [Site en panne](../runbooks/site-en-panne.md) |
 | Un certificat HTTPS expire bientôt | moins de 14 jours | 1 h | [Certificat non émis](../runbooks/certificat-non-emis.md) |
 | Aucune sauvegarde envoyée hors du serveur depuis 36 heures | aucune ligne « uploaded to » en production | 1 h | [Exercice de restauration](../runbooks/exercice-de-restauration.md) |
-| 6 règles du Core | propres au Core (injoignable, file bloquée, erreurs 5xx…), évaluées sur ses métriques `deployment=prod` | variable | Elles ne sont fiables que **tant que le Core est branché** (labels et `/metrics`) |
+| 6 règles du Core | **publiées par le dépôt du Core** (injoignable, file bloquée, erreurs 5xx…), évaluées sur ses métriques `deployment=prod` | variable | Elles ne sont fiables que **tant que le Core est branché** (labels et `/metrics`) |
 
 ## 4. Les tableaux de bord
 
@@ -67,7 +67,9 @@ contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf po
 | **Plateforme** | **Serveur — vue d'ensemble** | « Le serveur va-t-il bien ? » (processeur, mémoire, disque, charge) |
 | **Plateforme** | **Conteneurs — consommation et redémarrages** | « Qui consomme ? Quel conteneur boucle ? » |
 | **Plateforme** | **Sites — disponibilité et certificats** | « Les sites répondent-ils ? Un certificat va-t-il expirer ? » |
+| **Plateforme** | **Application — vue d'ensemble** | « Comment va **cette** application ? » (choisie en haut ; marche pour tout projet qui a les labels) |
 | **Applications** | **Applications — journaux (tous projets)** | « Que se passe-t-il dans les projets ? » |
+| **Un dossier par projet** | Les tableaux **propres au projet**, publiés depuis son dépôt (`observability/`) | Ses chiffres métier. Aucun fichier à modifier dans la plateforme : [guide 19](../../guides/19-observabilite-de-mon-projet.md) |
 | **Core System** | Vue d'ensemble, Parcours d'une requête | Le Core |
 
 ## 5. Sécurité : ce que la pile voit et ce qu'elle expose

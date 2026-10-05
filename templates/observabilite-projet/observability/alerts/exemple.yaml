@@ -1,0 +1,28 @@
+# Modèle d'alerte d'un projet. Règles à suivre (sinon la publication est REFUSÉE, voir bin/obs-bundle.py) :
+#   - seulement « apiVersion » et « groups » : jamais de points de contact ni de politique de notification ;
+#   - « folder » = le nom du projet ; « uid » unique sur toute la plateforme (préfixer par le nom du projet) ;
+#   - dans un message : « {{ .Labels.nom }} », jamais « {{ $labels.nom }} » (Grafana remplace « $nom » dans ces fichiers).
+# Les alertes ne sont relues qu'au redémarrage de Grafana : deploy.sh le dit après la publication.
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: mon-projet
+    folder: mon-projet
+    interval: 1m
+    rules:
+      - uid: mon-projet-metriques-absentes
+        title: Mon projet n'expose plus ses métriques
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: "Alloy ne lit plus /metrics de mon-projet (service {{ .Labels.service }}). Voir le runbook « Conteneur en boucle »."
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { refId: A, expr: 'min by (service) (up{app="mon-projet", job="prometheus.scrape.applications"})', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: lt, params: [1] } }] }

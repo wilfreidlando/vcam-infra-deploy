@@ -32,6 +32,16 @@ scrape_configs:
       - source_labels: [name]
         regex: ''
         action: drop
+      # observability.app / observability.deployment du conteneur deviennent les étiquettes app et deployment,
+      # comme pour les journaux et les métriques d'application : un même filtre pour tous les signaux.
+      - source_labels: [container_label_observability_app]
+        regex: '(.+)'
+        target_label: app
+      - source_labels: [container_label_observability_deployment]
+        regex: '(.+)'
+        target_label: deployment
+      - regex: 'container_label_observability_(app|deployment)'
+        action: labeldrop
 
   # The public sites, probed from the server (blackbox-exporter). The list is a file, not this config.
   - job_name: sites

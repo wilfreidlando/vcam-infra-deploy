@@ -70,11 +70,14 @@ Menu de gauche :
 
 | Entrée | À quoi ça sert | Quand l'utiliser |
 | --- | --- | --- |
-| **Dashboards** | Les tableaux de bord prêts à l'emploi, rangés en dossiers (**Plateforme**, **Applications**, **Core System**) | Vue d'ensemble, surveillance de routine |
+| **Dashboards** | Les tableaux de bord prêts à l'emploi, rangés en dossiers (**Plateforme**, **Applications**, et **un dossier par projet** qui a publié ses propres tableaux, comme `core-system`) | Vue d'ensemble, surveillance de routine |
 | **Explore** | La recherche libre dans une source (Loki, Prometheus ou Tempo) | Enquêter sur un problème précis |
 | **Alerting** | Les règles d'alerte, leur état, les contacts, les mises en sourdine | Savoir si quelque chose cloche, régler les notifications |
 | **Connections → Data sources** | Les trois sources déjà configurées | Rarement : tout est préconfiguré |
 | Profil (en bas) | Changer son mot de passe | Une fois, à la première connexion |
+
+> **L'état d'une seule application ?** *Dashboards → Plateforme → « Application — vue d'ensemble »* : choisir l'application en haut. **Les tableaux et alertes propres à un projet**
+> (ses chiffres métier) sont dans un dossier à son nom, publiés depuis son dépôt : [guide 19](19-observabilite-de-mon-projet.md).
 
 ## 5. Premiers pas : six exercices guidés
 

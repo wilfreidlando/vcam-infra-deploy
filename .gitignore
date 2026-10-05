@@ -8,3 +8,8 @@
 
 # Liste des sites sondés, propre au serveur (le modèle sites.yml.example reste suivi).
 observability/prometheus/targets/*.yml
+
+# Observabilité propre aux projets, déposée par `deploy.sh obs-sync` (bin/obs-bundle.py) : jamais commitée ici.
+observability/grafana/projets/dashboards/*
+!observability/grafana/projets/dashboards/.gitkeep
+observability/grafana/provisioning/alerting/projet-*.yaml

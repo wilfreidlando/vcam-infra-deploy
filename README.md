@@ -45,6 +45,7 @@ Le dépôt a plusieurs métiers. Chacun a un point d'entrée.
 | **La personne qui installe** la plateforme | La [feuille de route](guides/00-feuille-de-route.md), puis les [guides](guides/README.md) |
 | **Je veux voir ce qui tourne** sur le serveur | `vps-inventory.sh` et les [inventaires](docs/inventaire/README.md) |
 | **Je veux comprendre Grafana** | [Guide 17](guides/17-comprendre-et-lire-grafana.md) |
+| **Je veux que mon projet ait ses tableaux et ses alertes** | [Guide 19](guides/19-observabilite-de-mon-projet.md) |
 | **Responsable technique** | [Résilience et évolutivité](docs/02-resilience-evolutivite.md), [ADR-0064](docs/adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md) |
 | **En plein incident** | [Runbooks](docs/runbooks/README.md), puis la [reprise après sinistre](guides/12-reprise-apres-sinistre.md) si le serveur est perdu |
 

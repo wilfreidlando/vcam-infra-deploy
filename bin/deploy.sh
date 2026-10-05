@@ -32,6 +32,9 @@
 #                                  deploy.sh takes NO backup of its own by default: the nightly one is the safety
 #                                  net (BACKUP_BEFORE_DEPLOY=always to take one before every deploy)
 #   deploy.sh backup [env]         one backup now (a manual backup before a risky migration)
+#   deploy.sh obs-sync [--remove]  publish the project's OWN Grafana dashboards and alert rules (OBS_BUNDLE, default
+#                                  observability/) into the platform's Grafana tree, without touching the platform
+#                                  repo. Run automatically after a successful production deploy. See bin/obs-bundle.py.
 #   deploy.sh rollback <env>       redeploy the previous SHA of that environment
 #   deploy.sh status               current/previous SHA and containers of each environment
 #   deploy.sh check [env]          pre-flight only (git access, platform.env ↔ compose,
@@ -47,6 +50,8 @@ set -euo pipefail
 
 # ── Configuration ───────────────────────────────────────────────────────
 PROJECT_DIR="$(pwd)"
+# The platform clone this script lives in (/app/vps-platform on the server).
+PLATFORM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Never wait for a password: under cron nobody types it (an HTTPS remote
 # would hang the deploy). Failures are explained by fetch_origin.
 export GIT_TERMINAL_PROMPT=0
@@ -59,7 +64,7 @@ export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes}"
 PROJECT_KEYS="APP_NAME COMPOSE_FILE ENV_FILE_PROD ENV_FILE_STAGING ENVIRONMENTS STAGING_BRANCH
     HEALTH_SERVICE HEALTH_CMD HEALTH_TIMEOUT MIGRATE_SERVICE MIGRATE_CMD
     BACKUP_SERVICE BACKUP_CMD DB_SERVICE BUILD_PER_ENV PROD_ENVIRONMENTS
-    BACKUP_BEFORE_DEPLOY"
+    BACKUP_BEFORE_DEPLOY OBS_BUNDLE"
 
 # Reads platform.env from the working tree: at start-up, then again after
 # each checkout (checkout()), so the services, commands and environments
@@ -101,6 +106,8 @@ load_defaults() {
 # Backup taken by deploy.sh before a production deploy: « never » (default: the nightly backup is the safety net,
 # and a manual one is one command away: deploy.sh backup) or « always » (every deploy, a minute each).
 : "${BACKUP_BEFORE_DEPLOY:=never}"
+# Folder of the project holding its own Grafana dashboards (dashboards/*.json) and alert rules (alerts/*.yaml).
+: "${OBS_BUNDLE:=observability}"
 : "${KEEP_IMAGES:=5}"
 : "${STATE_DIR:=/var/lib/vps-platform}"
 # 1 when the image bakes environment-specific values at build time (e.g.
@@ -476,6 +483,7 @@ cmd_up() {
         echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${sha}" >> "${APP_STATE}/${env}/history"
         rm -f "${APP_STATE}/${env}/failed"
         log "OK ${env} = ${sha}"
+        is_prod "${env}" && { obs_publish || true; }
         prune_images || true
         return 0
     fi
@@ -573,6 +581,38 @@ cmd_backup() {
     log "sauvegarde manuelle ${env} : OK"
 }
 
+# obs_publish — put the project's own dashboards and alert rules into the platform's Grafana tree. Never fails a
+# deploy: observability must not be able to block a delivery. A refusal is logged with its reason.
+obs_publish() {
+    local src="${PROJECT_DIR}/${OBS_BUNDLE}" gdir="${OBS_GRAFANA_DIR:-${PLATFORM_ROOT}/observability/grafana}" out rc=0
+    [[ -d "${src}/dashboards" || -d "${src}/alerts" ]] || return 0
+    command -v python3 >/dev/null || { log "observabilité du projet : python3 absent, rien publié"; return 1; }
+    out="$(python3 "${PLATFORM_ROOT}/bin/obs-bundle.py" sync --app "${APP_NAME}" --src "${src}" --grafana-dir "${gdir}" 2>&1)" || rc=$?
+    if [[ "${rc}" -ne 0 ]]; then
+        log "observabilité du projet NON publiée : ${out}"
+        return 1
+    fi
+    log "observabilité du projet publiée (${out})"
+    if [[ "${out}" == *"alerts_changed=1"* ]]; then
+        log "ses alertes ont changé : Grafana ne les relit qu'à son redémarrage (cd observability && docker compose --env-file .env up -d --no-deps --force-recreate grafana) ; les tableaux se rechargent seuls"
+    fi
+}
+
+# obs-sync [--remove] — publish (or withdraw) the project's own Grafana dashboards and alert rules on demand.
+cmd_obs_sync() {
+    local gdir="${OBS_GRAFANA_DIR:-${PLATFORM_ROOT}/observability/grafana}" src="${PROJECT_DIR}/${OBS_BUNDLE}" out
+    if [[ "${1:-}" == "--remove" ]]; then
+        python3 "${PLATFORM_ROOT}/bin/obs-bundle.py" remove --app "${APP_NAME}" --grafana-dir "${gdir}" && log "observabilité du projet retirée"
+        return
+    fi
+    [[ -d "${src}/dashboards" || -d "${src}/alerts" ]] || die "le projet n'a pas de ${OBS_BUNDLE}/dashboards ni de ${OBS_BUNDLE}/alerts : rien à publier"
+    out="$(python3 "${PLATFORM_ROOT}/bin/obs-bundle.py" sync --app "${APP_NAME}" --src "${src}" --grafana-dir "${gdir}" 2>&1)" \
+        || die "observabilité refusée : ${out}"
+    log "observabilité du projet publiée (${out})"
+    [[ "${out}" == *"alerts_changed=1"* ]] && log "ses alertes ont changé : recréer Grafana pour les charger (cd observability && docker compose --env-file .env up -d --no-deps --force-recreate grafana)"
+    return 0
+}
+
 cmd_rollback() {
     local env="${1:?env}" previous
     previous="$(state_get "${env}" previous)"
@@ -616,6 +656,7 @@ main() {
         promote) lock; cmd_promote "$@" ;;
         rollback) lock; cmd_rollback "$@" ;;
         backup) lock; cmd_backup "$@" ;;
+        obs-sync) cmd_obs_sync "$@" ;;
         status) cmd_status ;;
         check) cmd_check "$@" ;;
         *) sed -n '2,35p' "$0"; exit 2 ;;

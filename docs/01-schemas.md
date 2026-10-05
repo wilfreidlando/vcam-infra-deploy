@@ -394,6 +394,7 @@ flowchart LR
 - Le minimum pour un projet Laravel : des journaux JSON sur la sortie standard, plus les labels. Les métriques et les traces sont un bonus.
 - **Chaque chemin se vérifie séparément** : voir ses journaux ne prouve pas que ses métriques arrivent.
 - Les frontends n'en ont pas besoin.
+- Un projet qui veut **ses propres** tableaux et alertes les livre dans son dépôt (`observability/`) : la plateforme les publie dans un dossier Grafana au nom du projet, sans être modifiée ([guide 19](../guides/19-observabilite-de-mon-projet.md)).
 - La carte complète (qui prévient, quoi faire) : [observabilité, carte complète](reference/observabilite-carte-complete.md).
 
 ---
@@ -507,7 +508,7 @@ flowchart LR
         L[("Loki<br/>journaux des sauvegardes")]
     end
     subgraph Grafana["Grafana"]
-        Rules["16 règles<br/>dans le dépôt, provisionnées"]
+        Rules["Règles de la plateforme (10)<br/>et celles des projets<br/>dans leurs dépôts"]
         State{"Vrai pendant<br/>le délai « for » ?"}
         Policy["Politique de notification<br/>un seul point de contact"]
     end
@@ -528,7 +529,7 @@ flowchart LR
 | Les signaux | Les mêmes que le [schéma 8](#8-observabilité--journaux-métriques-traces) | `prometheus.yml`, journaux Alloy |
 | Les règles | Une question, un seuil, un délai, une phrase qui dit quoi faire | `observability/grafana/provisioning/alerting/` |
 | L'absence de données | **Pas d'alerte**, sauf pour la règle qui surveille l'observateur lui-même | champ `noDataState` de chaque règle |
-| Le message | Part par e-mail vers le point de contact par défaut | `core-alerts.yaml` (nom historique : il reçoit **toutes** les alertes) |
+| Le message | Part par e-mail vers le point de contact par défaut | `notifications.yaml` (le point de contact `core-oncall`, nom historique : il reçoit **toutes** les alertes) |
 | La suite | Chaque alerte pointe vers un runbook | [Runbooks](runbooks/README.md) |
 
 **À retenir**

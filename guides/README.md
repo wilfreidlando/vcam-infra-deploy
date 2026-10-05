@@ -16,6 +16,7 @@ Retour au [sommaire de la documentation](../docs/README.md).
 | Voir un projet complet au standard, fichier par fichier | [18. Le projet pilote skills-devops](18-le-projet-pilote-skills-devops.md) |
 | Mettre un projet au standard | [16. Fiche de conformité](16-mettre-un-projet-au-standard.md) |
 | Comprendre Grafana | [17. Comprendre l'observabilité et lire Grafana](17-comprendre-et-lire-grafana.md) |
+| Faire voir **mon projet** dans Grafana, avec ses propres tableaux et alertes | [19. L'observabilité de mon projet](19-observabilite-de-mon-projet.md) |
 
 ## A. Installer le serveur (une fois)
 
@@ -46,6 +47,7 @@ Retour au [sommaire de la documentation](../docs/README.md).
 | --- | --- | --- | --- |
 | 8 | [Surveillance externe](08-surveillance-externe.md) | aucun | 10 min |
 | 17 | [Comprendre l'observabilité et lire Grafana](17-comprendre-et-lire-grafana.md) | aucun | 30 min de lecture |
+| 19 | [Donner à mon projet son observabilité (labels, tableau « Application », ses propres tableaux et alertes)](19-observabilite-de-mon-projet.md) | aucun | 20 min à 1 h |
 | 12 | [Reprise après sinistre (serveur perdu)](12-reprise-apres-sinistre.md) | — | 2-4 h ; **la partie « à préparer avant » est à faire dès maintenant** |
 | 14 | [Revenir aux dépôts privés (clés de déploiement)](14-retour-aux-depots-prives.md) | aucun | 10 min par dépôt |
 

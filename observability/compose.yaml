@@ -126,6 +126,9 @@ services:
       - --docker_only=true
       - --housekeeping_interval=60s
       - --store_container_labels=false
+      # Seules ces deux étiquettes de conteneur sont gardées : elles rattachent chaque conteneur à son application
+      # (tableau « Application — vue d'ensemble »). Le reste des labels reste ignoré (cardinalité).
+      - --whitelisted_container_labels=observability.app,observability.deployment
       - --disable_metrics=advtcp,cpu_topology,cpuset,disk,diskIO,hugetlb,memory_numa,percpu,perf_event,process,referenced_memory,resctrl,sched,tcp,udp
     volumes:
       - /:/rootfs:ro
@@ -187,6 +190,8 @@ services:
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Tableaux PROPRES AUX PROJETS, déposés par `deploy.sh obs-sync` (non commités) : un dossier Grafana par projet.
+      - ./grafana/projets/dashboards:/var/lib/grafana/dashboards-projets:ro
       - grafana-data:/var/lib/grafana
     depends_on:
       - loki

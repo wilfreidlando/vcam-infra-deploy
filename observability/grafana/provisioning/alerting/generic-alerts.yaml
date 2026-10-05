@@ -1,7 +1,7 @@
 # Alertes génériques de la plateforme : elles surveillent LE SERVEUR, pour tous les projets, sans que
 # aucun projet n'ait rien à faire (métriques de node-exporter, voir compose.yaml et prometheus.yml).
 # Elles partent vers le point de contact par défaut de la politique de notification
-# (core-oncall dans core-alerts.yaml : nom historique, il reçoit TOUTES les alertes).
+# (core-oncall dans notifications.yaml : nom historique, il reçoit TOUTES les alertes).
 #
 # Principes : peu d'alertes, chacune actionnable, avec un délai (« for ») qui évite le bruit.
 # Absence de données = « OK » (le serveur n'est peut-être pas encore observé), sauf pour

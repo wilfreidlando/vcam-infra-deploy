@@ -1,0 +1,34 @@
+{
+  "uid": "mon-projet-metier",
+  "title": "Mon projet — chiffres métier",
+  "description": "Modèle : remplacer « mon-projet » par le nom de l'application (observability.app) et ajouter les chiffres qui comptent pour VOTRE métier.",
+  "tags": ["mon-projet"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-6h", "to": "now" },
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Application joignable",
+      "description": "1 = Alloy lit /metrics de l'application. Remplacer par une métrique métier (ex. paiements en attente).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "max(up{app=\"mon-projet\", job=\"prometheus.scrape.applications\"})", "instant": true }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "métriques non exposées",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "auto" }
+    }
+  ]
+}

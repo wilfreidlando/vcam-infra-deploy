@@ -8,7 +8,9 @@
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
-trap finish EXIT
+# Observabilité PROPRE À UN PROJET : déposée par `deploy.sh obs-sync` dans l'arbre de Grafana du dépôt (ignoré par git), puis retirée.
+obs_cleanup() { (cd "${WORK}/projet-obs" 2>/dev/null && STATE_DIR="${WORK}/state" "${INFRA_DIR}/bin/deploy.sh" obs-sync --remove >/dev/null 2>&1) || true; }
+trap 'obs_cleanup; finish' EXIT
 require_docker
 
 export OBS_PREFIX=vpstest-obs OBS_NETWORK=vpstest-observability NGINX_PROXY_NETWORK=vpstest-nginx-proxy
@@ -21,6 +23,39 @@ step "Secrets de la plateforme jamais commités"
 # « git add -A » ne doit jamais pouvoir le publier (contrat, clause C10).
 check "observability/.env est ignoré par git" git -C "${INFRA_DIR}" check-ignore -q observability/.env
 check_not "le modèle .env.example reste suivi" git -C "${INFRA_DIR}" check-ignore -q observability/.env.example
+
+step "Observabilité d'un projet, publiée par le projet lui-même (avant le démarrage de Grafana)"
+mkdir -p "${WORK}/projet-obs/observability/dashboards" "${WORK}/projet-obs/observability/alerts" "${WORK}/state"
+printf 'APP_NAME=probe-app\nCOMPOSE_FILE=compose.yaml\n' > "${WORK}/projet-obs/platform.env"
+printf '{"uid":"probe-app-vue","title":"Vue du projet de test","panels":[]}\n' > "${WORK}/projet-obs/observability/dashboards/vue.json"
+cat > "${WORK}/projet-obs/observability/alerts/regles.yaml" <<'YAML'
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: probe-app
+    folder: probe-app
+    interval: 1m
+    rules:
+      - uid: probe-app-r1
+        title: Règle du projet de test
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: "Le projet de test dit : {{ .Labels.instance }}"
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { refId: A, expr: 'min(up)', instant: true }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: lt, params: [1] } }] }
+YAML
+check "deploy.sh obs-sync publie le bundle du projet" sh -c "cd '${WORK}/projet-obs' && STATE_DIR='${WORK}/state' '${INFRA_DIR}/bin/deploy.sh' obs-sync >/dev/null 2>&1"
+check "le tableau est dans le dossier Grafana du projet (dans l'arbre ignoré par git)" test -f "${INFRA_DIR}/observability/grafana/projets/dashboards/probe-app/vue.json"
+check "les fichiers déposés sont ignorés par git : le dépôt de la plateforme n'est PAS modifié" sh -c "cd '${INFRA_DIR}' && git check-ignore -q observability/grafana/projets/dashboards/probe-app/vue.json && git check-ignore -q observability/grafana/provisioning/alerting/projet-probe-app-regles.yaml"
 
 step "Démarrage de la stack"
 check "stack démarrée" docker compose -p vpstest-obs -f "${INFRA_DIR}/observability/compose.yaml" up -d
@@ -92,6 +127,10 @@ for serie in container_memory_working_set_bytes container_start_time_seconds con
     check "série ${serie} dans Prometheus (cAdvisor)" wait_for 240 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=${serie}%7Bname%21%3D%22%22%7D' | grep -q '\"value\"'"
 done
 check "cAdvisor est un job scruté et en bonne santé" wait_for 120 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=up%7Bjob%3D%22cadvisor%22%7D' | grep -q '\"1\"\]'"
+# Chaque conteneur est rattaché à son application : cAdvisor ne garde que observability.app et observability.deployment, que Prometheus
+# renomme en app et deployment, comme pour les journaux. C'est ce qui permet UN tableau « Application » pour tous les projets.
+check "les séries de cAdvisor portent les étiquettes app et deployment du conteneur" wait_for 240 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=container_memory_working_set_bytes%7Bapp%3D%22demo-laravel%22%2Cdeployment%3D%22staging%22%7D' | grep -q '\"value\"'"
+check_not "aucune étiquette brute container_label_* ne subsiste (cardinalité)" sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=container_memory_working_set_bytes%7Bcontainer_label_observability_app%3D~%22.%2B%22%7D' | grep -q '\"value\"'"
 # Sonde : le blackbox-exporter sait sonder une adresse et la déclarer en ligne.
 check "une sonde HTTP réussit (probe_success 1)" wait_for 60 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://blackbox-exporter:9115/probe?target=http://prometheus:9090/-/healthy&module=http_2xx' | grep -q '^probe_success 1'"
 check_not "une sonde vers une adresse morte échoue (probe_success 0)" sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://blackbox-exporter:9115/probe?target=http://loki:1/&module=http_2xx' | grep -q '^probe_success 1'"
@@ -104,12 +143,14 @@ cat > "${WORK}/exprs.py" <<'PY'
 import json, sys, glob, subprocess, urllib.parse, yaml
 base = sys.argv[1]
 rows = []
-for f in ["Plateforme/serveur.json", "Plateforme/conteneurs.json"]:
+for f in ["Plateforme/serveur.json", "Plateforme/conteneurs.json", "Plateforme/application.json"]:
     d = json.load(open(f"{base}/grafana/dashboards/{f}"))
     for p in d["panels"]:
+        if (p.get("datasource") or {}).get("uid") == "loki":
+            continue   # les panneaux de journaux (LogQL) ne s'interrogent pas dans Prometheus
         for t in p.get("targets", []):
             if t.get("expr"):
-                rows.append((f, p.get("title", "?"), t["expr"].replace("$__rate_interval", "5m").replace("$__interval", "5m")))
+                rows.append((f, p.get("title", "?"), t["expr"].replace("$__rate_interval", "5m").replace("$__interval", "5m").replace("$app", "demo-laravel").replace("$deployment", ".+")))
 y = yaml.safe_load(open(f"{base}/grafana/provisioning/alerting/generic-alerts.yaml"))
 for g in y["groups"]:
     for r in g["rules"]:
@@ -117,11 +158,14 @@ for g in y["groups"]:
             if dd.get("model", {}).get("expr"):
                 rows.append(("alerte", r["title"], dd["model"]["expr"]))
 # Légitimement vides tant qu'aucun conteneur ne redémarre : on le dit ici, avec la raison.
-OK_EMPTY = ("Redémarrages sur 24 h", "Conteneurs en boucle")
+# Les panneaux « par application » qui dépendent d'une SONDE de site restent vides tant que le site n'est pas dans sites.yml (absent du banc d'essai).
+OK_EMPTY = ("Redémarrages sur 24 h", "Conteneurs en boucle", "Site en ligne", "Certificat HTTPS", "Disponibilité", "Temps de réponse")
 bad = []
 for src, title, q in rows:
     if title.startswith(OK_EMPTY):
         continue
+    if "container_spec_memory_limit_bytes" in q:
+        continue   # la « limite » n'existe que pour un conteneur qui en a une : vide pour le conteneur de démonstration, légitimement
     url = "http://prometheus:9090/api/v1/query?query=" + urllib.parse.quote(q)
     out = subprocess.run(["docker", "exec", "vpstest-obs-grafana", "wget", "-qO-", url], capture_output=True, text=True).stdout
     try:
@@ -133,17 +177,23 @@ for src, title, q in rows:
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-check "chaque requête du tableau Serveur, du tableau Conteneurs et des alertes du serveur renvoie des données" \
+check "chaque requête des tableaux Serveur, Conteneurs, Application et des alertes du serveur renvoie des données" \
     wait_for 240 python3 "${WORK}/exprs.py" "${INFRA_DIR}/observability"
+python3 "${WORK}/exprs.py" "${INFRA_DIR}/observability" >&2 || true   # en cas d'échec, le journal nomme les requêtes vides
 
 step "Grafana"
 search="$(graf "http://admin:vpstest-pass@localhost:3000/api/search?query=")"
-check "dossier Core System" grep -q '"Core System"' <<< "${search}"
+check_not "plus aucun tableau du Core dans la plateforme (il les livre dans son dépôt)" grep -q '"Core System"' <<< "${search}"
 check "tableau Applications — journaux" grep -q 'Applications' <<< "${search}"
 check "dossier Plateforme et tableau Serveur provisionnés" grep -q 'Serveur' <<< "${search}"
 check "tableau Conteneurs provisionné" grep -q 'Conteneurs' <<< "${search}"
 check "tableau Sites (disponibilité) provisionné" grep -q 'Sites' <<< "${search}"
-check "16 règles d'alerte provisionnées (6 du Core, 5 du serveur, 5 conteneurs, sites et sauvegardes)" test "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/alert-rules" | grep -o '"uid"' | wc -l)" -ge 16
+check "tableau « Application — vue d'ensemble » provisionné" grep -q "Application — vue" <<< "${search}"
+check "le dossier du projet (probe-app) existe dans Grafana" grep -q 'probe-app' <<< "${search}"
+check "le tableau publié par le projet y est" grep -q 'Vue du projet de test' <<< "${search}"
+check "11 règles d'alerte provisionnées (5 du serveur, 5 conteneurs, sites et sauvegardes, 1 publiée par le projet de test)" test "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/alert-rules" | grep -o '"uid"' | wc -l)" -ge 11
+check "le point de contact core-oncall vient de notifications.yaml (plateforme)" grep -q core-oncall <<< "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/contact-points")"
+check "la politique de notification l'applique à toutes les alertes" grep -q core-oncall <<< "$(graf "http://admin:vpstest-pass@localhost:3000/api/v1/provisioning/policies")"
 # Incident du 2026-10-05 : « {{ $$labels.name }} » chargeait sans erreur mais ne s'évaluait pas (« bad character U+0024 »), 585 erreurs en quelques minutes
 # sur le serveur. Charger une règle ne prouve pas que son message s'évalue : on attend la première évaluation, puis on cherche l'erreur.
 check "les règles de conteneurs ont été évaluées par Grafana" wait_for 240 sh -c \

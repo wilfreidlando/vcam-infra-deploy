@@ -153,9 +153,11 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/json
 - **Applications → Applications — journaux (tous projets)** : filtres par
   application, déploiement et service, volume par niveau, recherche plein texte.
   Fonctionne pour tout projet branché, sans rien configurer.
-- Un projet peut livrer ses propres tableaux de bord : déposez les JSON dans
-  `grafana/dashboards/<Nom du projet>/`, puis redémarrez Grafana
-  (`docker restart observability-grafana`). Ils apparaissent dans ce dossier.
+- **Plateforme → Application — vue d'ensemble** : l'état d'**une** application choisie en haut (disponibilité, conteneurs, redémarrages, processeur,
+  mémoire, journaux). Fonctionne pour tout projet qui a les labels `observability.*`, sans fichier à écrire.
+- **Un projet qui veut SES tableaux et SES alertes les livre dans son propre dépôt** (`observability/dashboards/*.json`, `observability/alerts/*.yaml`) : `deploy.sh` les
+  publie après un déploiement de production, dans un dossier Grafana au nom du projet, **sans modifier ce dépôt** ([guide 19](../guides/19-observabilite-de-mon-projet.md),
+  [ADR-0068](../docs/adr/0068-observabilite-portee-par-le-projet.md)). Les tableaux se rechargent seuls ; les alertes à la recréation de Grafana.
 
 ## Le serveur lui-même (aucun projet à modifier)
 

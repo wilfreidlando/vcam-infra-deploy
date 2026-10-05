@@ -38,6 +38,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Sauvegarder et restaurer une base | [Sauvegardes](reference/sauvegardes.md), [exercice de restauration](runbooks/exercice-de-restauration.md) |
 | Voir ce qui se passe (journaux, métriques) | [Guide 17, lire Grafana](../guides/17-comprendre-et-lire-grafana.md) |
 | Savoir **tout** ce que la plateforme observe, où le voir et qui prévient | [Carte complète de l'observabilité](reference/observabilite-carte-complete.md) |
+| Donner à mon projet **ses propres tableaux et alertes**, sans modifier la plateforme | [Guide 19](../guides/19-observabilite-de-mon-projet.md), [modèle](../templates/observabilite-projet/README.md) |
 | Brancher un projet à Grafana | [README de l'observabilité](../observability/README.md), [catalogue des besoins](reference/catalogue-des-besoins.md) |
 | Voir un projet complet au standard, fichier par fichier | [Guide 18, le projet pilote](../guides/18-le-projet-pilote-skills-devops.md) |
 | Savoir ce que la plateforme offre et ce que mon projet doit fournir | [Profils de projet](reference/profils-de-projet.md) | Sans staging, plusieurs productions, site simple : ce que chacun demande |
@@ -78,7 +79,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | [Réglages de l'hôte](reference/reglages-de-lhote.md) | Journaux Docker, pare-feu, mises à jour, SSH |
 | [Sauvegardes](reference/sauvegardes.md) | Agent, fréquence, test de restauration |
 | [Supervision et incidents](reference/supervision-et-incidents.md) | Ce qu'on surveille, première réponse |
-| [Carte complète de l'observabilité](reference/observabilite-carte-complete.md) | Les neuf composants, les signaux, les 16 alertes, les tableaux, la sécurité, la mise en service progressive |
+| [Carte complète de l'observabilité](reference/observabilite-carte-complete.md) | Les neuf composants, les signaux, les alertes, les tableaux, la sécurité, la mise en service progressive |
 | [Contenu du dépôt, outil par outil](reference/contenu-du-depot.md) | Chaque dossier et chaque outil de `bin/` |
 
 ### Guides pas à pas

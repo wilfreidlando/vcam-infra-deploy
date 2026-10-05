@@ -10,3 +10,11 @@ providers:
     options:
       path: /var/lib/grafana/dashboards
       foldersFromFilesStructure: true
+
+  # Tableaux propres aux projets (bin/obs-bundle.py) : un dossier Grafana par projet, jamais commités ici.
+  - name: projets
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards-projets
+      foldersFromFilesStructure: true

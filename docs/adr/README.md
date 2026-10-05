@@ -15,6 +15,7 @@ Retour au [sommaire de la documentation](../README.md).
 | [0065](0065-supervision-du-serveur-node-exporter.md) | Supervision du serveur : node-exporter, cAdvisor, sondes de sites et alertes génériques | Accepté | 2026-10-05 |
 | [0066](0066-sauvegardes-agent-maison-ou-portabase.md) | Sauvegardes : notre agent, Portabase, ou les deux ? | **Proposé** (essai à faire) | 2026-10-05 |
 | [0067](0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) | Profils de projet (sans staging, plusieurs productions, site simple) et sauvegardes sur S3 seulement | Accepté | 2026-10-05 |
+| [0068](0068-observabilite-portee-par-le-projet.md) | Observabilité portée par le projet : tableaux et alertes dans le dépôt du projet, tableau générique « Application » pour tous | Accepté | 2026-10-05 |
 
 ## Quand écrire une ADR
 

@@ -136,7 +136,7 @@ Les 5 conteneurs doivent être `Up`.
 1. Ouvrir `https://grafana.visibilitycam.com`. Le certificat arrive en une ou deux
    minutes ; en attendant, le navigateur peut afficher une alerte de sécurité.
 2. Se connecter avec `admin` et `GRAFANA_ADMIN_PASSWORD`.
-3. *Dashboards* doit montrer deux dossiers : **Applications** et **Core System**.
+3. *Dashboards* doit montrer deux dossiers : **Plateforme** et **Applications** (plus un dossier par projet qui a publié ses propres tableaux).
 4. Le tableau *Applications — journaux* est vide tant qu'aucun projet n'est
    branché : c'est normal (guide 5 et `observability/README.md`).
 

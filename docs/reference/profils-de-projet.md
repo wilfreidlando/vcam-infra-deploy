@@ -98,7 +98,7 @@ Un site vitrine ou une page statique : **pas de base, pas de file, pas de secret
 
 ## 6. L'observabilité, proportionnée au projet
 
-On n'impose pas tout à tout le monde. Quatre niveaux, du plus léger au plus complet ; **chacun contient le précédent**.
+On n'impose pas tout à tout le monde. Cinq niveaux, du plus léger au plus complet ; **chacun contient le précédent**.
 
 | Niveau | Ce qu'on a | Ce que le projet fournit | Pour qui |
 | --- | --- | --- | --- |
@@ -106,6 +106,7 @@ On n'impose pas tout à tout le monde. Quatre niveaux, du plus léger au plus co
 | **1. Journaux** | Chercher dans les journaux, voir les erreurs | Trois labels `observability.*` sur chaque service ; journaux en JSON | Toute application |
 | **2. Métriques** | Courbes et alertes propres à l'application | `/metrics` privé, labels et réseau `observability` sur le **web seul** ([modèle](../../templates/laravel-observabilite/README.md)) | Les applications critiques |
 | **3. Traces** | Le trajet d'une requête | Variables `OTEL_*` | Les cas complexes |
+| **4. Ses propres tableaux et alertes** | Les chiffres de son métier, ses règles | Des fichiers dans **son dépôt** (`observability/`), publiés par `deploy.sh` : [guide 19](../../guides/19-observabilite-de-mon-projet.md) | Les projets dont le métier mérite des courbes à lui |
 
 Quoi qu'il arrive, **la plateforme observe déjà le serveur et chaque conteneur** sans rien demander au projet ([carte complète](observabilite-carte-complete.md)).
 

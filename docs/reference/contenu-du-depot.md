@@ -11,7 +11,8 @@
 | [`bin/vps-inventory.sh`](../../bin/vps-inventory.sh) | **Inventaire** complet du serveur en Markdown (hôte, projets, dossiers, versions déployées, réseaux partagés, crons, audit), **sans aucun secret**, en lecture seule. Rangé dans [`docs/inventaire/`](../inventaire/README.md) |
 | [`bin/vps-hosts.sh`](../../bin/vps-hosts.sh) | Inventaire de tous les sous-domaines, contrôle « libre ou pris ? », garde contre les collisions |
 | [`bin/restore.sh`](../../bin/restore.sh) | Restauration d'une sauvegarde dans un environnement |
-| [`templates/`](../../templates) | Modèles prêts à copier : Laravel, web générique, frontend (SPA et Next.js), [observabilité d'une application Laravel](../../templates/laravel-observabilite/README.md) (journaux JSON, `/metrics` privé, sauvegarde observée)  |
+| [`bin/obs-bundle.py`](../../bin/obs-bundle.py) | Publie les **tableaux et alertes propres à un projet** (depuis son dépôt) dans Grafana, avec validation et garde-fous (`deploy.sh obs-sync`) |
+| [`templates/`](../../templates) | Modèles prêts à copier : Laravel, web générique, frontend (SPA et Next.js), [observabilité d'une application Laravel](../../templates/laravel-observabilite/README.md) (journaux JSON, `/metrics` privé, sauvegarde observée), [tableaux et alertes propres à un projet](../../templates/observabilite-projet/README.md) |
 | [`images/db-backup/`](../../images/db-backup) | Agent de sauvegarde PostgreSQL / MySQL / MariaDB → MEGA S4 (ou tout S3) |
 | [`observability/`](../../observability) | Grafana + Loki + Tempo + Prometheus mutualisés (backends) |
 | [`host/`](../../host) | Réglages du démon Docker (rotation des journaux, live-restore) et procédure sans coupure |

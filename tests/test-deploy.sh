@@ -289,6 +289,32 @@ check "v2 en production" test "$(solo_page prod)" = v2
 check "retour arrière : v1" test "$(solo_page prod)" = v1
 check "check sans staging : contrôle la production" sh -c "cd '${WORK}/solo' && '${DEPLOY}' check >/dev/null 2>&1"
 
+step "Observabilité propre au projet : publiée après un déploiement de production, jamais bloquante"
+# Un projet livre ses tableaux Grafana et ses règles d'alerte dans SON dépôt (observability/) ; la plateforme les dépose après un
+# déploiement de production réussi. Une erreur dans ce bundle ne doit JAMAIS empêcher une livraison.
+export OBS_GRAFANA_DIR="${WORK}/grafana-obs"; mkdir -p "${OBS_GRAFANA_DIR}"
+mkdir -p "${WORK}/solo-origin/observability/dashboards"
+printf '{"uid":"vpstest-solo-vue","title":"Vue du projet solo","panels":[]}\n' > "${WORK}/solo-origin/observability/dashboards/vue.json"
+git -C "${WORK}/solo-origin" add -A && git -C "${WORK}/solo-origin" commit -qm "observabilité du projet"
+bump "${WORK}/solo-origin" v3
+(cd "${WORK}/solo" && "${DEPLOY}" promote origin/main --yes >/dev/null 2>&1)
+check "v3 en production" test "$(solo_page prod)" = v3
+check "le tableau du projet est publié dans l'arbre de Grafana de la plateforme" test -f "${OBS_GRAFANA_DIR}/projets/dashboards/vpstest-solo/vue.json"
+check "le journal le dit" grep -q "observabilité du projet publiée" "${STATE_DIR}/vpstest-solo/deploy.log"
+echo '{ pas du json' > "${WORK}/solo-origin/observability/dashboards/casse.json"
+git -C "${WORK}/solo-origin" add -A && git -C "${WORK}/solo-origin" commit -qm "bundle cassé"
+bump "${WORK}/solo-origin" v4
+(cd "${WORK}/solo" && "${DEPLOY}" promote origin/main --yes >/dev/null 2>&1)
+check "bundle invalide : le déploiement RÉUSSIT quand même (v4 en production)" test "$(solo_page prod)" = v4
+check "le journal dit pourquoi le bundle n'a pas été publié" grep -q "observabilité du projet NON publiée" "${STATE_DIR}/vpstest-solo/deploy.log"
+check "le dépôt précédent de Grafana est intact" test -f "${OBS_GRAFANA_DIR}/projets/dashboards/vpstest-solo/vue.json"
+check_not "la commande explicite, elle, échoue (code ≠ 0) pour qu'on le voie" sh -c "cd '${WORK}/solo' && '${DEPLOY}' obs-sync"
+rm -f "${WORK}/solo-origin/observability/dashboards/casse.json"; git -C "${WORK}/solo-origin" add -A && git -C "${WORK}/solo-origin" commit -qm "bundle réparé"
+git -C "${WORK}/solo" fetch -q origin && git -C "${WORK}/solo" checkout -q --detach origin/main
+check "obs-sync à la demande publie le bundle réparé" sh -c "cd '${WORK}/solo' && '${DEPLOY}' obs-sync >/dev/null 2>&1"
+check "obs-sync --remove retire le dossier du projet" sh -c "cd '${WORK}/solo' && '${DEPLOY}' obs-sync --remove >/dev/null 2>&1 && ! test -d '${OBS_GRAFANA_DIR}/projets/dashboards/vpstest-solo'"
+unset OBS_GRAFANA_DIR
+
 step "Plusieurs productions : staging, prod et prodb"
 make_project "${WORK}/multi-origin" vpstest-multi 'ENVIRONMENTS="staging prod prodb"
 PROD_ENVIRONMENTS="prod prodb"'
