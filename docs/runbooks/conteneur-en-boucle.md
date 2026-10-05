@@ -8,6 +8,10 @@ Docker relance un conteneur qui s'arrête (`restart: unless-stopped`). Si la cau
 dizaines de milliers de redémarrages peuvent s'accumuler sans que rien n'alerte. `vps-audit.sh` le signale en **CRITIQUE**
 (`redémarre en boucle`).
 
+> **Une boucle ne gêne pas que le conteneur concerné.** À chaque démarrage ou arrêt de conteneur, `nginx-proxy` régénère sa configuration pour **tous** les sites et recharge nginx :
+> une boucle déclenche cela plusieurs fois par minute, pour tout le serveur, et fait grossir les journaux. Un conteneur oublié en boucle pendant des semaines peut cumuler des **centaines de milliers**
+> de redémarrages. Voir [Serveur chargé](serveur-charge.md).
+
 ## 1. Distinguer une boucle d'un redémarrage normal
 
 Un redémarrage n'est pas forcément un problème. Exemple du projet pilote : le **worker** de file d'attente s'arrête volontairement

@@ -5,6 +5,20 @@ projet bavard finit par remplir le disque, et **tous** les sites tombent. Les
 projets au standard ont leur propre rotation (bloc `logging`). Ce réglage la donne
 aussi à tous les autres.
 
+## Pourquoi c'est à faire (constat du 2026-10-05)
+
+Sur le serveur, **aucun réglage global n'existe** : seule une petite minorité de conteneurs a une rotation (ceux des projets au standard). Les journaux de tous les autres
+**grossissent sans limite**, et celui du proxy (qui journalise chaque requête de tous les sites) pèse déjà **plusieurs Go**, plus de la moitié du total. Ce n'est pas urgent tant que le disque est loin d'être plein,
+mais c'est exactement le scénario du disque qui se remplit **sans que personne ne le voie**. Voir aussi [Serveur chargé](../docs/runbooks/serveur-charge.md).
+
+**Regarder, sans rien changer :**
+
+```bash
+$ cat /etc/docker/daemon.json                      # absent ou sans log-opts : pas de rotation globale
+$ du -sh /var/lib/docker/containers                # le total
+$ docker inspect -f '{{.Name}} {{.LogPath}}' nginx-proxy | cut -d' ' -f2 | xargs ls -lh   # le journal du proxy
+```
+
 ## Ce que fait le script
 
 `host/apply-daemon-config.sh` :
@@ -38,7 +52,9 @@ $ curl -sI https://<un site> | head -1                       # les sites répond
   prochain `docker compose up -d` qui recrée chaque conteneur. Les conteneurs
   existants gardent leurs anciens journaux jusque-là.
 - Libérer tout de suite l'espace d'un conteneur bavard, sans le redémarrer :
-  `truncate -s 0 $(docker inspect -f '{{.LogPath}}' <conteneur>)`.
+  `truncate -s 0 $(docker inspect -f '{{.LogPath}}' <conteneur>)`. **Cela efface l'historique de ce conteneur** : pour le proxy, ce sont les journaux d'accès de tous les sites,
+  qui ne sont collectés nulle part. S'assurer qu'on n'en a pas besoin, ou les copier avant.
+- **Lire un gros journal : `docker logs --tail N`, jamais `--since`.** `--since` relit tout le fichier depuis le début (des minutes pour plusieurs Go) et ajoute de la charge.
 
 ## Retour arrière
 

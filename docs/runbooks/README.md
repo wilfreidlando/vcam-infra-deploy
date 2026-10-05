@@ -12,6 +12,7 @@ action, vérification, **ce qu'il ne faut pas faire**, et ce qu'on écrit après
 | `deploy.sh` s'arrête avec une erreur, la nouvelle version n'est pas en ligne | [Déploiement en échec](deploiement-en-echec.md) |
 | Un conteneur redémarre sans cesse (`Restarting`, compteur de redémarrages énorme) | [Conteneur en boucle](conteneur-en-boucle.md) |
 | Alerte « disque » ou `no space left on device` | [Disque plein](disque-plein.md) |
+| Le serveur est chargé, sites lents, alerte « charge très élevée » | [Serveur chargé](serveur-charge.md) |
 | Erreur de certificat, `HTTP 000`, HTTPS qui ne marche pas pour un nouveau nom | [Certificat non émis](certificat-non-emis.md) |
 | `Connection refused` vers la base, migrations en échec, base qui ne démarre pas | [Base de données inaccessible](base-inaccessible.md) |
 | Le serveur est perdu | [Reprise après sinistre](../../guides/12-reprise-apres-sinistre.md) |

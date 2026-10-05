@@ -44,6 +44,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | [Catalogue des besoins](reference/catalogue-des-besoins.md) |
 | Un déploiement échoue | [Runbook : déploiement en échec](runbooks/deploiement-en-echec.md) |
 | Un conteneur redémarre en boucle | [Runbook : conteneur en boucle](runbooks/conteneur-en-boucle.md) |
+| Le serveur est chargé : où voir, ce qui cause | [Runbook : serveur chargé](runbooks/serveur-charge.md) |
 | Réagir à une panne | [Runbooks](runbooks/README.md) |
 | Mettre en service ou mettre à jour la supervision | [Runbook : mise en service de la supervision](runbooks/mise-en-service-supervision.md) |
 | Savoir pourquoi on a fait ce choix | [ADR](adr/README.md) |
@@ -92,7 +93,7 @@ Classés par thème dans l'[index des guides](../guides/README.md) : **installer
 [Index](runbooks/README.md) : [site en panne](runbooks/site-en-panne.md),
 [disque plein](runbooks/disque-plein.md), [certificat non émis](runbooks/certificat-non-emis.md),
 [base inaccessible](runbooks/base-inaccessible.md), [déploiement en échec](runbooks/deploiement-en-echec.md),
-[conteneur en boucle](runbooks/conteneur-en-boucle.md),
+[conteneur en boucle](runbooks/conteneur-en-boucle.md), [serveur chargé](runbooks/serveur-charge.md),
 [exercice de restauration](runbooks/exercice-de-restauration.md),
 [mise en service de la supervision](runbooks/mise-en-service-supervision.md).
 
