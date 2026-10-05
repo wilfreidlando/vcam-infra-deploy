@@ -116,11 +116,17 @@ step "Le serveur lui-même (node-exporter)"
 # La plateforme observe le serveur sans qu'aucun projet n'ait rien à faire : processeur, mémoire, swap,
 # disque, charge. Les alertes génériques et le tableau « Serveur » s'appuient sur ces séries.
 check "node-exporter démarré" docker ps --filter name=vpstest-obs-node-exporter --filter status=running -q
-for serie in node_load5 node_memory_MemAvailable_bytes node_cpu_seconds_total; do
+for serie in node_load5 node_memory_MemAvailable_bytes node_cpu_seconds_total node_vmstat_pswpin node_vmstat_pswpout; do
     check "série ${serie} dans Prometheus" wait_for 120 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=${serie}' | grep -q '\"value\"'"
 done
 check "disque « / » mesuré (les alertes et le tableau le cherchent)" wait_for 60 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=node_filesystem_size_bytes%7Bmountpoint%3D%22%2F%22%7D' | grep -q '\"value\"'"
 check "node-exporter est un job scruté et en bonne santé" wait_for 60 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=up%7Bjob%3D%22node%22%7D' | grep -q '\"1\"\]'"
+# Constat du 2026-10-05 : un swap à 63 % sans aucun va-et-vient ne gênait personne, et l'alerte « plus de 50 % utilisé » sonnait pour rien.
+# Le bon signal est le swap RELU (les pages inactives ne coûtent rien) : la règle doit mesurer ce mouvement, pas le niveau.
+check "l'alerte de swap mesure le swap relu (node_vmstat_pswpin), pas son niveau d'occupation" \
+    sh -c "grep -A14 'uid: node-swap-high' '${INFRA_DIR}/observability/grafana/provisioning/alerting/generic-alerts.yaml' | grep -q 'rate(node_vmstat_pswpin' "
+check_not "l'alerte de swap ne dépend plus de SwapFree (niveau)" \
+    sh -c "grep -A14 'uid: node-swap-high' '${INFRA_DIR}/observability/grafana/provisioning/alerting/generic-alerts.yaml' | grep -q 'SwapFree_bytes'"
 
 step "Les conteneurs (cAdvisor) et les sondes de sites (blackbox)"
 # cAdvisor : consommation et redémarrages de chaque conteneur Docker, sans que le projet fasse rien.

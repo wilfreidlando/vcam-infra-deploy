@@ -509,6 +509,40 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Swap : pages relues et écrites (par seconde)",
+      "description": "Un swap rempli de pages inactives n'est pas un problème. Un swap RELU en continu en est un : la mémoire manque et les sites ralentissent. Bon état : proche de 0. L'alerte « Le serveur relit activement son swap » sonne au-dessus de 300 pages/s pendant 15 minutes. Voir le runbook « Serveur chargé ».",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(node_vmstat_pswpin[5m])",
+          "legendFormat": "relues du swap"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(node_vmstat_pswpout[5m])",
+          "legendFormat": "écrites dans le swap"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "fillOpacity": 15, "lineWidth": 1, "showPoints": "never", "stacking": { "mode": "none", "group": "A" } },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      }
     }
   ]
 }

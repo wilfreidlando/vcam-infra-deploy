@@ -66,21 +66,21 @@ groups:
             model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: lt, params: [10] } }] }
 
       - uid: node-swap-high
-        title: Le serveur utilise beaucoup son swap
+        title: Le serveur relit activement son swap
         condition: C
         for: 15m
         noDataState: OK
         execErrState: OK
         annotations:
-          summary: "Plus de 50 % du swap est utilisé : la mémoire est durablement insuffisante, les temps de réponse se dégradent. Identifier le conteneur le plus gourmand (docker stats)."
+          summary: "Le serveur relit du swap en continu (plus de 300 pages par seconde pendant 15 minutes) : la mémoire manque et les sites ralentissent. Un swap rempli de pages inactives n'est PAS un problème, d'où ce critère. Voir « docker stats --no-stream » et le runbook « Serveur chargé »."
         data:
           - refId: A
             datasourceUid: prometheus
             relativeTimeRange: { from: 300, to: 0 }
-            model: { refId: A, expr: 'max((node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) * 100 / (node_memory_SwapTotal_bytes > 0))', instant: true }
+            model: { refId: A, expr: 'max(rate(node_vmstat_pswpin[5m]))', instant: true }
           - refId: C
             datasourceUid: __expr__
-            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [50] } }] }
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [300] } }] }
 
       - uid: node-load-high
         title: Charge du serveur très élevée

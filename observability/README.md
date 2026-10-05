@@ -168,7 +168,7 @@ joignable que depuis le réseau privé de la pile.
 | Ce qu'on voit | Où |
 | --- | --- |
 | Processeur, mémoire, swap, disque « / », charge | Grafana, dossier **Plateforme**, tableau **Serveur — vue d'ensemble** |
-| Cinq alertes génériques : serveur plus observé, disque > 85 %, mémoire disponible < 10 %, swap > 50 %, charge > 2,5 par processeur | Grafana, **Alerting**, dossier **Plateforme** ([`generic-alerts.yaml`](grafana/provisioning/alerting/generic-alerts.yaml)) |
+| Cinq alertes génériques : serveur plus observé, disque > 85 %, mémoire disponible < 10 %, swap relu en continu, charge > 2,5 par processeur | Grafana, **Alerting**, dossier **Plateforme** ([`generic-alerts.yaml`](grafana/provisioning/alerting/generic-alerts.yaml)) |
 
 Ces alertes partent vers le point de contact par défaut (`core-oncall`, nom historique : il reçoit **toutes** les alertes). Chacune
 a un délai (`for`) pour éviter le bruit. Les métriques **par conteneur** (consommation, redémarrages) viennent de cAdvisor, voir la section suivante et

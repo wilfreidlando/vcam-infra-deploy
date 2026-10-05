@@ -51,7 +51,7 @@ contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf po
 | Le serveur n'est plus observé | `node-exporter` injoignable | 5 min | [Site en panne](../runbooks/site-en-panne.md) |
 | Disque du serveur presque plein | « / » à plus de 85 % | 10 min | [Disque plein](../runbooks/disque-plein.md) |
 | Mémoire du serveur presque épuisée | moins de 10 % disponibles | 10 min | [Site en panne](../runbooks/site-en-panne.md) |
-| Le serveur utilise beaucoup son swap | plus de 50 % du swap | 15 min | idem |
+| Le serveur relit activement son swap | plus de 300 pages/s relues du swap (le niveau d'occupation seul n'est pas un problème) | 15 min | idem |
 | Charge du serveur très élevée | plus de 2,5 par processeur (5 min) | 20 min | [Conteneur en boucle](../runbooks/conteneur-en-boucle.md) |
 | Un conteneur redémarre en boucle | plus de 3 redémarrages en 30 min | 5 min | [Conteneur en boucle](../runbooks/conteneur-en-boucle.md) |
 | Un conteneur approche de sa limite de mémoire | plus de 90 % de sa limite | 10 min | idem |

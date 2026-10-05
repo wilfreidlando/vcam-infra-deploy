@@ -27,7 +27,7 @@ charge élevée, mémoire libre faible, aucune alerte). Les journaux répondent 
 
 1. `node-exporter` (`prom/node-exporter`, version figée) dans la pile, sur son réseau privé, **sans port publié**, `/` monté en lecture seule, limité à 64 Mo
    et 0,25 processeur. Prometheus le scrute directement (`prometheus.yml`), Alloy n'est pas modifié.
-2. **Cinq alertes génériques** (serveur plus observé, disque > 85 %, mémoire disponible < 10 %, swap > 50 %, charge > 2,5 par processeur), chacune avec
+2. **Cinq alertes génériques** (serveur plus observé, disque > 85 %, mémoire disponible < 10 %, swap > 50 % (remplacé le 2026-10-05 : voir la note en fin de document), charge > 2,5 par processeur), chacune avec
    un délai, une absence de données sans alerte (sauf pour l'alerte qui surveille l'observateur), et un renvoi vers le runbook concerné.
 3. Un tableau **Plateforme → Serveur — vue d'ensemble**.
 4. **cAdvisor**, livré dans la même version mais **mis en service dans un second temps** (après avoir observé l'effet de (1) sur la charge), avec une limite de
@@ -46,3 +46,7 @@ charge élevée, mémoire libre faible, aucune alerte). Les journaux répondent 
 - `node-exporter` voit le disque et la mémoire du **serveur** ; les interfaces réseau de l'hôte ne sont pas exposées (conteneur sur un réseau privé,
   pas en `network_mode: host`, pour ne publier aucun port).
 - Un seuil de charge à 2,5 par processeur est volontairement haut : la charge normale du serveur est déjà élevée. À ajuster avec l'expérience.
+
+## Évolution du 2026-10-05
+
+L'alerte « swap > 50 % » mesurait un **niveau** : le serveur avait 63 % de swap occupé sans aucun va-et-vient (pages inactives), donc une alerte sans cause. Elle mesure désormais le swap **relu** (`rate(node_vmstat_pswpin[5m])` > 300 pages/s pendant 15 minutes). Le seuil est une première estimation (10 h d'historique seulement) : à ajuster. La décision d'origine (cinq alertes génériques) est inchangée.
