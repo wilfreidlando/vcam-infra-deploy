@@ -92,7 +92,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "count(max by (name) (changes(container_start_time_seconds{name!=\"\"}[30m])) > 3) or vector(0)",
+          "expr": "count(max by (name) (resets(container_cpu_usage_seconds_total{name!=\"\"}[30m])) > 3) or vector(0)",
           "instant": true
         }
       ],
@@ -353,7 +353,7 @@
       "id": 7,
       "type": "bargauge",
       "title": "Redémarrages sur 24 h (conteneurs concernés)",
-      "description": "Un conteneur à un redémarrage par heure (ex. un worker de file d'attente configuré ainsi) est normal ; des dizaines indiquent une boucle. Seuls les conteneurs qui ont redémarré apparaissent : vide = aucun redémarrage, c'est le bon état.",
+      "description": "Un conteneur à un redémarrage par heure (ex. un worker de file d'attente configuré ainsi) est normal ; des dizaines indiquent une boucle. Seuls les conteneurs qui ont redémarré apparaissent : vide = aucun redémarrage, c'est le bon état. Compte les relances d'un MÊME conteneur par Docker ; un déploiement qui recrée le conteneur n'est pas compté.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -371,7 +371,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "topk(15, max by (name) (changes(container_start_time_seconds{name!=\"\"}[24h])) > 0)",
+          "expr": "topk(15, max by (name) (resets(container_cpu_usage_seconds_total{name!=\"\"}[24h])) > 0)",
           "instant": true,
           "legendFormat": "{{name}}"
         }

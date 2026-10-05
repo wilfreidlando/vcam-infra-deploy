@@ -195,7 +195,7 @@
       "id": 3,
       "type": "stat",
       "title": "Redémarrages sur 24 h",
-      "description": "Démarrages de conteneurs de cette application sur 24 heures. Plus de 3 en peu de temps : une boucle.",
+      "description": "Relances par Docker des conteneurs de cette application sur 24 heures (un déploiement qui recrée le conteneur n'est pas compté). Un worker de file d'attente réglé sur --max-time=3600 en fait 24 : normal. Plus de 3 en peu de temps : une boucle.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -213,7 +213,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(changes(container_start_time_seconds{app=~\"$app\", deployment=~\"$deployment\"}[24h])) or vector(0)",
+          "expr": "sum(resets(container_cpu_usage_seconds_total{app=~\"$app\", deployment=~\"$deployment\"}[24h])) or vector(0)",
           "instant": true
         }
       ],

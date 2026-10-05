@@ -53,7 +53,7 @@ contre le bruit. Une **absence de données ne déclenche pas d'alerte**, sauf po
 | Mémoire du serveur presque épuisée | moins de 10 % disponibles | 10 min | [Site en panne](../runbooks/site-en-panne.md) |
 | Le serveur relit activement son swap | plus de 300 pages/s relues du swap (le niveau d'occupation seul n'est pas un problème) | 15 min | idem |
 | Charge du serveur très élevée | plus de 2,5 par processeur (5 min) | 20 min | [Conteneur en boucle](../runbooks/conteneur-en-boucle.md) |
-| Un conteneur redémarre en boucle | plus de 3 redémarrages en 30 min | 5 min | [Conteneur en boucle](../runbooks/conteneur-en-boucle.md) |
+| Un conteneur redémarre en boucle | plus de 3 relances par Docker en 30 min (compteur de processeur qui repart de zéro) | 5 min | [Conteneur en boucle](../runbooks/conteneur-en-boucle.md) |
 | Un conteneur approche de sa limite de mémoire | plus de 90 % de sa limite | 10 min | idem |
 | Un site ne répond plus | sonde en échec (autre chose que 2xx) | 3 min | [Site en panne](../runbooks/site-en-panne.md) |
 | Un certificat HTTPS expire bientôt | moins de 14 jours | 1 h | [Certificat non émis](../runbooks/certificat-non-emis.md) |

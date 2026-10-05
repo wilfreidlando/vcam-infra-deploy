@@ -24,6 +24,11 @@ sans erreur**. C'est prévu.
 | Des redémarrages toutes les quelques secondes, journal d'erreur | **Une boucle** : continuer |
 | `exited` avec un code ≠ 0 et un nombre de redémarrages énorme | **Une boucle** ancienne, jamais corrigée |
 
+**Lire le compteur avec l'âge du conteneur.** `docker inspect -f '{{.RestartCount}}' <conteneur>` est un **cumul depuis la création** : seul le **rythme** compte. Divisez par ses jours de vie.
+Exemples relevés le 2026-10-05 : `cpf_worker_2`, 1655 redémarrages en 69 jours = **24 par jour** = un par heure (worker `--max-time=3600`) : normal ; `cpf_dev_worker`, 105 067 redémarrages = **un par minute** : une boucle.
+La supervision compte les relances d'un **même** conteneur par Docker (le compteur de processeur qui repart de zéro) ; une recréation par un déploiement n'est pas comptée.
+Retour d'expérience : [l'alerte de boucle était aveugle](../retours-experience/2026-10-05-alerte-de-boucle-aveugle-aux-relances.md).
+
 ## 2. Diagnostic
 
 ```bash

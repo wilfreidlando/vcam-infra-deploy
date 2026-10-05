@@ -27,7 +27,7 @@ groups:
         to: 0
       model:
         refId: A
-        expr: max by (name) (changes(container_start_time_seconds{name!=""}[30m]))
+        expr: max by (name) (resets(container_cpu_usage_seconds_total{name!=""}[30m]))
         instant: true
     - refId: C
       datasourceUid: __expr__

@@ -75,6 +75,11 @@ docker run -d --name vpstest-obs-demo --network vpstest-a-first \
 docker network connect "${OBS_NETWORK}" vpstest-obs-demo
 docker run -d --name vpstest-obs-ignored --network "${OBS_NETWORK}" -l com.docker.compose.project=secret-project \
     busybox sh -c 'while true; do echo ignored-line; sleep 2; done' >/dev/null
+# Un conteneur qui s'arrête tout seul (code 0) toutes les ~10 s et que Docker relance, comme un worker --max-time. Il consomme du processeur avant
+# de s'arrêter : c'est ce qui permet de voir son compteur repartir de zéro à chaque relance (voir plus bas).
+docker run -d --name vpstest-obs-flapper --restart=always --network "${OBS_NETWORK}" \
+    -l observability.enable=true -l observability.app=demo-flapper -l observability.deployment=staging \
+    busybox sh -c 'i=0; while [ $i -lt 400000 ]; do i=$((i+1)); done; sleep 8' >/dev/null
 
 # PHP-FPM case: labelled, kept OFF the shared network, on two private networks.
 docker network create vpstest-obs-priv1 >/dev/null
@@ -132,10 +137,20 @@ step "Les conteneurs (cAdvisor) et les sondes de sites (blackbox)"
 # cAdvisor : consommation et redémarrages de chaque conteneur Docker, sans que le projet fasse rien.
 check "cAdvisor démarré" docker ps --filter name=vpstest-obs-cadvisor --filter status=running -q
 check "blackbox-exporter démarré" docker ps --filter name=vpstest-obs-blackbox-exporter --filter status=running -q
-for serie in container_memory_working_set_bytes container_start_time_seconds container_cpu_usage_seconds_total; do
+for serie in container_memory_working_set_bytes container_cpu_usage_seconds_total; do
     check "série ${serie} dans Prometheus (cAdvisor)" wait_for 240 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=${serie}%7Bname%21%3D%22%22%7D' | grep -q '\"value\"'"
 done
 check "cAdvisor est un job scruté et en bonne santé" wait_for 120 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=up%7Bjob%3D%22cadvisor%22%7D' | grep -q '\"1\"\]'"
+# Incident du 2026-10-05 : l'alerte « un conteneur redémarre en boucle » et le panneau « Redémarrages » comptaient changes(container_start_time_seconds).
+# Or cAdvisor y met la date de CRÉATION du conteneur (cpf_worker_2 : 69 jours), qui ne change pas quand Docker relance le MÊME conteneur : ni l'alerte ni
+# le panneau ne pouvaient rien voir, et le test ne contrôlait que l'existence de la série. Le bon signal est le compteur de processeur, qui repart de
+# zéro à chaque relance : resets(). On provoque donc de VRAIES relances et on vérifie qu'elles sont comptées.
+check "les relances d'un même conteneur par Docker sont comptées (resets du compteur de processeur)" wait_for 240 sh -c \
+    "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=resets(container_cpu_usage_seconds_total%7Bname%3D%22vpstest-obs-flapper%22%7D%5B5m%5D)' | python3 -c 'import sys,json; r=json.load(sys.stdin)[\"data\"][\"result\"]; sys.exit(0 if r and float(r[0][\"value\"][1])>=2 else 1)'"
+check "un conteneur stable n'est pas compté comme relancé (aucun faux positif)" sh -c \
+    "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=resets(container_cpu_usage_seconds_total%7Bname%3D%22vpstest-obs-demo%22%7D%5B5m%5D)' | python3 -c 'import sys,json; r=json.load(sys.stdin)[\"data\"][\"result\"]; sys.exit(0 if r and float(r[0][\"value\"][1])==0 else 1)'"
+check_not "plus aucune règle ni aucun panneau ne repose sur container_start_time_seconds (date de création, aveugle aux relances)" \
+    sh -c "grep -rq 'container_start_time_seconds' '${INFRA_DIR}/observability/grafana'"
 # Chaque conteneur est rattaché à son application : cAdvisor ne garde que observability.app et observability.deployment, que Prometheus
 # renomme en app et deployment, comme pour les journaux. C'est ce qui permet UN tableau « Application » pour tous les projets.
 check "les séries de cAdvisor portent les étiquettes app et deployment du conteneur" wait_for 240 sh -c "docker exec vpstest-obs-grafana wget -qO- 'http://prometheus:9090/api/v1/query?query=container_memory_working_set_bytes%7Bapp%3D%22demo-laravel%22%2Cdeployment%3D%22staging%22%7D' | grep -q '\"value\"'"
