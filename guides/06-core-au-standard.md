@@ -121,6 +121,26 @@ et un projet, puis enregistrer l'application MyCoolPay **sandbox**.
 **Recette** : un paiement sandbox, une notification de test, un webhook. Ne passez à
 l'étape 6 que si tout est bon.
 
+## Étape 5 bis — Répéter les migrations sur les données réelles (fortement recommandé)
+
+Le staging part d'une base **vide** : ses migrations passent toujours. La production a **des données** qu'une migration peut transformer ou supprimer. Avant de promouvoir,
+**restaurer une copie de la production dans le staging** (`restore.sh`, ou la copie de l'étape 1), puis y **appliquer les migrations de la nouvelle version** :
+
+```bash
+$ docker exec core-system-staging-app php artisan migrate:status | grep -c Pending        # combien vont passer
+$ docker exec core-system-staging-app php artisan migrate --force                         # la répétition
+```
+
+Comparer ensuite le **nombre de lignes par table avant et après** : seules les tables qu'une migration est censée toucher doivent changer. Lire le code de toute migration qui
+**supprime** des lignes. Où chercher les migrations ? Un projet modulaire les range **dans chaque module**, pas seulement dans `database/migrations` :
+
+```bash
+$ git diff --name-status <version en production> <nouvelle version> -- '*migrations*'
+```
+
+**Attention aux données personnelles** : une copie de la production dans le staging contient des données réelles. Mettre en pause les services qui agissent vers l'extérieur
+(files d'attente, planificateur), garder l'environnement en `sandbox`, et supprimer la copie après la répétition.
+
 ## Étape 6 — Promotion en production
 
 En heure creuse :

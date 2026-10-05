@@ -48,7 +48,7 @@ ENVIRONMENTS=prod
 | Comment déployer ? | `cd /app/<projet>/prod && deploy.sh promote origin/main` : l'image est **construite sur place**, puis sauvegarde, migrations, santé |
 | Et `watch` (le déploiement automatique) ? | Refusé : « ce projet n'a que des productions ». Il n'y a rien à déployer automatiquement |
 | Et le retour arrière ? | `deploy.sh rollback prod` ; automatique si la santé échoue |
-| Comment limiter le risque sans staging ? | 1. **Tests automatiques** dans le dépôt avant de pousser. 2. `deploy.sh check` avant chaque promotion (il ne change rien). 3. Déployer **hors des heures d'activité**. 4. Faire **réellement** l'[exercice de restauration](../runbooks/exercice-de-restauration.md), et **prendre une sauvegarde à la main avant une migration risquée** (`deploy.sh backup`) : sans staging, c'est votre seul filet |
+| Comment limiter le risque sans staging ? | 1. **Tests automatiques** dans le dépôt avant de pousser. 2. `deploy.sh check` avant chaque promotion (il ne change rien). 3. Déployer **hors des heures d'activité**. 4. **Répéter les migrations sur une copie restaurée de la production** ([guide 6, étape 5 bis](../../guides/06-core-au-standard.md#étape-5-bis--répéter-les-migrations-sur-les-données-réelles-fortement-recommandé)), puis faire **réellement** l'[exercice de restauration](../runbooks/exercice-de-restauration.md), et **prendre une sauvegarde à la main avant une migration risquée** (`deploy.sh backup`) : sans staging, c'est votre seul filet |
 | Quand passer au profil A ? | Dès que le projet a des utilisateurs qu'on ne veut pas surprendre : un second environnement coûte peu |
 
 ## 4. Profil C : plusieurs productions
