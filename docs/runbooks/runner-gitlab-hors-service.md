@@ -22,7 +22,7 @@ $ journalctl -u gitlab-runner -n 50 --no-pager     # (root ou groupe adm)
 | GitLab : « This job is stuck because the project doesn't have any runners online assigned to it » | Le runner est hors ligne, non activé pour ce projet, ou son **tag** ne correspond pas à celui du job | Dans GitLab (*Settings → CI/CD → Runners*) : point vert ? tag exact (sans espace ni majuscule) ? « Enable for this project » ? |
 | Le job reste « pending » alors que le runner est vert | Runner coché **« Protected »** et branche non protégée ; ou `concurrent` trop bas | Protéger la branche, ou décocher ; `concurrent` (en tête de `config.toml`) = nombre maximal de jobs simultanés pour **tous** les runners du fichier : le monter |
 | Un job prend le travail d'un autre, échoue sur `apk: command not found` ou `docker: not found` | Le runner SSH accepte les **jobs sans tag** (« Run untagged jobs ») et reçoit des jobs écrits pour des conteneurs | Décocher « Run untagged jobs » : un runner SSH du serveur ne prend que les jobs qui portent son tag |
-| Le runner est vert, le job démarre, puis `Permission denied` dans un clone de projet | Fichiers appartenant à root dans le clone (un `git pull` en root) | [REX 2026-10-06](../retours-experience/2026-10-06-git-pull-en-root-dans-un-clone.md) : `chown`/`chmod`/ACL, § « Correction » |
+| Le runner est vert, le job démarre, puis `Permission denied` dans un clone de projet | Fichiers appartenant à root dans le clone (un `git pull` en root) | [REX 2026-10-06](../retours-experience/2026-10-06-git-pull-en-root-dans-un-clone.md) : `chown`/`chmod`/ACL, § « Correction » ; `vps-deploy check` le détecte désormais et donne la commande |
 
 ## 3. Réparer un `config.toml` invalide
 

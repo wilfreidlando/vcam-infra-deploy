@@ -693,12 +693,53 @@ cmd_rollback() {
 # check [env] — the pre-flight of a deploy, on the current checkout, plus
 # git access. Changes nothing: safe on a project already in production,
 # which is how an existing project is brought to the standard.
+# Integrity of the project's clone. The clone belongs to vps-deploy: nobody edits, pulls, merges or commits in it
+# (deploy.sh fetches, then checks out the SHA to deploy, detached). Two things make a deploy fail or lie, and are blocking:
+#   - a DIRECTORY of .git the deploying account cannot write (typically after a « git pull » or any command run as root in the
+#     clone): git can no longer add objects or update references there (« insufficient permission for adding an object »).
+#     Only directories count: the object files themselves are read-only (0444) in every healthy clone;
+#   - tracked files modified by hand: the image would be built from something that is not the commit it is tagged with.
+# Two things are only reported: local commits that are in no remote branch (a pull/merge made in the clone: ignored by the next
+# deploy, which re-detaches on the published SHA), and files owned by another account than the folder's owner (.git included).
+# ALLOW_DIRTY_CLONE=1 lets a deliberate modification through (at the operator's own risk).
+clone_integrity() {
+    is_git || return 0
+    local dir="${PROJECT_DIR}" bad=0 n sample owner
+    n="$(find "${dir}/.git" -type d -not -writable 2>/dev/null | wc -l)"
+    if [[ "${n}" -gt 0 ]]; then
+        sample="$(find "${dir}/.git" -type d -not -writable 2>/dev/null | head -1 || true)"
+        log "clone : ${n} dossier(s) de .git que $(id -un) ne peut pas écrire (ex. ${sample#"${dir}"/}) — suite d'un « git pull » ou d'une commande lancée en root dans le clone ; git ne pourra plus y ajouter d'objets ni de références. Réparer en root : chown -R $(stat -c %U "${dir}"):$(stat -c %G "${dir}") ${dir} ; find ${dir} -type d -exec chmod 2775 {} + ; find ${dir} -type f -exec chmod g+rw {} + (docs/retours-experience/2026-10-06-git-pull-en-root-dans-un-clone.md)"
+        bad=1
+    fi
+    n="$(git -C "${dir}" status --porcelain --untracked-files=no 2>/dev/null | wc -l)"
+    if [[ "${n}" -gt 0 ]]; then
+        sample="$(git -C "${dir}" status --porcelain --untracked-files=no 2>/dev/null | head -1 | cut -c4- || true)"
+        if [[ "${ALLOW_DIRTY_CLONE:-0}" == 1 ]]; then
+            log "clone : INFO — ${n} fichier(s) suivis par git modifiés à la main (ex. ${sample}), toléré par ALLOW_DIRTY_CLONE=1 : l'image ne correspondra pas exactement au commit"
+        else
+            log "clone : ${n} fichier(s) suivis par git ont été modifiés à la main (ex. ${sample}) — l'image construite ne correspondrait plus au commit publié. Annuler : git -C ${dir} checkout -- . (ou ALLOW_DIRTY_CLONE=1 pour passer outre, à vos risques)"
+            bad=1
+        fi
+    fi
+    n="$(git -C "${dir}" rev-list --count HEAD --not --remotes 2>/dev/null || echo 0)"
+    if [[ "${n}" -gt 0 ]]; then
+        log "clone : INFO — ${n} commit(s) local(aux) absent(s) de tout dépôt distant (un pull, merge ou commit fait dans le clone) : ignoré(s) au prochain déploiement, qui replace la tête sur la version publiée. Ne rien faire de git à la main dans ce dossier."
+    fi
+    owner="$(stat -c %U "${dir}")"
+    n="$(find "${dir}" -not -user "${owner}" 2>/dev/null | wc -l)"
+    if [[ "${n}" -gt 0 ]]; then
+        log "clone : INFO — ${n} fichier(s) n'appartiennent pas à ${owner}, propriétaire du dossier (ex. $(find "${dir}" -not -user "${owner}" 2>/dev/null | head -1 | sed "s#^${dir}/##" || true)) : normal pour des données de conteneurs, suspect pour du code ou pour .git (commande lancée en root ?)"
+    fi
+    return "${bad}"
+}
+
 cmd_check() {
     local env="${1:-$(preprod_env)}" ok=1
     [[ -n "${env}" ]] || env="${PROD_ENVIRONMENTS%% *}"
     is_env "${env}" || die "environnement inconnu « ${env} » (${ENVIRONMENTS})"
     if is_git; then
         fetch_origin && log "check : accès git OK ($(git -C "${PROJECT_DIR}" remote get-url origin))" || ok=0
+        clone_integrity || ok=0
     fi
     if preflight "${env}" "$(git -C "${PROJECT_DIR}" rev-parse HEAD 2>/dev/null || echo latest)"; then
         log "check : platform.env et compose cohérents, aucun nom privé exposé sur un réseau partagé (${env})"

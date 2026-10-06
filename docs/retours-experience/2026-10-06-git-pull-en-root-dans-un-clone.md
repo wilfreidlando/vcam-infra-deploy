@@ -30,8 +30,10 @@ Vérifié ensuite : `find /app/APPS/<projet>/<env> \( ! -user deployer -o ! -gro
 
 - **Règle** : dans un clone géré par `vps-deploy`, on ne fait **jamais** `git pull`, `git merge` ni `git commit` ; on déploie (`vps-deploy watch` / `promote`) ou on laisse le pipeline le faire.
 - **Règle** : une commande en root dans un dossier de projet se termine par la vérification des propriétaires ci-dessus.
-- **Limite connue** : documentaire. Piste : `vps-deploy check` pourrait signaler un clone dont la tête n'est pas un ancêtre de `origin/<branche>`, ou des fichiers hors `deployer:vpsdeploy` (non fait).
+- **Automatique** : `deploy.sh check` (donc `vps-deploy check` et le job de build du pipeline) **refuse** un clone dont un dossier de `.git` n'est pas inscriptible par le compte qui déploie, ou dont des fichiers suivis par git ont été modifiés à la main (`ALLOW_DIRTY_CLONE=1` pour passer outre, consigné) ; il **signale** les commits locaux absents d'origin (un pull ou un merge) et les fichiers appartenant à un autre compte, `.git` compris. Un fichier non suivi (`.env.*`) ne gêne jamais. Test : `tests/test-clone.sh` (15 contrôles ; il échoue quand le contrôle est désactivé).
+- **Piège évité en l'écrivant** : les fichiers d'objets de `.git` sont en lecture seule (0444) dans tout clone sain ; un contrôle sur « fichier non inscriptible » aurait refusé **tous** les clones de **tous** les projets. Seuls les **dossiers** comptent. Le test sur un clone propre l'a révélé.
 
 ## Reste à faire
 
-- [ ] Décider si `vps-deploy check` doit refuser ou signaler un clone modifié à la main.
+- [x] Contrôle automatique dans `check` (fait le 2026-10-06).
+- [ ] Le déployer sur le serveur (mise à jour de la plateforme, guide 11) : jusque-là, la règle reste documentaire.
