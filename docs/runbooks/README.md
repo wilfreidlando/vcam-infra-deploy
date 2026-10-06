@@ -15,6 +15,7 @@ action, vérification, **ce qu'il ne faut pas faire**, et ce qu'on écrit après
 | Le serveur est chargé, sites lents, alerte « Charge du serveur très élevée » | [Serveur chargé](serveur-charge.md) |
 | Erreur de certificat, `HTTP 000`, HTTPS qui ne marche pas pour un nouveau nom | [Certificat non émis](certificat-non-emis.md) |
 | `Connection refused` vers la base, migrations en échec, base qui ne démarre pas | [Base de données inaccessible](base-inaccessible.md) |
+| Un job GitLab reste « pending » (« no runners online »), `gitlab-runner` en `activating`, `FATAL: toml` | [Runner GitLab hors service](runner-gitlab-hors-service.md) |
 | Le serveur est perdu | [Reprise après sinistre](../../guides/12-reprise-apres-sinistre.md) |
 
 ## Exercices (sans incident)

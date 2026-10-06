@@ -17,6 +17,8 @@ automatique : un contrôle, un test, un modèle corrigé. Voir le
 | 2026-10-05 | [Le tableau « Traces » de Grafana répondait « empty ring »](2026-10-05-traces-empty-ring.md) | Générateur de métriques Tempo (`local-blocks` seul) ; le test interroge `metrics/query_range` comme Grafana | Corrigé dans le dépôt, à déployer |
 | 2026-10-05 | [L'alerte de sauvegarde se taisait pour un projet qui n'était plus sauvegardé](2026-10-05-alerte-de-sauvegarde-globale.md) | Une règle **par projet** (agent qui a tourné sans envoyer de copie) en plus de la globale, rappel **quotidien** (`cadence=daily`) ; test avec trois faux agents (un qui envoie, un désactivé, un neuf) et évaluation par Grafana | Corrigé dans le dépôt, à déployer |
 | 2026-10-05 | [L'alerte « un conteneur redémarre en boucle » et le panneau « Redémarrages » ne voyaient aucune relance](2026-10-05-alerte-de-boucle-aveugle-aux-relances.md) | Le signal est le compteur de processeur (`resets`), plus la date de création du conteneur ; test avec un conteneur qui est vraiment relancé par Docker, et un conteneur stable témoin | Corrigé dans le dépôt, à déployer |
+| 2026-10-06 | [Le runner GitLab tombe après un redémarrage : `config.toml` invalide, puis jobs sans tag](2026-10-06-runner-gitlab-config-invalide-et-jobs-sans-tag.md) | Runbook et règles (documentaire ; contrôle automatique à décider) | Partiel |
+| 2026-10-06 | [Un `git pull` en root dans un clone de projet](2026-10-06-git-pull-en-root-dans-un-clone.md) | Règle et procédure de réparation (documentaire ; contrôle dans `check` à décider) | Partiel |
 
 ## Modèle
 
