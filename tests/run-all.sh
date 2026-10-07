@@ -8,7 +8,7 @@ set -uo pipefail
 cd "$(dirname "$0")" || exit 2
 
 tests=("$@")
-[[ ${#tests[@]} -eq 0 ]] && tests=(docs commands obs-bundle templates gitlab-ci scripts-modeles laravel-modeles fingerprint hosts clone deploy branches inventory backup observability platform)
+[[ ${#tests[@]} -eq 0 ]] && tests=(docs commands obs-bundle templates gitlab-ci scripts-modeles laravel-modeles fingerprint overview hosts clone deploy branches inventory backup observability platform)
 
 failed=()
 skipped=()

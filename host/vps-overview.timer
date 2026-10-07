@@ -1,0 +1,11 @@
+# Une fois par minute (la page affiche « généré le … » : une page qui ne bouge plus se voit tout de suite).
+[Unit]
+Description=Page d'état de la plateforme, chaque minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

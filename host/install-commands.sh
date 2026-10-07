@@ -5,6 +5,7 @@
 #   vps-deploy         = bin/deploy.sh            vps-restore = bin/restore.sh        vps-audit   = bin/vps-audit.sh
 #   vps-inventory      = bin/vps-inventory.sh     vps-hosts   = bin/vps-hosts.sh      vps-obs-bundle = bin/obs-bundle.py
 #   vps-fingerprint    = bin/vps-fingerprint.sh   (prouver qu'une copie de base ou de fichiers est exacte)
+#   vps-overview       = bin/vps-overview.py      (quelle version tourne où : tableau, JSON ou page HTML ; lecture seule)
 #   vps-daemon-config  = host/apply-daemon-config.sh
 #
 #   host/install-commands.sh              install (root)
@@ -23,11 +24,12 @@ SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 ROOT="$(cd "$(dirname "${SELF}")/.." && pwd)"
 DIR="${COMMANDS_DIR:-/usr/local/bin}"
 MARK="# vps-platform command wrapper"
-NAMES=(vps vps-deploy vps-restore vps-audit vps-inventory vps-hosts vps-obs-bundle vps-fingerprint vps-daemon-config)
+NAMES=(vps vps-deploy vps-restore vps-audit vps-inventory vps-hosts vps-obs-bundle vps-fingerprint vps-overview vps-daemon-config)
 # name → script, relative to the platform folder
 declare -A SCRIPT=(
     [vps]=bin/vps.sh [vps-deploy]=bin/deploy.sh [vps-restore]=bin/restore.sh [vps-audit]=bin/vps-audit.sh
     [vps-inventory]=bin/vps-inventory.sh [vps-hosts]=bin/vps-hosts.sh [vps-obs-bundle]=bin/obs-bundle.py [vps-fingerprint]=bin/vps-fingerprint.sh
+    [vps-overview]=bin/vps-overview.py
     [vps-daemon-config]=host/apply-daemon-config.sh
 )
 

@@ -50,8 +50,10 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Brancher le **pipeline GitLab** d'un projet, comprendre pourquoi il a cette forme, ce qui le bloque | [Le pipeline GitLab](reference/pipeline-gitlab.md), [modèles prêts à copier](../templates/gitlab-ci/README.md) |
 | Un job GitLab reste « pending » ; plus aucun pipeline ne part | [Runbook : runner GitLab hors service](runbooks/runner-gitlab-hors-service.md) |
 | Savoir à qui est un **clone** de projet sur le serveur, ce qu'on y fait, le réparer après une commande en root | [Clones et droits](reference/clones-et-droits.md) |
+| [La page « État de la plateforme »](reference/page-detat-de-la-plateforme.md) | Quelle version tourne où, en consultation seule : `vps-overview`, le service web, la minuterie, la mise en service, les limites (prototype sans authentification) |
 | Écrire l'`entrypoint` d'un conteneur : attendre la base sans boucler, signaler une erreur de configuration | [Un conteneur qui démarre proprement](reference/demarrage-robuste.md) |
 | **Migrer une application déjà en service** vers la plateforme, sans perdre une donnée, avec retour arrière | [Guide 20](../guides/20-migrer-une-application-existante.md) |
+| **Voir quelle version tourne où**, sur une page ou dans le terminal | [La page « État de la plateforme »](reference/page-detat-de-la-plateforme.md) : `vps-overview` |
 | **Prouver qu'une copie** (base, fichiers) est exacte | `vps-fingerprint` : [guide 20](../guides/20-migrer-une-application-existante.md), [contenu du dépôt](reference/contenu-du-depot.md) |
 | Copier un script d'exploitation (`ops.sh`) ou de génération des secrets (`make-env.py`) | [Scripts modèles](../templates/scripts/README.md) |
 | Un déploiement échoue | [Runbook : déploiement en échec](runbooks/deploiement-en-echec.md) |

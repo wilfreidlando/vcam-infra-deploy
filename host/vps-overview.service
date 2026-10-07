@@ -1,0 +1,18 @@
+# Régénère la page « État de la plateforme » (ADR-0071). Lecture seule : lit l'état de deploy.sh et Docker, écrit UN dossier.
+# Installation (root) : docs/reference/page-detat-de-la-plateforme.md
+[Unit]
+Description=Page d'état de la plateforme (vps-overview)
+After=docker.service
+
+[Service]
+Type=oneshot
+User=deployer
+Group=vpsdeploy
+ExecStart=/app/vps-platform/bin/vps-overview.py --html /var/lib/vps-platform/overview
+# Un échec ne doit jamais bloquer le serveur : il se lit dans « systemctl status vps-overview ».
+TimeoutStartSec=60
+Nice=10
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/vps-platform/overview
+PrivateTmp=yes

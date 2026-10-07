@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: [ docs, commands, obs-bundle, templates, gitlab-ci, scripts-modeles, laravel-modeles, fingerprint, hosts, clone, deploy, branches, inventory, backup, observability ]
+        test: [ docs, commands, obs-bundle, templates, gitlab-ci, scripts-modeles, laravel-modeles, fingerprint, overview, hosts, clone, deploy, branches, inventory, backup, observability ]
     steps:
       - uses: actions/checkout@v4
       - name: Docker

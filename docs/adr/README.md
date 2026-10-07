@@ -18,6 +18,7 @@ Retour au [sommaire de la documentation](../README.md).
 | [0068](0068-observabilite-portee-par-le-projet.md) | Observabilité portée par le projet : tableaux et alertes dans le dépôt du projet, tableau générique « Application » pour tous | Accepté | 2026-10-05 |
 | [0069](0069-commandes-courtes-et-branches-declarees-par-le-projet.md) | Des commandes sans chemin (`vps`, `vps-deploy`…), des branches déclarées par chaque projet, une promotion encadrée (même image, garde optionnelle) | Accepté | 2026-10-05 |
 | [0070](0070-outils-et-modeles-issus-des-premiers-projets.md) | Ce que les deux premiers projets en production ont appris : contrôles de `check` (intégrité des clones, collision de nom), `vps-fingerprint`, modèles de pipeline et de scripts, validation des requêtes d'alerte, cache avec mot de passe | **Proposé** (écarts au contrat à valider) | 2026-10-07 |
+| [0071](0071-page-detat-de-la-plateforme-prototype.md) | Une page d'état de la plateforme (quelle version tourne où), **consultation seule**, générée par `vps-overview` et servie par un nginx sans privilège ; **prototype sans authentification** à encadrer | **Proposé** (prototype, à encadrer) | 2026-10-07 |
 
 ## Quand écrire une ADR
 

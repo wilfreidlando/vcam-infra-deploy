@@ -11,6 +11,7 @@ ROOT="$(cd "$(dirname "${SELF}")/.." && pwd)"
 declare -A CMD=(
     [deploy]=bin/deploy.sh [restore]=bin/restore.sh [audit]=bin/vps-audit.sh [inventory]=bin/vps-inventory.sh
     [hosts]=bin/vps-hosts.sh [obs-bundle]=bin/obs-bundle.py [daemon-config]=host/apply-daemon-config.sh
+    [overview]=bin/vps-overview.py [fingerprint]=bin/vps-fingerprint.sh
 )
 
 aide() {
@@ -36,6 +37,7 @@ DE N'IMPORTE QUEL DOSSIER :
   vps-restore          restaurer une sauvegarde dans un environnement
   vps-obs-bundle       valider ou publier les tableaux et alertes d'un projet
   vps-fingerprint      prouver qu'une copie (base de données, fichiers) est exacte, par empreintes
+  vps-overview         quelle version tourne où, par projet et environnement (tableau, --json, --html)
   vps-daemon-config    réglage de Docker (rotation des journaux, live-restore), en root
   vps where            où est la plateforme, quelle version
 

@@ -91,8 +91,8 @@ La documentation écrit les commandes sous leur forme courte (`vps-deploy`, `vps
 **Installer les commandes courtes (recommandé, une fois, en root).** Pour ne plus jamais taper ni rater un chemin :
 
 ```bash
-$ /app/vps-platform/host/install-commands.sh        # écrit 9 commandes dans /usr/local/bin : vps, vps-deploy, vps-restore, vps-audit,
-                                                    #   vps-inventory, vps-hosts, vps-obs-bundle, vps-fingerprint, vps-daemon-config
+$ /app/vps-platform/host/install-commands.sh        # écrit 10 commandes dans /usr/local/bin : vps, vps-deploy, vps-restore, vps-audit,
+                                                    #   vps-inventory, vps-hosts, vps-obs-bundle, vps-fingerprint, vps-overview, vps-daemon-config
 $ vps                                               # l'aide : comment on déploie sur cette plateforme, et la liste des commandes
 $ vps where                                         # où est la plateforme, quelle version : fonctionne depuis n'importe quel dossier
 plateforme : /app/vps-platform
