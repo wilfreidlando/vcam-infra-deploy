@@ -141,3 +141,42 @@ sys.exit(1 if bad else 0)
 PY
 check "les liens Explore des compteurs sont valides, et chaque compteur d'erreurs en a un" python3 "${WORK}/links.py" "${INFRA_DIR}/observability/grafana/dashboards"
 
+
+step "Les REQUÊTES sont vérifiées, pas seulement la forme du fichier (constat du 2026-10-07 : une requête LogQL invalide a passé la validation)"
+# Une règle dont la requête est invalide ne s'évalue JAMAIS (Grafana répond « parse error » à chaque évaluation) : personne n'est prévenu.
+write_alert_expr() {  # write_alert_expr <fichier> <uid> <expression> : l'expression est écrite entre apostrophes, comme dans un vrai fichier
+    cat > "$1" <<YAML
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: groupe
+    folder: testapp
+    interval: 1m
+    rules:
+      - uid: $2
+        title: Règle $2
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: loki
+            model: { refId: A, expr: '$3' }
+YAML
+}
+rm -f "${SRC}"/dashboards/*.json "${SRC}"/alerts/*; write_dash "${SRC}/dashboards/vue.json" testapp-vue "Vue du projet"
+write_alert "${SRC}/alerts/regles.yaml" testapp-r1; sync >/dev/null 2>&1
+avant="$(cat "${G}/provisioning/alerting/projet-testapp-regles.yaml")"
+for cas in 'guillemet échappé à tort dans une chaîne YAML entre apostrophes|sum(count_over_time({app=\"x\", level=~\"ERROR\"}[10m]))' \
+           "parenthèse jamais fermée|sum(rate({app=\"x\"}[5m])" \
+           'valeur de label sans guillemets|sum(up{app=x})' \
+           'accolade jamais fermée|up{app="x"'; do
+    nom="${cas%%|*}"; expr="${cas#*|}"
+    write_alert_expr "${SRC}/alerts/regles.yaml" testapp-r1 "${expr}"
+    out="$(sync 2>&1)" && ko "requête invalide acceptée : ${nom}" || { grep -q "requête invalide" <<< "${out}" && ok "refusée : ${nom} (message : requête invalide)" || ko "refusée, mais sans dire pourquoi : ${nom} (${out})"; }
+done
+check "le dépôt précédent des alertes est intact après ces refus" test "$(cat "${G}/provisioning/alerting/projet-testapp-regles.yaml")" = "${avant}"
+write_alert_expr "${SRC}/alerts/regles.yaml" testapp-r1 'sum by (service) (rate({app="x", level=~"ERROR|WARN"} |= "a \"quoted\" b" [5m])) > 0.5'
+check "une requête LÉGITIME et complexe (guillemets échappés dans une chaîne, intervalle, comparaison) est acceptée" sync
+printf '{"uid":"testapp-vue","title":"T","id":1,"panels":[{"title":"Erreurs","targets":[{"expr":"sum(rate({app=\\\\\\"x\\\\\\"}[5m]))"}]}]}\n' > "${SRC}/dashboards/vue.json"
+out="$(sync 2>&1)" && ko "requête invalide d'un panneau acceptée" || { grep -q "requête du panneau" <<< "${out}" && ok "requête invalide d'un panneau refusée (le panneau est nommé)" || ko "panneau refusé sans le dire : ${out}"; }
+printf '{"uid":"testapp-vue","title":"T","id":1,"panels":[{"title":"Erreurs","targets":[{"expr":"sum(rate({app=\\"x\\"}[5m]))"}]}]}\n' > "${SRC}/dashboards/vue.json"
+check "la même requête, bien écrite, est acceptée dans un panneau" sync

@@ -3,6 +3,14 @@
 #   - « folder » = le nom du projet ; « uid » unique sur toute la plateforme (préfixer par le nom du projet) ;
 #   - dans un message : « {{ .Labels.nom }} », jamais « {{ $labels.nom }} » (Grafana remplace « $nom » dans ces fichiers).
 # Les alertes ne sont relues qu'au redémarrage de Grafana : deploy.sh le dit après la publication.
+#
+# ⚠ DEUX PIÈGES, rencontrés pour de vrai :
+#   1. Dans une chaîne YAML ENTRE APOSTROPHES (comme « expr: '…' »), on écrit les guillemets tels quels : "chantal". Un « \" » y reste un antislash
+#      LITTÉRAL et la requête devient invalide : Grafana la refuse à chaque évaluation, la règle ne sonne jamais. obs-bundle vérifie désormais
+#      chaque requête (parenthèses, accolades, guillemets) et refuse la publication en nommant la règle.
+#   2. « execErrState: OK » (ci-dessous) évite les fausses alertes quand une source est indisponible, mais rend aussi MUETTE une règle qui ne s'évalue
+#      jamais. Après la publication ET le redémarrage de Grafana, vérifier qu'elle s'évalue : docker logs observability-grafana | grep "Failed to evaluate rule"
+#      ne doit rien montrer pour votre règle.
 apiVersion: 1
 groups:
   - orgId: 1
@@ -26,3 +34,21 @@ groups:
           - refId: C
             datasourceUid: __expr__
             model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: lt, params: [1] } }] }
+
+      # Un exemple LogQL (journaux) : « beaucoup d'erreurs applicatives ». Les sélecteurs de labels vont entre accolades, les valeurs entre guillemets.
+      - uid: mon-projet-erreurs-applicatives
+        title: Beaucoup d'erreurs applicatives
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: "Plus de 20 lignes ERROR ou CRITICAL en 10 minutes dans le journal de mon-projet. Voir Grafana, Explore, Loki."
+        data:
+          - refId: A
+            datasourceUid: loki
+            relativeTimeRange: { from: 900, to: 0 }
+            model: { refId: A, queryType: instant, expr: 'sum(count_over_time({app="mon-projet", deployment=~"prod.*", level=~"ERROR|CRITICAL|ALERT|EMERGENCY"}[10m]))' }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: A, conditions: [{ evaluator: { type: gt, params: [20] } }] }

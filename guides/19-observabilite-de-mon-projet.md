@@ -98,6 +98,8 @@ Pour les chiffres que **seul le projet connaît**. Tout vit dans le dépôt du p
 | `noDataState: OK` | Une absence de données n'est pas une panne ; l'alerte « le projet n'expose plus ses métriques » en est une à part |
 | Une phrase qui dit **quoi faire** dans `summary`, avec le runbook | Quelqu'un qui n'était pas là doit pouvoir agir |
 | **Exécuter la requête** avant de la publier (Explore → Prometheus) | Une règle chargée peut renvoyer **rien** sans jamais le dire : un panneau « No data » et une alerte qui ne sonne pas sont le même défaut ([retour d'expérience](../docs/retours-experience/2026-10-05-no-data-charge-par-processeur.md)) |
+| **Vérifier qu'elle s'évalue** une fois chargée : `docker logs observability-grafana 2>&1 \| grep "Failed to evaluate rule"` ne doit rien montrer pour votre règle | `execErrState: OK` évite les fausses alertes quand une source est indisponible, mais rend aussi **muette** une règle qui ne s'évalue jamais (une requête invalide, par exemple) |
+| Dans une chaîne YAML **entre apostrophes**, écrire les guillemets **tels quels** (`{app="x"}`), jamais `\"` | `\"` y reste un antislash littéral : la requête est invalide. `obs-bundle` la refuse désormais, en nommant la règle ([retour d'expérience](../docs/retours-experience/2026-10-07-requete-dalerte-invalide-validee-par-obs-bundle.md)) |
 
 ### Retirer l'observabilité d'un projet
 
@@ -111,6 +113,7 @@ Pour les chiffres que **seul le projet connaît**. Tout vit dans le dépôt du p
 | `REFUSÉ — l'uid « … » existe déjà (la plateforme / le projet X)` | Un autre élément porte déjà cet `uid` | Préfixer par le nom du projet |
 | `REFUSÉ — clé(s) interdite(s) ['contactPoints']` | Le fichier d'alertes touche aux contacts ou à la politique | Ne garder que `apiVersion` et `groups` |
 | `REFUSÉ — le dossier du groupe … doit être « <projet> »` | `folder` ne porte pas le nom du projet | Mettre le nom du projet |
+| `REFUSÉ — la règle « … » a une requête invalide (…)` / `requête du panneau « … » invalide (…)` | Une requête mal formée : parenthèse ou accolade non fermée, valeur de label sans guillemets, `\"` dans une chaîne YAML entre apostrophes | Corriger la requête comme le message le dit (il en montre le début) ; elle ne se serait **jamais évaluée** |
 | `REFUSÉ — PyYAML est requis` | Le serveur n'a pas PyYAML | `apt install python3-yaml` |
 | Le dossier du projet n'apparaît pas dans Grafana | Le bundle n'a pas été publié (déploiement de production pas fait, ou refus) | Lire le journal du déploiement ; `deploy.sh obs-sync` |
 | Les tableaux sont là, les alertes non | Grafana n'a pas été recréé depuis la publication | Le responsable de la plateforme recrée Grafana |

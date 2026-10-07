@@ -18,7 +18,10 @@ Garde-fous (un projet ne doit JAMAIS pouvoir casser Grafana ni toucher à ce qui
   - un fichier d'alertes ne peut contenir QUE « apiVersion » et « groups » : ni points de contact, ni politique de
     notification, ni suppression de règles (cela changerait ce que toute la plateforme envoie) ;
   - le dossier d'un groupe d'alertes doit être le nom du projet ;
-  - aucun « uid » ne doit déjà exister ailleurs (plateforme ou autre projet) : refus plutôt qu'écrasement.
+  - aucun « uid » ne doit déjà exister ailleurs (plateforme ou autre projet) : refus plutôt qu'écrasement ;
+  - les REQUÊTES (PromQL, LogQL) doivent être bien formées : parenthèses, accolades et crochets équilibrés, valeur de sélecteur entre guillemets,
+    jamais de guillemet échappé à tort (« \" » dans une chaîne YAML entre apostrophes reste un antislash littéral : Grafana la refuse à l'évaluation,
+    la règle ne s'évalue jamais et personne n'est prévenu).
 
 Sortie : une ligne « dashboards=N alerts=M alerts_changed=0|1 ». Code de sortie : 0 ok, 3 refus (message sur stderr), 2 usage.
 """
@@ -61,6 +64,51 @@ def read_yaml(path):
             return yaml.safe_load(f)
     except (OSError, yaml.YAMLError) as e:
         refuse(f"{os.path.basename(path)} n'est pas un YAML valide ({str(e).splitlines()[0] if str(e) else e})")
+
+
+OPEN, CLOSE = "([{", ")]}"
+PAIR = dict(zip(CLOSE, OPEN))
+
+
+def query_problem(expr):
+    """Un défaut de forme dans une requête PromQL/LogQL, ou None. Parcourt le texte en respectant les chaînes (« " » et « ` »)."""
+    if not isinstance(expr, str) or not expr.strip():
+        return None
+    stack, i, n = [], 0, len(expr)
+    while i < n:
+        c = expr[i]
+        if c in "\"`":
+            end, j = c, i + 1
+            while j < n and expr[j] != end:
+                j += 2 if (expr[j] == "\\" and end == '"') else 1
+            if j >= n:
+                return f"chaîne non fermée ({c}…)"
+            i = j + 1
+            continue
+        if c == "\\":
+            return f"antislash hors d'une chaîne, à la position {i} : un guillemet échappé (« \\\" ») dans une chaîne YAML entre apostrophes reste un antislash littéral"
+        if c in OPEN:
+            stack.append(c)
+        elif c in CLOSE:
+            if not stack or stack.pop() != PAIR[c]:
+                return f"« {c} » sans son ouvrante"
+        # Dans un sélecteur { … }, la valeur d'un label est TOUJOURS une chaîne : label="x", label=~"x", label!="x", label!~"x".
+        if c in "=!~" and stack and stack[-1] == "{":
+            j = i
+            while j < n and expr[j] in "=!~":
+                j += 1
+            if expr[i:j] in ("=", "!=", "=~", "!~"):
+                k = j
+                while k < n and expr[k] == " ":
+                    k += 1
+                if k >= n or expr[k] not in "\"`":
+                    return f"la valeur d'un label doit être entre guillemets (après « {expr[i:j]} », position {k})"
+            i = j
+            continue
+        i += 1
+    if stack:
+        return f"« {stack[-1]} » jamais fermée"
+    return None
 
 
 def rule_uids(doc):
@@ -136,6 +184,11 @@ def validate(app, src, gdir):
         if uid in seen_d:
             refuse(f"{name} : l'uid « {uid} » est aussi dans {seen_d[uid]}")
         seen_d[uid] = name
+        for panel in d.get("panels") or []:
+            for t in (panel or {}).get("targets") or []:
+                msg = query_problem((t or {}).get("expr"))
+                if msg:
+                    refuse(f"{name} : requête du panneau « {(panel or {}).get('title', '?')} » invalide ({msg}) : {str(t.get('expr'))[:90]}")
         d["id"] = None
         dashboards.append((name, d))
 
@@ -168,6 +221,10 @@ def validate(app, src, gdir):
                 for k in ("uid", "title", "condition", "data"):
                     if not isinstance(r, dict) or not r.get(k):
                         refuse(f"{name} : une règle du groupe « {g['name']} » n'a pas de « {k} »")
+                for q in r["data"] if isinstance(r["data"], list) else []:
+                    msg = query_problem(((q or {}).get("model") or {}).get("expr"))
+                    if msg:
+                        refuse(f"{name} : la règle « {r['uid']} » (donnée {(q or {}).get('refId', '?')}) a une requête invalide ({msg}) : {str(q['model']['expr'])[:90]}")
                 u = str(r["uid"])
                 if u in taken_r:
                     refuse(f"{name} : l'uid de règle « {u} » existe déjà ({taken_r[u]})")

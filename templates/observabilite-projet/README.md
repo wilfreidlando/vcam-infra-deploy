@@ -8,13 +8,14 @@
 | Fichier | Où le copier | Rôle |
 | --- | --- | --- |
 | [`observability/dashboards/exemple.json`](observability/dashboards/exemple.json) | `<projet>/observability/dashboards/` | Un tableau Grafana minimal (à enrichir avec les chiffres de **votre** métier) |
-| [`observability/alerts/exemple.yaml`](observability/alerts/exemple.yaml) | `<projet>/observability/alerts/` | Une règle d'alerte (« mon projet n'expose plus ses métriques ») |
+| [`observability/alerts/exemple.yaml`](observability/alerts/exemple.yaml) | `<projet>/observability/alerts/` | Deux règles d'alerte : une **Prometheus** (« mon projet n'expose plus ses métriques ») et une **LogQL** (« beaucoup d'erreurs applicatives »), avec les pièges expliqués |
 
 ## En trois étapes
 
 1. **Copier** le dossier `observability/` à la racine du projet, remplacer `mon-projet` par le nom de l'application (la valeur de `observability.app`), et adapter.
 2. **Vérifier** sans rien publier : `python3 /app/vps-platform/bin/obs-bundle.py validate --app <projet> --src observability --grafana-dir /app/vps-platform/observability/grafana`.
 3. **Déployer** : après un déploiement de production réussi, la publication est automatique. À la demande : `deploy.sh obs-sync`.
+4. **Vérifier que la règle s'évalue** (pas seulement qu'elle est chargée) : après le redémarrage de Grafana, `docker logs observability-grafana 2>&1 | grep "Failed to evaluate rule"` ne doit rien montrer pour votre règle. `execErrState: OK` rend muette une règle qui ne s'évalue jamais.
 
 ## Les règles (sinon la publication est refusée, avec le motif)
 
@@ -25,6 +26,7 @@
 | Un fichier d'alertes ne contient que `apiVersion` et `groups` | Les points de contact et la politique de notification sont ceux de la plateforme |
 | Le `folder` d'un groupe d'alertes est **le nom du projet** | Un projet ne range pas ses règles chez un autre |
 | Dans un message : `{{ .Labels.nom }}`, jamais `{{ $labels.nom }}` | Grafana remplace `$nom` dans ces fichiers |
+| Chaque **requête** (PromQL, LogQL) est bien formée : parenthèses, accolades et crochets équilibrés, valeurs de labels entre guillemets, **aucun `\"` dans une chaîne YAML entre apostrophes** | Une requête invalide ne s'évalue **jamais** : la règle ne sonne pas et personne ne le voit. `obs-bundle` la refuse en nommant la règle ([retour d'expérience](../../docs/retours-experience/2026-10-07-requete-dalerte-invalide-validee-par-obs-bundle.md)) |
 
 ## Ce qu'on obtient sans rien écrire
 
