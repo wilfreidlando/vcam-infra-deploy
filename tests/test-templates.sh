@@ -49,12 +49,19 @@ for n in (db, redis):
 for n, s in svc.items():
     if n != web and (s.get("environment") or {}).get("VIRTUAL_HOST"): bad.append(f"{n}: déclare VIRTUAL_HOST (seul le web le doit)")
 if db != "-" and not svc[db].get("healthcheck"): bad.append(f"{db}: pas de contrôle de santé")
+# Constats de la production (2026-10) : un worker sans contrôle de santé reste « Up » figé, personne ne le voit ; un cache sans mot de passe est
+# joignable par tout conteneur qui partage un réseau avec lui.
+for n, s in svc.items():
+    if (s.get("healthcheck") or {}).get("disable"): bad.append(f"{n}: contrôle de santé désactivé (un processus figé resterait « Up »)")
+    cmd = " ".join(s["command"]) if isinstance(s.get("command"), list) else str(s.get("command") or "")
+    if ("valkey-server" in cmd or "redis-server" in cmd) and "--requirepass" not in cmd: bad.append(f"{n}: cache sans mot de passe (--requirepass)")
 print("\n".join(bad)); sys.exit(1 if bad else 0)' "$2" "$3" "$4"
 }
 
 DB='DB_DATABASE=app
 DB_USERNAME=app
-DB_PASSWORD=pw'
+DB_PASSWORD=pw
+REDIS_PASSWORD=pw-redis'
 
 step "Laravel avec PostgreSQL"
 make_project laravel "${TPL}/compose.laravel.yaml" "${TPL}/platform.env" "${DB}"
@@ -63,6 +70,13 @@ check "deploy.sh check staging passe" sh -c "cd '${WORK}/laravel' && '${DEPLOY}'
 check "les règles du contrat sont appliquées (compose rendu)" rules laravel mon-saas-web mon-saas-db mon-saas-redis
 check "l'agent de sauvegarde est PostgreSQL (BACKUP_ENGINE=postgres, variables PG*)" \
     grep -q 'BACKUP_ENGINE: postgres' "${WORK}/laravel/compose.prod.yaml"
+check "le worker et le planificateur ont un contrôle de santé réel (pgrep, motif entre crochets contre l'auto-correspondance)" \
+    sh -c "grep -q \"pgrep -f 'artisan \\[q\\]ueue:work'\" '${WORK}/laravel/compose.prod.yaml' && grep -q \"pgrep -f 'artisan \\[s\\]chedule:work'\" '${WORK}/laravel/compose.prod.yaml'"
+make_project laravel-sans-redis "${TPL}/compose.laravel.yaml" "${TPL}/platform.env" 'DB_DATABASE=app
+DB_USERNAME=app
+DB_PASSWORD=pw'
+check_not "sans REDIS_PASSWORD la composition est REFUSÉE : le cache ne démarre jamais ouvert" \
+    sh -c "cd '${WORK}/laravel-sans-redis' && IMAGE_TAG=test DEPLOYMENT=prod ENV_FILE=.env docker compose -p tpl-sr -f compose.prod.yaml --env-file .env config"
 
 step "Laravel avec MySQL ou MariaDB"
 make_project laravel-mysql "${TPL}/compose.laravel-mysql.yaml" "${TPL}/platform.env" "${DB}"
@@ -102,7 +116,7 @@ check_not "aucune copie locale (BACKUP_LOCAL_KEEP) dans les modèles : exception
 step "La fiche de déploiement : un modèle à remplir, sans valeur secrète"
 D="${TPL}/docs-projet/DEPLOIEMENT.md"
 check "elle décrit chaque environnement (carte, premier déploiement, livraison, mise à jour, retour arrière, sauvegarde, observabilité, écarts connus)" \
-    sh -c "for s in 'La carte du projet' 'Premier déploiement' 'Livrer une nouvelle version' 'Mettre à jour ce qui est déjà là' 'Retour arrière' 'Sauvegarde et restauration' 'Observabilité de ce projet' 'En cas de problème' 'Écarts connus avec le standard'; do grep -q \"\$s\" '${D}' || exit 1; done"
+    sh -c "for s in 'Démarrage rapide' 'La carte du projet' 'Premier déploiement' 'Livrer une nouvelle version' 'Mettre à jour ce qui est déjà là' 'Retour arrière' 'Sauvegarde et restauration' 'Observabilité de ce projet' 'En cas de problème' 'Écarts connus avec le standard'; do grep -q \"\$s\" '${D}' || exit 1; done"
 check_not "aucun lien relatif vers la plateforme (les liens doivent survivre à la copie dans un projet)" grep -q -E '\]\((\.\./|\.\./\.\./)' "${D}"
 check_not "aucun secret : ni mot de passe, ni jeton, ni clé privée" grep -q -i -E 'password=[^ ]|token=[A-Za-z0-9]{12}|BEGIN [A-Z ]*PRIVATE KEY' "${D}"
 

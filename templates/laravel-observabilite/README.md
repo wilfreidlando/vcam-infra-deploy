@@ -10,9 +10,19 @@
 | Fichier | Où le copier | Rôle |
 | --- | --- | --- |
 | [`OnlyFromPrivateNetwork.php`](OnlyFromPrivateNetwork.php) | `app/Http/Middleware/` | Refuse (404) toute requête venue d'Internet : elle porte `X-Forwarded-For`, ajouté par `nginx-proxy` |
-| [`MetricsController.php`](MetricsController.php) | `app/Http/Controllers/` | Écrit les métriques au format Prometheus. **À adapter** : le préfixe `PREFIX`, puis vos chiffres métier |
+| [`MetricsController.php`](MetricsController.php) | `app/Http/Controllers/` | Écrit les métriques au format Prometheus. **À adapter** : `PREFIX` et `FILES` (vos files), puis vos chiffres métier. Les étiquettes `deployment` et `version` viennent de `config('app.deployment')` et `config('app.version')` : **les déclarer dans `config/app.php`** (voir ci-dessous) |
 | [`bootstrap-app.snippet.php`](bootstrap-app.snippet.php) | à fusionner dans `bootstrap/app.php` | Déclare la route `/metrics`, **hors** du groupe `web` (ni session, ni cookie à chaque collecte) |
 | [`MetricsTest.php`](MetricsTest.php) | `tests/Feature/` | Garde les deux garanties : servi au réseau privé, **introuvable** depuis Internet |
+
+## À déclarer dans `config/app.php`
+
+```php
+'deployment' => env('DEPLOYMENT', 'prod'),        // étiquette « deployment » des métriques (staging, prod…)
+'version' => env('APP_VERSION', 'inconnue'),       // étiquette « version » : la version déployée
+```
+Le contrôleur n'appelle pas `env()` : Laravel le déconseille hors de `config/` (avec `php artisan config:cache`, le fichier `.env` n'est plus lu), et une valeur lue par
+`env()` ne peut pas être fixée dans un test. Le test fourni les fixe par `config()` ; il est vérifié, avec le cache de configuration, dans une vraie application Laravel par
+`tests/test-laravel-modeles.sh`.
 
 ## Les cinq étapes
 

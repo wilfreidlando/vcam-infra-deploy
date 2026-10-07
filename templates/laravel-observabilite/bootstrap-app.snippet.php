@@ -18,3 +18,14 @@
 //               ->name('metrics');
 //       },
 //   )
+
+// ── Facultatif : le battement du planificateur (une alerte peut prévenir quand « schedule:work » ne tourne plus).
+// Dans un fournisseur de services (boot) : écrit l'heure chaque minute ; MetricsController la publie.
+//
+//   use Illuminate\Console\Scheduling\Schedule;
+//   use Illuminate\Support\Facades\Cache;
+//
+//   $this->callAfterResolving(Schedule::class, static function (Schedule $planning): void {
+//       $planning->call(static fn () => Cache::put('scheduler:heartbeat', time(), 600))
+//           ->everyMinute()->name('scheduler-heartbeat')->withoutOverlapping(1);
+//   });

@@ -27,6 +27,9 @@ Dans tous les cas on ajoute aussi : [`platform.env`](platform.env) (comment `dep
 | [`docs-projet/DEPLOIEMENT.md`](docs-projet/DEPLOIEMENT.md) | `docs/DEPLOIEMENT.md` du projet | La fiche de déploiement du projet, environnement par environnement : **à remplir** |
 | [`laravel-observabilite/`](laravel-observabilite/README.md) | `app/…` du projet Laravel | Journaux JSON, `/metrics` privé, sauvegarde observée |
 | [`observabilite-projet/`](observabilite-projet/README.md) | `observability/` du projet | Ses propres tableaux et alertes, publiés par `deploy.sh` ([guide 19](../guides/19-observabilite-de-mon-projet.md)) |
+| [`gitlab-ci/`](gitlab-ci/README.md) | racine du projet, sous le nom `.gitlab-ci.yml` | **Le pipeline** : profil A (staging automatique puis production sur bouton) ou profil B (production seule). Annule ce qui est inutile, ne laisse jamais un déploiement interruptible, jamais de production automatique. [Pourquoi cette forme](../docs/reference/pipeline-gitlab.md) |
+| [`scripts/ops.sh`](scripts/README.md) | `scripts/ops.sh` du projet | L'exploitation courante d'un environnement sans le redéployer : état, journaux, arrêt, démarrage, redémarrage, shell |
+| [`scripts/make-env.py`](scripts/README.md) | `scripts/make-env.py` du projet | Crée `.env.<env>` avec des secrets **aléatoires et distincts**, jamais affichés |
 | `frontend/Dockerfile.spa`, `Dockerfile.nextjs`, `nginx-spa.conf`, `40-runtime-env.sh` | racine du projet | Les images d'un front ; la configuration d'exécution d'une SPA sans rebâtir l'image |
 
 ## 3. Utiliser un modèle, pas à pas
@@ -48,6 +51,8 @@ Dans tous les cas on ajoute aussi : [`platform.env`](platform.env) (comment `dep
 | C1 : aucun port publié, trafic par `nginx-proxy` seulement | pas de `ports:` ; `VIRTUAL_HOST` sur le seul conteneur web |
 | C2, C3 : base et cache privés, noms propres au projet | réseau privé `<projet>-<env>-internal`, services `<projet>-db`, `<projet>-redis` |
 | C4 : contrôle de santé du web et de la base, **par le réseau** | présents (`127.0.0.1`, jamais le socket) |
+| Contrôle de santé **réel** du worker et du planificateur | `pgrep -f 'artisan [q]ueue:work'` (le motif entre crochets évite que `pgrep` se trouve lui-même) ; `test-templates.sh` refuse un contrôle désactivé |
+| Cache **jamais sans mot de passe** | `--requirepass ${REDIS_PASSWORD:?…}` : sans valeur, la composition est refusée ; `REDIS_PASSWORD` est dans les exemples d'environnement, vide, à remplir par environnement |
 | C7 : images taguées par commit | `image: <projet>:${IMAGE_TAG}` |
 | C8 : redémarrage, limite mémoire, rotation des journaux | présents sur chaque service |
 | C11 : sauvegarde chiffrée **sur S3 seulement** | service `backup` ; `BACKUP_DISABLED=1` pour un environnement non sauvegardé |

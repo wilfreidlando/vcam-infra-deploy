@@ -10,6 +10,37 @@ Les liens vers la plateforme sont absolus : ils continuent de marcher une fois l
 > La plateforme (outils, règles, runbooks) : <https://github.com/wilfreidlando/vcam-infra-deploy>. Profil de projet : **<A standard | B production seule | C plusieurs productions | D site simple>**
 > ([profils](https://github.com/wilfreidlando/vcam-infra-deploy/blob/main/docs/reference/profils-de-projet.md)).
 
+## 0. Démarrage rapide : vous arrivez sur ce projet
+
+*Aide : quelques lignes, à remplir avec les vrais noms. C'est la première chose qu'une personne nouvelle lit.*
+
+**Qui fait quoi.** <compte administrateur nominatif (groupes `docker` et de déploiement) pour lire, redémarrer, ouvrir un shell ; compte de déploiement, qui seul a la clé du dépôt et exécute `vps-deploy` ; actions réservées à root : dossiers et droits, sondes de supervision, redémarrage de Grafana, configuration du runner GitLab>.
+
+**Où est quoi sur le serveur.** Un clone par environnement, avec son fichier de secrets : `/app/<projet>/<env>` (`.env.<env>`, droits 660) ; l'état du déploiement : `/var/lib/vps-platform/<projet>/` (`<env>/current`, `deploy.log`) ; la documentation de la plateforme, sur le serveur : `/app/vps-platform/docs/` (runbooks dans `docs/runbooks/`).
+
+**Les commandes**, avec le **compte de déploiement**, depuis le **dossier de l'environnement** :
+
+```bash
+vps-deploy status                    # versions déployées
+vps-deploy check <env>               # contrôle, ne change rien
+vps-deploy watch staging             # (dossier du staging) construire et déployer la dernière version de la branche
+vps-deploy promote --env <prod> -y   # (dossier de la production) mettre en production l'image DÉJÀ validée en staging
+vps-deploy rollback <prod>           # revenir à la version précédente
+scripts/ops.sh <env> status          # (si le projet a ce script) l'exploitation courante, avec n'importe quel compte autorisé
+```
+<Si le projet a un pipeline GitLab : « un push sur `<branche du staging>` déploie le staging ; le bouton `deploy-prod` met en production ».>
+
+**Les règles qui évitent les incidents** (chacune vient d'un incident réel ; le détail dans `/app/vps-platform/docs/`) :
+
+1. **Jamais de `git pull`, `merge` ni `commit` dans un clone** (`/app/<projet>/<env>`) : `vps-deploy` le met à jour. Après toute commande en root dans le dossier, vérifier les propriétaires : `find /app/<projet> \( ! -user <compte de déploiement> \) | wc -l` doit répondre 0.
+2. **Ne jamais supprimer un volume** (`docker volume rm`, `down -v`, `system prune --volumes`) : les données y sont.
+3. **Un `restart` ne relit pas un fichier d'environnement modifié** : c'est `vps-deploy up <env> <version courante>` (après une copie du fichier).
+4. **Promouvoir la production seulement après la recette du staging** ; un retour automatique ne défait pas les migrations déjà jouées.
+5. **Aucun secret** dans une discussion, un ticket ou un commit.
+6. <règle propre au projet>
+
+**État au <AAAA-MM-JJ>.** <ce qui est en ligne, ce qui reste à faire : sauvegarde, clés externes, DNS…>
+
 ## 1. La carte du projet : un environnement par ligne
 
 *Une ligne par environnement. C'est le tableau qu'on regarde en premier.*

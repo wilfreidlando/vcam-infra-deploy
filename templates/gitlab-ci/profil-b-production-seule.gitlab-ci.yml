@@ -1,0 +1,65 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Pipeline GitLab : PROFIL B (production seule, pas de staging). Modèle de la plateforme vcam-infra-deploy.
+# À copier à la racine du projet sous le nom .gitlab-ci.yml, puis remplacer les jetons entre chevrons (voir templates/gitlab-ci/README.md).
+# platform.env du projet : ENVIRONMENTS=prod, PROD_ENVIRONMENTS=prod, BRANCH_PROD=<BRANCHE_PROD>.
+#
+#   <BRANCHE_PROD> → deploy-prod   MANUEL (bouton) : contrôle, puis l'image est CONSTRUITE SUR PLACE, migrations, santé, retour automatique
+#
+# Sans staging, rien n'a été essayé avant la production : le bouton est donc le seul moment de décision, et il n'y a JAMAIS de déploiement
+# automatique. Compenser par des tests automatiques avant de pousser, par « check-prod » avant de cliquer, et en déployant hors des heures
+# d'activité (docs/reference/profils-de-projet.md, profil B).
+#
+# Garanties (vérifiées par tests/test-gitlab-ci.sh de la plateforme) : le déploiement n'est jamais interrompu, il a un délai maximal et un
+# verrou (resource_group), aucune commande « docker » dans ce fichier, jamais de runner partagé (tag du runner SSH du serveur).
+# ─────────────────────────────────────────────────────────────────────────────
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
+stages:
+- deploy
+
+.vps:
+  tags:
+  - <TAG_RUNNER>
+  variables:
+    PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    DEPLOY: /app/vps-platform/bin/deploy.sh
+    PROJECT_DIR: <DOSSIER_DU_PROJET>   # contient prod/ : le clone Git de la production
+    GIT_STRATEGY: none                 # le runner ne clone rien : deploy.sh travaille dans le clone du serveur
+
+# Contrôle préalable, sans effet : à lancer AVANT de cliquer sur deploy-prod.
+check-prod:
+  extends: .vps
+  stage: deploy
+  interruptible: true
+  timeout: 10m
+  rules:
+  - if: $CI_COMMIT_BRANCH == "<BRANCHE_PROD>"
+    when: manual
+  allow_failure: true
+  script:
+  - 'echo "compte : $(id)"'
+  - $DEPLOY where
+  - cd "$PROJECT_DIR/prod"
+  - $DEPLOY check prod
+
+# Production : un BOUTON, jamais automatique. Pas de staging : l'image est construite ici, d'où le délai plus long.
+deploy-prod:
+  extends: .vps
+  stage: deploy
+  interruptible: false
+  timeout: 60m
+  rules:
+  - if: $CI_COMMIT_BRANCH == "<BRANCHE_PROD>"
+    when: manual
+  allow_failure: false
+  resource_group: <PROJET>-prod
+  environment:
+    name: prod
+    url: <URL_PROD>
+  script:
+  - cd "$PROJECT_DIR/prod"
+  - $DEPLOY check prod
+  - $DEPLOY promote "$CI_COMMIT_SHA" --env prod -y
+  - $DEPLOY status

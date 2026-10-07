@@ -1,0 +1,108 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Pipeline GitLab : PROFIL A (staging automatique, puis production sur bouton). Modèle de la plateforme vcam-infra-deploy.
+# À copier à la racine du projet sous le nom .gitlab-ci.yml, puis remplacer les jetons entre chevrons (voir templates/gitlab-ci/README.md).
+#
+#   <BRANCHE_STAGING> → build-staging   automatique : contrôle + construction de l'image (la partie longue), ANNULABLE
+#                     → deploy-staging  automatique : migration, bascule, santé (≈ 1 min), JAMAIS interrompu
+#   <BRANCHE_PROD>    → deploy-prod     MANUEL (bouton) : promotion de l'image DÉJÀ construite et testée en staging
+#
+# Le pipeline tourne sur la branche du staging ; le bouton de production est dans ce pipeline, et la production n'accepte, par garde
+# (BRANCH_PROD dans platform.env), qu'une version DÉJÀ fusionnée dans <BRANCHE_PROD> : fusionner, puis cliquer. Avant la fusion, le bouton
+# échoue avec un message clair et rien n'est déployé.
+#
+# Garanties (vérifiées par tests/test-gitlab-ci.sh de la plateforme) :
+#  - un nouveau push annule ce qui n'a pas encore commencé à changer le serveur (build, job en attente) ;
+#  - le DÉPLOIEMENT n'est jamais interrompu : deploy.sh n'a pas de reprise sur interruption, tuer une migration laisserait un état à moitié fait ;
+#  - build et déploiement d'un environnement partagent un verrou (resource_group) : jamais ensemble ;
+#  - chaque job a un délai maximal : un job figé ne retient jamais le verrou ;
+#  - la production n'est JAMAIS automatique ; aucune commande « docker » dans ce fichier : tout passe par vps-deploy ;
+#  - les jobs demandent le tag du runner SSH du serveur, jamais un runner partagé de GitLab.
+# Le runner (exécuteur SSH, compte de déploiement) doit porter ce tag et NE PAS prendre les jobs sans tag (docs/reference/pipeline-gitlab.md).
+# ─────────────────────────────────────────────────────────────────────────────
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
+stages:
+- build
+- deploy
+
+.vps:
+  tags:
+  - <TAG_RUNNER>
+  variables:
+    PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    DEPLOY: /app/vps-platform/bin/deploy.sh
+    PROJECT_DIR: <DOSSIER_DU_PROJET>   # contient staging/ et prod/ : un clone Git par environnement
+    GIT_STRATEGY: none                 # le runner ne clone rien : deploy.sh travaille dans les clones du serveur
+
+# Test du runner, sans effet : qui exécute le job, où est la plateforme, et le contrôle préalable du staging.
+check-vps:
+  extends: .vps
+  stage: deploy
+  interruptible: true
+  timeout: 10m
+  rules:
+  - if: $CI_COMMIT_BRANCH == "<BRANCHE_STAGING>"
+    when: manual
+  allow_failure: true
+  script:
+  - 'echo "compte : $(id)"'
+  - $DEPLOY where
+  - cd "$PROJECT_DIR/staging"
+  - $DEPLOY check staging
+
+# Contrôle préalable (ne change rien) et construction de l'image : plusieurs minutes, aucun effet sur ce qui tourne. Annulable.
+build-staging:
+  extends: .vps
+  stage: build
+  interruptible: true
+  timeout: 40m
+  needs: []
+  rules:
+  - if: $CI_COMMIT_BRANCH == "<BRANCHE_STAGING>"
+  resource_group: <PROJET>-staging   # le même verrou que le déploiement : jamais un build et une bascule en même temps
+  script:
+  - 'echo "compte : $(id)"'
+  - $DEPLOY where
+  - cd "$PROJECT_DIR/staging"
+  - $DEPLOY check staging
+  - $DEPLOY build "$CI_COMMIT_SHA" staging
+
+# Migration, bascule, contrôle de santé, retour automatique en cas d'échec : court, et jamais interrompu (pas de reprise possible).
+deploy-staging:
+  extends: .vps
+  stage: deploy
+  interruptible: false
+  timeout: 20m
+  needs: [build-staging]
+  rules:
+  - if: $CI_COMMIT_BRANCH == "<BRANCHE_STAGING>"
+  resource_group: <PROJET>-staging
+  environment:
+    name: staging
+    url: <URL_STAGING>
+  script:
+  - cd "$PROJECT_DIR/staging"
+  - $DEPLOY up staging "$CI_COMMIT_SHA"
+  - $DEPLOY status
+
+# Production : un BOUTON, jamais automatique. La même image que celle testée en staging : rien n'est reconstruit.
+deploy-prod:
+  extends: .vps
+  stage: deploy
+  interruptible: false
+  timeout: 20m
+  needs: [deploy-staging]
+  rules:
+  - if: $CI_COMMIT_BRANCH == "<BRANCHE_STAGING>"
+    when: manual
+  allow_failure: false
+  resource_group: <PROJET>-prod
+  environment:
+    name: prod
+    url: <URL_PROD>
+  script:
+  - cd "$PROJECT_DIR/prod"
+  - $DEPLOY promote "$CI_COMMIT_SHA" --env prod -y
+  - $DEPLOY status

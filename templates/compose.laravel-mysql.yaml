@@ -68,13 +68,26 @@ services:
   queue:
     <<: *app
     command: php artisan queue:work --tries=3 --max-time=3600   # ou: php artisan horizon
-    healthcheck: { disable: true }
+    healthcheck:
+      # Un worker figé reste « Up » sans contrôle : on vérifie que le processus existe. Le motif « [q]ueue » empêche pgrep de se trouver
+      # lui-même dans sa propre ligne de commande (sans cela le contrôle serait toujours vrai). Demande « pgrep » dans l'image (paquet procps
+      # sur Debian ; déjà présent sur Alpine). Avec Horizon : php artisan horizon:status (code 0 tant qu'il est actif).
+      test: [ "CMD-SHELL", "pgrep -f 'artisan [q]ueue:work' >/dev/null" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     deploy: { resources: { limits: { cpus: "0.5", memory: "${QUEUE_MEMORY:-512M}" } } }
 
   scheduler:
     <<: *app
     command: php artisan schedule:work
-    healthcheck: { disable: true }
+    healthcheck:
+      test: [ "CMD-SHELL", "pgrep -f 'artisan [s]chedule:work' >/dev/null" ]     # même motif que le worker
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     deploy: { resources: { limits: { cpus: "0.25", memory: "256M" } } }
 
   mon-saas-db:
@@ -100,7 +113,11 @@ services:
   mon-saas-redis:
     <<: *defaults
     image: valkey/valkey:8.1-alpine
-    command: valkey-server --appendonly yes --maxmemory 192mb --maxmemory-policy noeviction
+    # Mot de passe OBLIGATOIRE : un cache sans mot de passe est joignable par tout conteneur qui partagerait un réseau avec lui. Sans valeur,
+    # la composition est refusée (plutôt que de démarrer ouvert). Laravel lit la même variable REDIS_PASSWORD dans le fichier d'environnement.
+    command: valkey-server --appendonly yes --maxmemory 192mb --maxmemory-policy noeviction --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD obligatoire}
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}      # valkey-cli la lit : le contrôle de santé s'authentifie sans mettre le mot de passe en argument
     volumes: [ redis-data:/data ]
     healthcheck:
       test: [ "CMD", "valkey-cli", "ping" ]
