@@ -105,11 +105,14 @@ commit_version v5
 check_not "déploiement refusé : le nom staging.demo est déjà pris par un autre projet" \
     sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
 check "refus causé par la collision (journal)" grep -q "COLLISION : staging.demo.vpstest.test" "${STATE_DIR}/vpstest-demo/deploy.log"
+check_not "« check » voit aussi la collision, sans rien déployer (une bascule la voit AVANT de déployer)" sh -c "cd '${WORK}/staging' && '${DEPLOY}' check staging"
+check "… et le dit dans son message" sh -c "cd '${WORK}/staging' && '${DEPLOY}' check staging 2>&1 | grep -q 'COLLISION : staging.demo.vpstest.test'"
 check "rien n'a changé : v2 toujours en staging" test "$(page staging)" = v2
 check "checkout staging remis sur la version en ligne" test \
     "$(git -C "${WORK}/staging" rev-parse HEAD)" = "$(cat "${STATE_DIR}/vpstest-demo/staging/current")"
 check "commit marqué en échec : watch ne le reconstruit pas en boucle" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
 docker rm -f vpstest-intrus >/dev/null
+check "« check » repasse dès que le nom est libre" sh -c "cd '${WORK}/staging' && '${DEPLOY}' check staging >/dev/null 2>&1"
 
 step "Volume encore utilisé par une ancienne installation"
 docker run -d --name vpstest-ancienne-base -v vpstest-demo-staging_data:/var/lib/data busybox sleep 600 >/dev/null

@@ -746,6 +746,13 @@ cmd_check() {
     else
         ok=0
     fi
+    # The host-name collision is also refused at deploy time; seeing it HERE (read-only) finds a pending conflict (typically an old installation
+    # still serving the name, before a cutover) before the deploy refuses, and makes `check` fail early in a pipeline.
+    if check_hosts "${env}" "$(git -C "${PROJECT_DIR}" rev-parse HEAD 2>/dev/null || echo latest)"; then
+        log "check : noms d'hôte libres (${env})"
+    else
+        ok=0
+    fi
     # Not blocking: a missing deployment sheet is a gap in the project's documentation, not a reason to refuse a deploy.
     [[ -f "${PROJECT_DIR}/docs/DEPLOIEMENT.md" ]] \
         || log "check : INFO — pas de docs/DEPLOIEMENT.md : la fiche de déploiement du projet, environnement par environnement (modèle : templates/docs-projet/DEPLOIEMENT.md, clause C14)"
