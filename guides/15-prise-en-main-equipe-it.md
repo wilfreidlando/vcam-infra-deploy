@@ -22,7 +22,7 @@ propriétaire différents.
 
 ```mermaid
 graph TB
-    Dev["Développeur : merge sur main"] --> Stg["Staging (automatique)"]
+    Dev["Développeur : push sur la branche du staging"] --> Stg["Staging (automatique)"]
     Stg --> Prod["Production (promotion manuelle)"]
     subgraph Plateforme["/app/vps-platform (ce dépôt)"]
         D["deploy.sh"]

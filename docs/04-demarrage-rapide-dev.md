@@ -1,13 +1,15 @@
 # Démarrage rapide : mettre mon projet sur le serveur
 
 Pour un développeur qui n'a jamais touché au serveur. Compter environ une heure la
-première fois. Les mots inconnus sont dans le [glossaire](03-glossaire.md) ;
+première fois. Chaque commande existe en forme longue (`/app/vps-platform/bin/deploy.sh`) et en forme courte
+(`vps-deploy`, installée par la plateforme) : elles sont identiques. Les mots inconnus sont dans le [glossaire](03-glossaire.md) ;
 l'image d'ensemble est dans les [schémas](01-schemas.md).
 
 ## Ce que vous allez obtenir
 
 - `https://mon-projet-staging.visibilitycam.com`, mis à jour **tout seul** à chaque
-  merge sur `main` ;
+  push sur la branche du staging (celle que le projet déclare dans `platform.env` :
+  `main` par défaut ; `develop` pour Chantal et Wilmanager) ;
 - `https://mon-projet.visibilitycam.com`, mis à jour **quand vous le décidez**, avec
   la version testée en staging ;
 - le HTTPS, des sauvegardes chiffrées, un retour arrière en une commande, et les
@@ -58,11 +60,17 @@ Puis commit et push.
 ## 3. Préparer le serveur (une fois par projet)
 
 ```bash
-# 1. Clé de déploiement du projet + alias SSH « github-mon-projet » : guide 3, étape 0.
-#    Jamais d'URL https:// : sous cron, personne ne tape de mot de passe.
+# 1. Accès en lecture au dépôt, avec le compte qui déploie (`deployer`) :
+#    - GitHub : clé de déploiement + alias SSH « github-mon-projet » (guide 3, étape 0) ;
+#    - GitLab : clé de déploiement du dépôt, lue par le compte `deployer` (exemple de Chantal : `docs/DEPLOIEMENT.md` du projet).
+#    Jamais d'URL https:// : sous cron ou en pipeline, personne ne tape de mot de passe.
+# 2. Un dossier par environnement, chacun clone de la branche qu'il suit. Le dossier est libre ; nos projets
+#    utilisent /app/APPS/<PROJET>/{staging,prod} (les exemples de cette page disent /app/mon-projet).
 mkdir -p /app/mon-projet && cd /app/mon-projet
-git clone git@github-mon-projet:<compte>/mon-projet.git staging
-git clone git@github-mon-projet:<compte>/mon-projet.git prod
+git clone -b <branche-du-staging> git@github-mon-projet:<compte>/mon-projet.git staging     # GitLab : git@gitlab.com:<groupe>/mon-projet.git
+git clone -b <branche-du-staging> git@github-mon-projet:<compte>/mon-projet.git prod
+# Le nom du fichier de chaque environnement est celui de platform.env (ENV_FILE_STAGING, ENV_FILE_PROD ; défauts : .env.staging et .env).
+# Chantal et Wilmanager ont choisi .env.staging et .env.prod.
 cp staging/.env.example staging/.env.staging     # puis le remplir (valeurs de TEST)
 cp prod/.env.example prod/.env                   # puis le remplir (valeurs de PRODUCTION)
 ```
@@ -77,7 +85,7 @@ expliquées dans `templates/env.platform.production.example` (production) et `te
 cd /app/mon-projet/staging && /app/vps-platform/bin/deploy.sh check staging   # contrôle seul, rien n'est modifié
 cd /app/mon-projet/staging && /app/vps-platform/bin/deploy.sh watch    # build + staging
 # vérifier https://mon-projet-staging.visibilitycam.com
-cd /app/mon-projet/prod && /app/vps-platform/bin/deploy.sh promote     # production (taper « oui »)
+cd /app/mon-projet/prod && /app/vps-platform/bin/deploy.sh promote     # production (taper « oui »). Si platform.env déclare BRANCH_PROD, la version doit déjà être fusionnée dans cette branche
 ```
 
 Si `deploy.sh` refuse, il dit pourquoi : nom déjà pris, service inconnu, nom en
@@ -103,15 +111,15 @@ Quelle branche pour quel environnement : le projet le déclare dans `platform.en
 | Annuler la dernière mise en production | `cd /app/mon-projet/prod && …/deploy.sh rollback prod` |
 | Voir les journaux | Grafana → *Applications*, ou `docker logs <conteneur> --tail 100` |
 | Déployer une autre branche en staging | `cd /app/mon-projet/staging && …/deploy.sh build origin/ma-branche`, puis `…/deploy.sh up staging <sha affiché>` |
-| Sauvegarder maintenant | `docker compose -p mon-projet-prod -f compose.prod.yaml --env-file .env run --rm backup backup.sh` |
+| Sauvegarder maintenant | `cd /app/mon-projet/prod && …/deploy.sh backup prod` (envoyée sur S3 comme la nocturne ; à faire avant une migration risquée) |
 | Vérifier mon projet | `…/deploy.sh check prod` (lecture seule), puis `/app/vps-platform/bin/vps-audit.sh` et la section de mon projet |
 | Changer une valeur d'un fichier d'environnement | éditer le `.env` de l'environnement (après une copie), puis `…/deploy.sh up <env> <version courante>` : **un `restart` ne la relit pas** ([détail](reference/modifier-une-valeur.md)) |
 | Prouver qu'une copie (base, fichiers) est exacte | `vps-fingerprint db <conteneur> <base>` et `vps-fingerprint files <volume>`, source puis copie, comparés avec `diff` ([guide 20](../guides/20-migrer-une-application-existante.md)) |
 
 ## Ce qu'il ne faut jamais faire
 
-- `docker compose up` à la main **sans** `-p <projet>-prod --env-file .env` : vous
-  créeriez un second projet vide à côté du vrai.
+- `docker compose up` à la main **sans** `-p <projet>-<env>` et `--env-file <le fichier de cet environnement>` : vous
+  créeriez un second projet vide à côté du vrai. Passez par `deploy.sh`, ou par `scripts/ops.sh` du projet quand il en a un.
 - Ajouter `ports:` à un service. Tout passe par nginx-proxy.
 - Écrire `VIRTUAL_HOST=` dans un fichier `.env` : il serait chargé dans **tous** les
   conteneurs du projet, et chacun se déclarerait comme site. Écrire

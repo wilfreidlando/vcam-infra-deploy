@@ -33,7 +33,7 @@ trouve sur le même serveur. Aucun registre d'images n'est nécessaire.
 
 ```mermaid
 graph LR
-    Dev["merge sur main"] -->|"automatique<br/>(cron toutes les 2 min,<br/>puis GitLab CI)"| Build["build de l'image<br/>tag = SHA du commit"]
+    Dev["push sur la branche du staging"] -->|"automatique<br/>(cron toutes les 2 min,<br/>puis GitLab CI)"| Build["build de l'image<br/>tag = SHA du commit"]
     Build --> Stg["STAGING<br/>migrations → démarrage → santé"]
     Stg -->|"santé KO"| StgBack["retour automatique<br/>à la version précédente"]
     Stg -->|"recette OK"| Prom["promotion MANUELLE<br/>deploy.sh promote"]

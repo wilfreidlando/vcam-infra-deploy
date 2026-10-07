@@ -113,7 +113,7 @@ prendre une à la main (`deploy.sh backup`). Chaque étape a son retour arrière
 
 | Rôle | Fait | Ne fait pas |
 | --- | --- | --- |
-| **Développeur** | merge sur `main` → staging automatique en 2 minutes ; vérifie son staging ; demande la mise en production | ne se connecte pas au serveur pour déployer ; ne modifie rien à la main sur le serveur |
+| **Développeur** | push sur la branche du staging (`main` par défaut, `develop` chez nous) → staging automatique en 2 minutes ; vérifie son staging ; demande la mise en production | ne se connecte pas au serveur pour déployer ; ne modifie rien à la main sur le serveur |
 | **Responsable d'un projet** | tient son projet conforme au [contrat](../docs/05-contrat-projet.md) (`deploy.sh check`) ; décide et lance `deploy.sh promote` ; tient les `.env` du serveur | ne touche pas aux autres projets ni à la plateforme |
 | **Responsable de la plateforme** | relit et merge les PR de `vcam-infra-deploy` (CI verte obligatoire) ; met à jour `/app/vps-platform` ; audit et inventaire réguliers ; tient les retours d'expérience | ne déploie pas les projets à la place de leurs responsables |
 | **Tous** | un incident ou une surprise = un [retour d'expérience](../docs/retours-experience/README.md) ; il n'est clos que lorsqu'un contrôle automatique empêche que cela se reproduise | ne contournent pas un refus de `deploy.sh` : il dit quoi corriger |

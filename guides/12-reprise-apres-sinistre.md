@@ -86,7 +86,7 @@ $ /app/vps-platform/bin/restore.sh prod s3://<bucket>/backups/<nom>/<fichier>.du
 $ SKIP_BACKUP=1 /app/vps-platform/bin/deploy.sh up prod <sha de l'étape 5>
 ```
 
-`deploy.sh up prod` démarre l'application sur les données restaurées et applique
+`deploy.sh up prod <sha>` démarre l'application sur les données restaurées et applique
 les éventuelles migrations manquantes. `SKIP_BACKUP=1` évite, pour un projet en `BACKUP_BEFORE_DEPLOY=always`, une sauvegarde inutile
 juste après une restauration.
 

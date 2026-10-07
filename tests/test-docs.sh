@@ -100,6 +100,73 @@ suites_absentes() {  # suites de tests/ absentes de la liste de run-all.sh (et, 
 }
 check "chaque suite est lancée par run-all.sh et par la CI (test-platform : run-all seulement)" test -z "$(suites_absentes)"
 
+step "Les commandes citées existent, avec les bons arguments"
+# Une doc qui cite une commande ou une option qui n'existe plus induit un développeur en erreur (constat du 2026-10-07 : le démarrage rapide
+# donnait encore une commande Docker brute pour la sauvegarde, « merge sur main » sans dire que la branche se déclare, etc.). On confronte
+# ce que la documentation met EN CODE (``…`` ou bloc) à la vraie interface : sous-commandes de deploy.sh, forme de leurs arguments,
+# options des autres outils lues dans leur source. Une phrase en prose n'est pas contrôlée.
+cat > "${WORK}/commandes.py" <<'PY'
+import os, re, sys
+racine = sys.argv[1] if len(sys.argv) > 1 else "."
+src = open(os.path.join(os.environ.get("INFRA_DIR", "."), "bin/deploy.sh"), encoding="utf-8").read()
+main = re.search(r"\nmain\(\) \{.*?\n\}\n", src, re.S).group(0)
+reelles = set(re.findall(r"^\s+([a-z][a-z-]*)\)", main, re.M)) | set(re.findall(r'"([a-z][a-z-]*)"\)', main))
+reelles |= {"where"}
+INFRA = os.environ.get("INFRA_DIR", ".")
+outils = {"vps-hosts": "bin/vps-hosts.sh", "vps-audit": "bin/vps-audit.sh", "vps-inventory": "bin/vps-inventory.sh", "vps-restore": "bin/restore.sh",
+          "vps-obs-bundle": "bin/obs-bundle.py", "vps-fingerprint": "bin/vps-fingerprint.sh", "vps-daemon-config": "host/apply-daemon-config.sh"}
+alias = {"vps-hosts.sh": "vps-hosts", "vps-audit.sh": "vps-audit", "vps-inventory.sh": "vps-inventory", "restore.sh": "vps-restore",
+         "obs-bundle.py": "vps-obs-bundle", "vps-fingerprint.sh": "vps-fingerprint", "apply-daemon-config.sh": "vps-daemon-config"}
+alias.update({k: k for k in outils})
+options = {k: set(re.findall(r"(?<![\w-])(--[a-z][a-z-]*)", open(os.path.join(INFRA, v), encoding="utf-8").read())) for k, v in outils.items()}
+max_args = {"status": 0, "where": 0, "check": 1, "rollback": 1, "backup": 1, "build": 2, "watch": 1}
+bad = []
+def codes(texte):
+    fence = False
+    for l in texte.split("\n"):
+        if l.lstrip().startswith("```"): fence = not fence; continue
+        if fence: yield l, l
+        else:
+            for m in re.finditer(r"`([^`]+)`", l): yield m.group(1), l
+cmd = re.compile(r"(?:vps-deploy|vps deploy|deploy\.sh)\s+([a-z][a-z-]*)((?:\s+(?:<[^>`]*>|[^\s`|;&)#>]+))*)")
+autre = re.compile(r"(?:^|[\s/$])(" + "|".join(re.escape(a) for a in alias) + r")((?:\s+(?:<[^>`]*>|[^\s`|;&)#>]+))*)")
+for dossier, ds, fs in os.walk(racine):
+    ds[:] = [d for d in ds if d not in (".git", "node_modules", "adr", "retours-experience")]
+    for f in fs:
+        if not f.endswith(".md"): continue
+        chemin = os.path.join(dossier, f)
+        for l, ligne in codes(open(chemin, encoding="utf-8").read()):
+            for m in cmd.finditer(l):
+                sous, args = m.group(1), re.sub(r"<[^>]*>", "X", m.group(2)).split()
+                if sous not in reelles:
+                    bad.append(f"{chemin}: « deploy.sh {sous} » n'existe pas (réelles : {', '.join(sorted(reelles))}) : {l.strip()[:70]}"); continue
+                libres = [a for a in args if not a.startswith("-") and not a.startswith("[")]
+                if sous == "up" and len(libres) == 1: bad.append(f"{chemin}: « up » veut <env> <sha> (un seul argument donné) : {l.strip()[:70]}")
+                if sous in max_args and len(libres) > max_args[sous] and not any(a.startswith("<") and "|" in a for a in args):
+                    bad.append(f"{chemin}: « {sous} » accepte au plus {max_args[sous]} argument(s) : {l.strip()[:70]}")
+                if sous == "watch" and libres[:1] in (["prod"], ["prodeu"]) and "refus" not in ligne:
+                    bad.append(f"{chemin}: « watch prod » : la production ne se déploie jamais par watch : {l.strip()[:70]}")
+                if sous == "promote":
+                    for a in args:
+                        if a.startswith("-") and a not in ("-y", "--yes", "--env", "-e") and not a.startswith("--env="): bad.append(f"{chemin}: option « {a} » inconnue de promote")
+            for m in autre.finditer(l):
+                outil = alias[m.group(1)]
+                for a in re.findall(r"(?<![\w-])(--[a-z][a-z-]*)", m.group(2)):
+                    if a not in options[outil]: bad.append(f"{chemin}: « {outil} {a} » : option inconnue de l'outil : {l.strip()[:70]}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+export INFRA_DIR
+check "sous-commandes, forme des arguments et options citées en code = interface réelle" python3 "${WORK}/commandes.py" .
+python3 "${WORK}/commandes.py" . >&2 || true
+# Régression simulée : une doc périmée doit être refusée, pour la bonne raison.
+mkdir -p "${WORK}/perime"
+cat > "${WORK}/perime/a.md" <<'MD'
+Lancer `deploy.sh deploy-all` puis `vps-deploy up prod`, `vps-deploy watch prod`, `vps-hosts --libre mon.exemple.cm` et `vps-deploy promote --force`.
+MD
+perime() { python3 "${WORK}/commandes.py" "${WORK}/perime" 2>&1 || true; }
+check "une doc périmée est refusée (4 écarts : sous-commande, up sans sha, watch prod, option inconnue)" sh -c "[ \$(python3 '${WORK}/commandes.py' '${WORK}/perime' | wc -l) -ge 5 ]"
+check "… et chaque écart est nommé" sh -c "python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'deploy-all' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'veut <env> <sha>' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'watch prod' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q -- '--libre' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q -- '--force'"
+
 step "Aucun secret dans la documentation"
 secrets() { grep -rIn -E 'ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----' --include='*.md' . | grep -v '^./.git/' || true; }
 check "aucun jeton ni clé privée dans les fichiers Markdown" test -z "$(secrets)"

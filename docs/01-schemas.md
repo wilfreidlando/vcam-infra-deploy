@@ -240,7 +240,7 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    Dev(["Développeur"]) -->|"merge sur main"| Git[("Dépôt git")]
+    Dev(["Développeur"]) -->|"push sur la branche du staging"| Git[("Dépôt git")]
     Git -->|"automatique<br/>≤ 2 min"| Build["Build de l'image<br/>tag = SHA du commit"]
     Build --> Staging["STAGING<br/>projet-staging.visibilitycam.com"]
     Staging -->|"tests manuels, recette"| QA{"OK ?"}
