@@ -61,6 +61,9 @@ check "un fichier d'état invalide s'affiche « ? », sans planter" sh -c "grep 
 check "les noms publics du conteneur web figurent" sh -c "grep '^alpha *staging' '${WORK}/texte.txt' | grep -q 'dev.alpha.exemple.cm'"
 check "un projet dont platform.env est introuvable n'a pas de branche, sans erreur" sh -c "grep '^alpha *prod' '${WORK}/texte.txt' | grep -q ' - '"
 
+printf 'APP_NAME=alpha\nBRANCH_STAGING=une-branche-vraiment-tres-longue-de-travail\n' > "${PRJ}/platform.env.long"
+check "une branche très longue ne colle pas à la colonne suivante (au moins deux espaces avant « 1/2 »)" sh -c "cp '${PRJ}/platform.env' '${PRJ}/platform.env.bak' && cp '${PRJ}/platform.env.long' '${PRJ}/platform.env' && PATH='${FAKE}':\$PATH STATE_DIR='${ST}' python3 '${TOOL}' | grep '^alpha *staging' | grep -qE 'une-branche-vraiment-tres-longue-de-travail  +1/2'; r=\$?; cp '${PRJ}/platform.env.bak' '${PRJ}/platform.env'; exit \$r"
+
 step "Aucun secret ne sort"
 run --json > "${WORK}/etat.json" 2>&1 || true
 run --html "${WORK}/pub" >/dev/null 2>&1 || true

@@ -176,16 +176,20 @@ LIBELLE = {"ok": "en service", "defaut": "à vérifier", "absent": "aucun conten
 
 
 def texte(m):
-    lignes = [f"{'PROJET':<16}{'ENV':<9}{'VERSION':<14}{'PRÉCÉDENTE':<14}{'BRANCHE':<10}{'CONTENEURS':<12}{'DÉPLOYÉE':<16}ÉTAT / DOMAINES"]
+    en_tete = ["PROJET", "ENV", "VERSION", "PRÉCÉDENTE", "BRANCHE", "CONTENEURS", "DÉPLOYÉE", "ÉTAT / DOMAINES"]
+    rangees = []
     for e in m["environnements"]:
         c = e["conteneurs"]
-        lignes.append(f"{e['projet']:<16}{e['env']:<9}{e['courant'][:12] or '?':<14}{e['precedent'][:12] or '-':<14}{e['branche'] or '-':<10}"
-                      f"{str(c['sains']) + '/' + str(c['total']):<12}{duree(e['age_s']):<16}{LIBELLE[e['statut']]}"
-                      + (f" ({', '.join(c['en_defaut'])})" if c["en_defaut"] else "")
-                      + (f" — dernier échec {e['echec'][:12]}" if e["dernier_echec"] else "")
-                      + (f" — {', '.join(e['domaines'])}" if e["domaines"] else ""))
-    lignes.append(f"\nGénéré le {utc(m['genere_le'])}.")
-    return "\n".join(lignes)
+        rangees.append([e["projet"], e["env"], e["courant"][:12] or "?", e["precedent"][:12] or "-", e["branche"] or "-",
+                        f"{c['sains']}/{c['total']}", duree(e["age_s"]),
+                        LIBELLE[e["statut"]]
+                        + (f" ({', '.join(c['en_defaut'])})" if c["en_defaut"] else "")
+                        + (f" — dernier échec {e['echec'][:12]}" if e["dernier_echec"] else "")
+                        + (f" — {', '.join(e['domaines'])}" if e["domaines"] else "")])
+    # Largeur de chaque colonne = sa cellule la plus longue (une branche « refonte/l1-socle » ne doit pas coller à la colonne suivante).
+    largeurs = [max(len(l[k]) for l in [en_tete] + rangees) + 2 for k in range(7)]
+    mise = lambda l: "".join(l[k].ljust(largeurs[k]) for k in range(7)) + l[7]
+    return "\n".join([mise(en_tete)] + [mise(r) for r in rangees]) + f"\n\nGénéré le {utc(m['genere_le'])}."
 
 
 PAGE = """<!doctype html>

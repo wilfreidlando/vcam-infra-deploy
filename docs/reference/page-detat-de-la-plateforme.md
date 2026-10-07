@@ -11,7 +11,7 @@ Une ligne par projet et par environnement :
 | Colonne | D'où ça vient |
 | --- | --- |
 | **Version** et **Précédente** | les fichiers d'état de `deploy.sh` (`/var/lib/vps-platform/<projet>/<env>/current` et `previous`), 12 premiers caractères du commit |
-| **Branche** | `platform.env` du projet : la branche que le staging suit, ou la garde de la production (`BRANCH_*`) |
+| **Branche** | `platform.env` **de la version déployée** : la branche que le staging suit, ou la garde de la production (`BRANCH_*`). Si on change la garde dans le dépôt, la page l'affiche **au prochain déploiement** de cet environnement, ce qui est exactement le moment où la plateforme l'applique |
 | **Conteneurs** | Docker : conteneurs sains sur total, pour le projet Compose `<projet>-<env>` |
 | **Déployée** | l'heure du dernier déploiement (date du fichier d'état) |
 | **État** | « en service », « à vérifier » (avec le nom du service en défaut), « aucun conteneur » ; un **dernier échec** s'il y en a un ; les **noms publics** (`VIRTUAL_HOST`) |
