@@ -11,11 +11,11 @@ trap finish EXIT
 BIN="${WORK}/bin"
 REAL="$(readlink -f "${INFRA_DIR}")"
 inst() { COMMANDS_DIR="${BIN}" "${INFRA_DIR}/host/install-commands.sh" "$@"; }
-all_cmds() { local c; for c in vps vps-deploy vps-restore vps-audit vps-inventory vps-hosts vps-obs-bundle vps-daemon-config; do "$@" "${BIN}/${c}" || return 1; done; }
+all_cmds() { local c; for c in vps vps-deploy vps-restore vps-audit vps-inventory vps-hosts vps-obs-bundle vps-fingerprint vps-daemon-config; do "$@" "${BIN}/${c}" || return 1; done; }
 
 step "Installation"
 check "l'installation réussit sans être root (dossier de test)" inst
-check "les huit commandes existent et sont exécutables (vps, vps-deploy, vps-restore, vps-audit, vps-inventory, vps-hosts, vps-obs-bundle, vps-daemon-config)" all_cmds test -x
+check "les neuf commandes existent et sont exécutables (vps, vps-deploy, vps-restore, vps-audit, vps-inventory, vps-hosts, vps-obs-bundle, vps-fingerprint, vps-daemon-config)" all_cmds test -x
 check "--check dit que tout est en place (code 0)" inst --check
 before="$(cksum "${BIN}"/* | sort)"
 check "réinstaller ne change rien (idempotent)" inst
@@ -36,6 +36,7 @@ check "vps deploy where = vps-deploy where" test "$("${BIN}/vps" deploy where)" 
 check "vps where fonctionne" sh -c "'${BIN}/vps' where | grep -q '^plateforme'"
 check_not "une commande inconnue est refusée (code 2) avec un message qui renvoie à l'aide" sh -c "'${BIN}/vps' nope"
 check "vps-obs-bundle lance le script Python de la plateforme" sh -c "'${BIN}/vps-obs-bundle' -h | grep -q 'obs-bundle'"
+check "vps-fingerprint lance l'outil d'empreintes (son usage dit comment prouver une copie exacte)" sh -c "'${BIN}/vps-fingerprint' 2>&1 | grep -q 'vps-fingerprint db'"
 
 step "Un chemin raté donne un message clair, pas « No such file »"
 rc=0; out="$(VPS_PLATFORM_DIR="${WORK}/inexistant" "${BIN}/vps-deploy" where 2>&1)" || rc=$?   # « || » : sous « set -e », un code 127 attendu ne doit pas arrêter le test

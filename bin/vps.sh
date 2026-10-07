@@ -35,6 +35,7 @@ DE N'IMPORTE QUEL DOSSIER :
   vps-hosts            noms de domaine : libres ou pris ?
   vps-restore          restaurer une sauvegarde dans un environnement
   vps-obs-bundle       valider ou publier les tableaux et alertes d'un projet
+  vps-fingerprint      prouver qu'une copie (base de données, fichiers) est exacte, par empreintes
   vps-daemon-config    réglage de Docker (rotation des journaux, live-restore), en root
   vps where            où est la plateforme, quelle version
 
