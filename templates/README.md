@@ -1,7 +1,7 @@
 # Modèles de projet
 
 > Par quoi partir pour un nouveau projet, ou pour mettre un projet existant au standard. **Chaque modèle est testé** : `tests/test-templates.sh` prouve qu'il passe
-> le contrôle avant déploiement de la plateforme (`deploy.sh check`). Retour au [sommaire](../docs/README.md).
+> le contrôle avant déploiement de la plateforme (`vps-deploy check`). Retour au [sommaire](../docs/README.md).
 
 ## 1. Quel modèle pour quelle application ?
 
@@ -41,7 +41,7 @@ Dans tous les cas on ajoute aussi : [`platform.env`](platform.env) (comment `dep
    ```
 3. **Choisir le profil** dans `platform.env` : `ENVIRONMENTS` (staging puis production, production seule, plusieurs productions) ; défaut : staging et production.
 4. **Préparer un fichier d'environnement par environnement**, depuis les deux modèles du § 2 : **les valeurs diffèrent**, secrets compris (clause C10 du [contrat](../docs/05-contrat-projet.md)).
-5. **Contrôler** sur le serveur, sans rien modifier : `deploy.sh check staging` puis `deploy.sh check prod`.
+5. **Contrôler** sur le serveur, sans rien modifier : `vps-deploy check staging` puis `vps-deploy check prod`.
 6. **Remplir la fiche de déploiement** (`docs/DEPLOIEMENT.md`) : elle est la référence du projet pour toute l'équipe.
 
 ## 4. Ce que les modèles appliquent déjà
@@ -60,5 +60,5 @@ Dans tous les cas on ajoute aussi : [`platform.env`](platform.env) (comment `dep
 
 ## 5. Les modèles sont testés
 
-`tests/test-templates.sh` copie chaque modèle dans un projet factice avec ses fichiers d'environnement d'exemple et lance `deploy.sh check` pour **les deux environnements** : un modèle qui ne
+`tests/test-templates.sh` copie chaque modèle dans un projet factice avec ses fichiers d'environnement d'exemple et lance `vps-deploy check` pour **les deux environnements** : un modèle qui ne
 passerait plus le contrôle de la plateforme fait échouer le test. Il vérifie aussi, sans Docker, les règles ci-dessus (pas de `ports:`, services nommés `mon-…`, image taguée, limites).

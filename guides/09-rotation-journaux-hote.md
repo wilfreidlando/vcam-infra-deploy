@@ -52,7 +52,7 @@ $ cat /etc/docker/daemon.json 2>&1                           # absent = rien à 
 **Appliquer** :
 
 ```bash
-$ /app/vps-platform/host/apply-daemon-config.sh       # affiche la nouvelle config, demande « oui »
+$ vps-daemon-config       # affiche la nouvelle config, demande « oui »
 ```
 
 Le script écrit ce qu'il fait : le nombre de conteneurs en marche **avant**, le temps pendant lequel Docker n'a pas répondu, le nombre **après**, et **nomme tout conteneur manquant** (sortie en erreur : il

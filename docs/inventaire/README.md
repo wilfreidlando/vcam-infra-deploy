@@ -9,7 +9,7 @@ Quand en faire un : avant toute mise en conformité, à la fin de chaque phase d
 la [feuille de route](../../guides/00-feuille-de-route.md), et une fois par
 trimestre. Comparer avec le précédent (`diff`) montre ce qui a dérivé.
 
-Comment : `/app/vps-platform/bin/vps-inventory.sh > inventaire.md` sur le serveur
+Comment : `vps-inventory > inventaire.md` sur le serveur
 (lecture seule, aucun secret).
 
 Avant de committer, relire : l'outil masque les secrets qu'il connaît (valeurs

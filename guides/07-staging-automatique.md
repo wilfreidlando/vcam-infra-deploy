@@ -42,8 +42,8 @@ Puis un clone de plus (`/app/mon-projet/dev`) et une ligne cron de plus :
 */2 * * * * cd /app/mon-projet/dev && /app/vps-platform/bin/deploy.sh watch dev >> /var/log/vps-deploy.log 2>&1
 ```
 
-`deploy.sh watch prod` est refusé : la production ne se déploie que par
-`deploy.sh promote`, avec l'image déjà validée en staging.
+`vps-deploy watch prod` est refusé : la production ne se déploie que par
+`vps-deploy promote`, avec l'image déjà validée en staging.
 
 ## Vérifier
 

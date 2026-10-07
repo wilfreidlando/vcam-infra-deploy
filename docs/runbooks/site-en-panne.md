@@ -11,7 +11,7 @@ L'alerte « Un site ne répond plus » (sonde depuis le serveur, 3 minutes) et l
 Trois questions, dans cet ordre :
 
 1. **Un seul site ou tous ?** Ouvrir deux autres sites. Si tous sont tombés, aller à la section 5.
-2. **Un déploiement vient-il d'avoir lieu ?** `cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh status`
+2. **Un déploiement vient-il d'avoir lieu ?** `cd /app/<projet>/prod && vps-deploy status`
    et lire `/var/lib/vps-platform/<projet>/deploy.log` (dernières lignes).
 3. **Quel code d'erreur ?** 502 = `nginx-proxy` ne joint pas le conteneur web ; 503 = aucun
    conteneur ne porte ce nom d'hôte ; autre = l'application.
@@ -19,7 +19,7 @@ Trois questions, dans cet ordre :
 ## 2. Après un déploiement
 
 ```bash
-$ cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh rollback prod
+$ cd /app/<projet>/prod && vps-deploy rollback prod
 ```
 
 Redéploie la version précédente. Limite : **les migrations ne sont pas annulées**. Si la
@@ -48,7 +48,7 @@ Une configuration invalide **bloque tous les changements** de routage du serveur
 
 ```bash
 $ docker exec nginx-proxy nginx -t                  # « test is successful » attendu
-$ /app/vps-platform/bin/vps-hosts.sh                # collisions : deux projets pour un même nom, casse différente
+$ vps-hosts                # collisions : deux projets pour un même nom, casse différente
 $ docker logs --tail 100 nginx-proxy
 ```
 
@@ -76,7 +76,7 @@ Si Docker tourne mais `nginx-proxy` est arrêté, **le redémarrer en premier** 
 ## 6. Vérification
 
 - Le site répond : `curl -s -o /dev/null -w '%{http_code}\n' https://<site>/`.
-- `deploy.sh status` : conteneurs « healthy ».
+- `vps-deploy status` : conteneurs « healthy ».
 - `vps-audit.sh` : pas de nouvelle ligne CRITIQUE pour ce projet.
 
 ## 7. Ce qu'il ne faut pas faire

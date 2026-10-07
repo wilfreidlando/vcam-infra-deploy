@@ -24,8 +24,8 @@ toute migration en production.** Ne jamais renommer `APP_NAME` ni un volume.
 ## 2. Mesurer, sans rien modifier
 
 ```bash
-$ /app/vps-platform/bin/vps-audit.sh                          # tout le serveur, lecture seule
-$ cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh check prod
+$ vps-audit                          # tout le serveur, lecture seule
+$ cd /app/<projet>/prod && vps-deploy check prod
 ```
 
 Noter chaque ligne **BLOQUANT**, **CRITIQUE** et **ATTENTION** : ce sont les écarts à corriger.
@@ -48,24 +48,24 @@ Noter chaque ligne **BLOQUANT**, **CRITIQUE** et **ATTENTION** : ce sont les éc
 | **C12** Observabilité (backends) | Labels `observability.*` sur les services à observer ; ses propres tableaux et alertes dans `observability/` | [Guide 19](19-observabilite-de-mon-projet.md) |
 | **C14** Fiche de déploiement | `docs/DEPLOIEMENT.md` à jour : environnements, variables (noms et rôles), livraison, retour arrière | [modèle](../templates/docs-projet/DEPLOIEMENT.md) ; [déployer selon la situation](../docs/reference/deployer-selon-la-situation.md) |
 
-Le contrôle `deploy.sh check` couvre C3, C5 et C9 de façon bloquante, signale l'absence de la fiche C14 (INFO), et une modification
+Le contrôle `vps-deploy check` couvre C3, C5 et C9 de façon bloquante, signale l'absence de la fiche C14 (INFO), et une modification
 locale de `platform.env` (C6) fait échouer le changement de commit. L'audit couvre les
 autres clauses en niveaux CRITIQUE, ATTENTION ou INFO.
 
 ## 4. La procédure
 
 1. **Corriger dans le dépôt du projet**, en partant des modèles de `templates/`. Un seul
-   commit peut tout corriger. Vérifier à chaque étape : `deploy.sh check staging`.
-2. **Staging d'abord** : `deploy.sh build origin/main staging`, puis `deploy.sh up staging <sha>`
-   (ou laisser `deploy.sh watch` le faire). Vérifier : `deploy.sh status`, les conteneurs sont
+   commit peut tout corriger. Vérifier à chaque étape : `vps-deploy check staging`.
+2. **Staging d'abord** : `vps-deploy build origin/main staging`, puis `vps-deploy up staging <sha>`
+   (ou laisser `vps-deploy watch` le faire). Vérifier : `vps-deploy status`, les conteneurs sont
    « healthy », le site répond.
-3. **Si des services ont été renommés** : `deploy.sh up` refuse tant que l'ancien conteneur tient
+3. **Si des services ont été renommés** : `vps-deploy up` refuse tant que l'ancien conteneur tient
    un volume. C'est voulu : deux bases sur les mêmes fichiers les corrompent. Supprimer **nommément**
    l'ancien conteneur (`docker rm -f <conteneur>`, les volumes restent), puis relancer. Jamais de
    `down -v`, jamais de `prune`.
-4. **Production, dans le créneau annoncé** : **prendre une sauvegarde à la main** (`deploy.sh backup`), puis `deploy.sh promote`.
+4. **Production, dans le créneau annoncé** : **prendre une sauvegarde à la main** (`vps-deploy backup`), puis `vps-deploy promote`.
    `deploy.sh` ne prend pas de sauvegarde de lui-même (la nocturne est le filet) ; `BACKUP_BEFORE_DEPLOY=always` pour en avoir une avant chaque déploiement.
-5. **Vérifier** : `deploy.sh status`, `deploy.sh check prod`, puis `vps-audit.sh` : plus aucune
+5. **Vérifier** : `vps-deploy status`, `vps-deploy check prod`, puis `vps-audit.sh` : plus aucune
    ligne BLOQUANT, CRITIQUE ni ATTENTION pour ce projet.
 6. **Brancher l'observabilité** si le projet est un backend (labels, puis la vérification du
    [README de l'observabilité](../observability/README.md)).
@@ -74,20 +74,20 @@ autres clauses en niveaux CRITIQUE, ATTENTION ou INFO.
 
 | Étape | Ce qui a été fait | Résultat |
 | --- | --- | --- |
-| Mesure | `deploy.sh check staging` sur le commit en place : **échec** C3, services `db` et `redis` aussi publiés sur `nginx-proxy` par d'autres projets | rien modifié |
+| Mesure | `vps-deploy check staging` sur le commit en place : **échec** C3, services `db` et `redis` aussi publiés sur `nginx-proxy` par d'autres projets | rien modifié |
 | Correction | Dépôt : services renommés `skills-devops-db` et `skills-devops-redis`, `platform.env` aligné (`DB_SERVICE=skills-devops-db`), `DB_HOST`/`REDIS_HOST` repris | commit sur `main` |
-| Construire | `deploy.sh build origin/main staging` | image `skills-devops:<sha>`, aucun conteneur touché |
+| Construire | `vps-deploy build origin/main staging` | image `skills-devops:<sha>`, aucun conteneur touché |
 | Libérer les volumes | `docker rm -f` des **deux** anciens conteneurs de staging, nommément | volumes conservés |
-| Staging | `deploy.sh up staging <sha>` | migrations réussies, `OK staging = <sha>` |
-| Vérifier | `deploy.sh status`, site de staging en HTTP 200, `deploy.sh check staging` : OK | conforme |
-| Production | `deploy.sh promote <sha> -y` | migrations, `OK prod = <sha>`, HTTP 200 (une sauvegarde à la main avant : `deploy.sh backup`) |
+| Staging | `vps-deploy up staging <sha>` | migrations réussies, `OK staging = <sha>` |
+| Vérifier | `vps-deploy status`, site de staging en HTTP 200, `vps-deploy check staging` : OK | conforme |
+| Production | `vps-deploy promote <sha> -y` | migrations, `OK prod = <sha>`, HTTP 200 (une sauvegarde à la main avant : `vps-deploy backup`) |
 
 Le raisonnement complet de ce cas est dans le
 [retour d'expérience](../docs/retours-experience/2026-10-04-premier-deploiement-skills-devops.md).
 
 ## 6. Critères de fin
 
-- [ ] `deploy.sh check prod` : OK.
+- [ ] `vps-deploy check prod` : OK.
 - [ ] `vps-audit.sh` : aucune ligne BLOQUANT, CRITIQUE ni ATTENTION pour le projet.
 - [ ] Sauvegarde automatique active et **restaurée au moins une fois** dans un staging.
 - [ ] `git remote -v` en SSH (`github-<app>`).

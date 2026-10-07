@@ -3,7 +3,7 @@
 ## Étape 1 — Lancer l'audit (lecture seule)
 
 ```bash
-$ /app/vps-platform/bin/vps-audit.sh | tee /app/audit-$(date +%F).txt
+$ vps-audit | tee /app/audit-$(date +%F).txt
 ```
 
 Le script ne modifie, ne redémarre et n'affiche aucune valeur secrète. Il classe les
@@ -35,7 +35,7 @@ $ cp docker-compose.yml docker-compose.yml.avant-standard
 $ nano docker-compose.yml                # appliquer les corrections
 $ docker compose -p <NOM> config -q      # vérifie la syntaxe, ne lance rien
 $ docker compose -p <NOM> up -d          # recrée seulement les conteneurs modifiés
-$ /app/vps-platform/bin/vps-audit.sh | sed -n '/■ <NOM>/,/^$/p'
+$ vps-audit | sed -n '/■ <NOM>/,/^$/p'
 ```
 
 **Garder le même nom de projet compose (`-p <NOM>`).** Les volumes de données en

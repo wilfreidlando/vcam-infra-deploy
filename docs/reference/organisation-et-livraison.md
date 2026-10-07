@@ -36,7 +36,7 @@ graph LR
     Dev["push sur la branche du staging"] -->|"automatique<br/>(cron toutes les 2 min,<br/>puis GitLab CI)"| Build["build de l'image<br/>tag = SHA du commit"]
     Build --> Stg["STAGING<br/>migrations → démarrage → santé"]
     Stg -->|"santé KO"| StgBack["retour automatique<br/>à la version précédente"]
-    Stg -->|"recette OK"| Prom["promotion MANUELLE<br/>deploy.sh promote"]
+    Stg -->|"recette OK"| Prom["promotion MANUELLE<br/>vps-deploy promote"]
     Prom --> Bk["sauvegarde chiffrée"] --> Mig["migrations"] --> Up["bascule"] --> H{"santé ?"}
     H -->|OK| Done["production = SHA"]
     H -->|KO| Back["retour automatique<br/>à la version précédente"]
@@ -45,10 +45,10 @@ graph LR
 | Étape | Commande (depuis le checkout concerné) |
 | --- | --- |
 | Staging automatique | cron : `cd /app/<projet>/staging && /app/vps-platform/bin/deploy.sh watch` |
-| Staging manuel, d'une branche précise | `deploy.sh build origin/ma-branche` puis `deploy.sh up staging <sha>` |
-| Production | `cd /app/<projet>/prod && deploy.sh promote` (demande de taper « oui ») |
-| Retour arrière | `deploy.sh rollback prod` (ou `staging`) |
-| État | `deploy.sh status` |
+| Staging manuel, d'une branche précise | `vps-deploy build origin/ma-branche` puis `vps-deploy up staging <sha>` |
+| Production | `cd /app/<projet>/prod && vps-deploy promote` (demande de taper « oui ») |
+| Retour arrière | `vps-deploy rollback prod` (ou `staging`) |
+| État | `vps-deploy status` |
 | Restauration | `bin/restore.sh prod <fichier>` |
 
 **Deux garanties :**
@@ -86,8 +86,8 @@ deploy_staging:
   rules: [{ if: '$CI_COMMIT_BRANCH == "main"' }]
   script:
     - cd /app/$CI_PROJECT_NAME/staging
-    - /app/vps-platform/bin/deploy.sh build $CI_COMMIT_SHA
-    - /app/vps-platform/bin/deploy.sh up staging $CI_COMMIT_SHA
+    - vps-deploy build $CI_COMMIT_SHA
+    - vps-deploy up staging $CI_COMMIT_SHA
 
 deploy_production:
   stage: production
@@ -95,5 +95,5 @@ deploy_production:
   rules: [{ if: '$CI_COMMIT_BRANCH == "main"', when: manual }]   # bouton dans GitLab
   script:
     - cd /app/$CI_PROJECT_NAME/prod
-    - /app/vps-platform/bin/deploy.sh promote $CI_COMMIT_SHA --yes
+    - vps-deploy promote $CI_COMMIT_SHA --yes
 ```

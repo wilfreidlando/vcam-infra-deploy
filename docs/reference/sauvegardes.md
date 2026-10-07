@@ -71,7 +71,7 @@ L'agent [`images/db-backup`](../../images/db-backup/README.md) tourne dans chaqu
 | Quand | Comment | Qui |
 | --- | --- | --- |
 | **Chaque nuit**, à l'heure du projet (`BACKUP_TIME`) | Automatique : c'est **le filet** | l'agent |
-| **À la demande**, par exemple avant une migration risquée | `deploy.sh backup [env]` (envoyée sur S3 comme la nocturne) | la personne qui déploie |
+| **À la demande**, par exemple avant une migration risquée | `vps-deploy backup [env]` (envoyée sur S3 comme la nocturne) | la personne qui déploie |
 | **Avant chaque déploiement** | **Non, par défaut.** Un projet qui préfère la prudence met `BACKUP_BEFORE_DEPLOY=always` dans `platform.env` | `deploy.sh` |
 
 **Pourquoi pas à chaque déploiement ?** Cela coûte une minute et du trafic à chaque changement, même quand la base n'est pas touchée. Et décider automatiquement « cette version
@@ -79,7 +79,7 @@ porte une migration » n'est pas fiable (chaque projet range ses migrations où 
 Décision : [ADR-0067](../adr/0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md).
 
 **Le risque accepté, dit clairement.** Si une migration ratée abîme les données, on ne revient qu'à la sauvegarde **de la nuit** : les écritures de la journée sont perdues.
-Pour s'en protéger : prendre une sauvegarde à la main **avant** une migration risquée (`deploy.sh backup`), ou déployer juste après la nocturne. Un déploiement qui ne touche pas la base
+Pour s'en protéger : prendre une sauvegarde à la main **avant** une migration risquée (`vps-deploy backup`), ou déployer juste après la nocturne. Un déploiement qui ne touche pas la base
 n'a pas ce risque : revenir au code d'avant n'oblige à aucune restauration.
 
 Selon le [profil du projet](profils-de-projet.md#7-les-sauvegardes-selon-le-profil) : un site simple n'en a pas, un staging peut la désactiver (`BACKUP_DISABLED=1`).
@@ -95,7 +95,7 @@ prouve que la base est bien **remplacée** : [exercice de restauration](../runbo
 cd /app/<projet>/staging
 # La phrase de passe de PRODUCTION est donnée ponctuellement, jamais écrite dans .env.staging :
 read -rs RESTORE_PASSPHRASE && export RESTORE_PASSPHRASE
-/app/vps-platform/bin/restore.sh staging s3://<bucket>/<préfixe>/<projet>-prod/<fichier>
+vps-restore staging s3://<bucket>/<préfixe>/<projet>-prod/<fichier>
 ```
 
 Cela restaure la production dans le staging. Attention aux données personnelles : le staging contient alors des données réelles. Le réinitialiser ensuite si besoin.

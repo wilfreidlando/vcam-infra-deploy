@@ -76,6 +76,6 @@ git commit -m "Merge branch 'develop' into 'main'"
 | --- | --- | --- |
 | Projet **sans** staging (profil B) | `vps-deploy promote origin/<branche>` : l'image est construite sur place | tout essai préalable : le dire dans la fiche du projet |
 | Projet **avec** staging, correctif urgent d'une version déjà dans la branche de production | dans le clone du staging `vps-deploy build <sha> staging` (construit sans déployer), puis dans le clone de production `vps-deploy promote <sha> --env prod -y` | la recette et l'essai des migrations : elles tournent directement sur les vraies données, et **ne sont pas annulées** par un retour automatique |
-| Projet avec staging, sans image préalable | refusé : « images absentes — lancer d'abord `deploy.sh build` » | — la production ne construit jamais quand un staging existe |
+| Projet avec staging, sans image préalable | refusé : « images absentes — lancer d'abord `vps-deploy build` » | — la production ne construit jamais quand un staging existe |
 
 En règle : **passer par le staging coûte une à deux minutes** (le build est en cache, le déploiement du staging ne touche aucun utilisateur). La voie directe est réservée au cas où le staging lui-même est en panne.

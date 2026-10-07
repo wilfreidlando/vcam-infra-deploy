@@ -25,9 +25,9 @@
    git clone git@github-<projet>:<compte>/<dépôt>.git staging
    git clone git@github-<projet>:<compte>/<dépôt>.git prod
    # déposer .env.staging dans staging/ et .env dans prod/
-   cd staging && /app/vps-platform/bin/deploy.sh check staging   # aucun déploiement, lecture seule
-   /app/vps-platform/bin/deploy.sh watch                         # premier staging
-   cd ../prod && /app/vps-platform/bin/deploy.sh promote    # première production
+   cd staging && vps-deploy check staging   # aucun déploiement, lecture seule
+   vps-deploy watch                         # premier staging
+   cd ../prod && vps-deploy promote    # première production
    ```
 5. Ajouter la ligne cron de staging automatique ([protocole de livraison](organisation-et-livraison.md#protocole-de-livraison)).
 6. Ajouter `https://<projet>.visibilitycam.com/<health>` à la surveillance externe.
@@ -38,7 +38,7 @@
 
 1. **Lancer l'audit** (lecture seule, aucun effet sur les sites) :
    ```bash
-   /app/vps-platform/bin/vps-audit.sh
+   vps-audit
    ```
 2. **Corriger dans le compose du projet**, en commençant par les CRITIQUE :
 
@@ -54,9 +54,9 @@
 | `VIRTUAL_HOST` hérité sur un conteneur non exposé | La variable est dans un `env_file` partagé : la renommer (`APP_PUBLIC_HOST`) et ne mettre `VIRTUAL_HOST: ${APP_PUBLIC_HOST}` que sur le conteneur web |
 | Image `latest` | `image: <projet>:${IMAGE_TAG:-latest}` + `deploy.sh` |
 | Pas de healthcheck | Bloc `healthcheck` des modèles |
-| `deploy.sh check` : nom « db » aussi publié sur nginx-proxy par … | Renommer le service (`<app>-db`) et `DB_HOST` ; procédure : [contrat, § 4](../05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) |
-| `deploy.sh check` : `platform.env` cite un service absent | Aligner `HEALTH_SERVICE`/`MIGRATE_SERVICE`/`BACKUP_SERVICE`/`DB_SERVICE` sur le compose, dans le même commit |
-| `deploy.sh check` : origin en HTTPS | `git remote set-url origin git@github-<app>:<compte>/<dépôt>.git` (guide 3) |
+| `vps-deploy check` : nom « db » aussi publié sur nginx-proxy par … | Renommer le service (`<app>-db`) et `DB_HOST` ; procédure : [contrat, § 4](../05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) |
+| `vps-deploy check` : `platform.env` cite un service absent | Aligner `HEALTH_SERVICE`/`MIGRATE_SERVICE`/`BACKUP_SERVICE`/`DB_SERVICE` sur le compose, dans le même commit |
+| `vps-deploy check` : origin en HTTPS | `git remote set-url origin git@github-<app>:<compte>/<dépôt>.git` (guide 3) |
 
 3. **Appliquer sans coupure inutile** : la correction prend effet quand le projet est
    recréé (`docker compose up -d`), donc au prochain déploiement. Les volumes de

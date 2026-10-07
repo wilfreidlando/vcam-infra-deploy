@@ -36,7 +36,7 @@ crons, audit, sous-domaines. **Il n'affiche aucun secret et ne modifie rien.**
 | # | Action | Guide |
 | --- | --- | --- |
 | 0.1 | Sur le serveur : `cd /app/vps-platform && git pull` (si la plateforme est déjà installée ; sinon guide 3 d'abord) | [11](11-depot-plateforme.md) |
-| 0.2 | Inventaire : `/app/vps-platform/bin/vps-inventory.sh > /root/inventaire-$(date +%F).md` (lecture seule, aucun secret) | [inventaires](../docs/inventaire/README.md) |
+| 0.2 | Inventaire : `vps-inventory > /root/inventaire-$(date +%F).md` (lecture seule, aucun secret) | [inventaires](../docs/inventaire/README.md) |
 | 0.3 | Ranger l'inventaire dans `docs/inventaire/` (pull request), avec le plan de mise en conformité, un responsable par écart | [inventaires](../docs/inventaire/README.md) |
 
 À refaire à la fin de chaque phase, et une fois par trimestre : la comparaison avec
@@ -97,14 +97,14 @@ nginx-proxy est en erreur ou si l'ancienne base tourne encore sur le volume. Il
 revient seul en arrière si la nouvelle version ne répond pas (sauf pour la toute
 première promotion d'un projet déjà en production, qui n'a pas de version précédente :
 retour manuel). La sauvegarde nocturne est le filet ; avant une migration risquée, en
-prendre une à la main (`deploy.sh backup`). Chaque étape a son retour arrière décrit dans le guide.
+prendre une à la main (`vps-deploy backup`). Chaque étape a son retour arrière décrit dans le guide.
 
 ## E. Finitions
 
 | # | Action |
 | --- | --- |
-| E0 | Chaque projet : `deploy.sh check prod` dans son dossier, puis mise en conformité selon le [contrat, § 4](../docs/05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) |
-| E1 | `/app/vps-platform/bin/vps-audit.sh` : traiter les CRITIQUE des autres projets ([5](05-audit-et-conformite.md)) |
+| E0 | Chaque projet : `vps-deploy check prod` dans son dossier, puis mise en conformité selon le [contrat, § 4](../docs/05-contrat-projet.md#4-appliquer-le-contrat-à-un-projet-déjà-en-production) |
+| E1 | `vps-audit` : traiter les CRITIQUE des autres projets ([5](05-audit-et-conformite.md)) |
 | E2 | Planifier la montée de WILMANAGER en Laravel 12 et la mise à jour des paquets vulnérables (README de l'app, « Points connus ») |
 | E3 | Les autres apps (React, Next.js, Angular, Laravel) : [démarrage rapide](../docs/04-demarrage-rapide-dev.md), au fil de l'eau |
 | E4 | Nouvel inventaire (phase 0), comparé au premier : il ne doit plus rester d'écart sans responsable |
@@ -114,7 +114,7 @@ prendre une à la main (`deploy.sh backup`). Chaque étape a son retour arrière
 | Rôle | Fait | Ne fait pas |
 | --- | --- | --- |
 | **Développeur** | push sur la branche du staging (`main` par défaut, `develop` chez nous) → staging automatique en 2 minutes ; vérifie son staging ; demande la mise en production | ne se connecte pas au serveur pour déployer ; ne modifie rien à la main sur le serveur |
-| **Responsable d'un projet** | tient son projet conforme au [contrat](../docs/05-contrat-projet.md) (`deploy.sh check`) ; décide et lance `deploy.sh promote` ; tient les `.env` du serveur | ne touche pas aux autres projets ni à la plateforme |
+| **Responsable d'un projet** | tient son projet conforme au [contrat](../docs/05-contrat-projet.md) (`vps-deploy check`) ; décide et lance `vps-deploy promote` ; tient les `.env` du serveur | ne touche pas aux autres projets ni à la plateforme |
 | **Responsable de la plateforme** | relit et merge les PR de `vcam-infra-deploy` (CI verte obligatoire) ; met à jour `/app/vps-platform` ; audit et inventaire réguliers ; tient les retours d'expérience | ne déploie pas les projets à la place de leurs responsables |
 | **Tous** | un incident ou une surprise = un [retour d'expérience](../docs/retours-experience/README.md) ; il n'est clos que lorsqu'un contrôle automatique empêche que cela se reproduise | ne contournent pas un refus de `deploy.sh` : il dit quoi corriger |
 

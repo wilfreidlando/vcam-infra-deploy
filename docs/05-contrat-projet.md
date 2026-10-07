@@ -24,7 +24,7 @@ Le contrôle avant déploiement se lance aussi seul, **sans rien modifier**, sur
 n'importe quel projet, y compris en production :
 
 ```bash
-cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh check prod
+cd /app/<projet>/prod && vps-deploy check prod
 ```
 
 ## 1. Ce que contient le dépôt du projet
@@ -64,10 +64,10 @@ cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh check prod
 | --- | --- | --- | --- |
 | C9 | **Dépôt privé** : le serveur le lit **par sa clé de déploiement SSH** en lecture seule (alias `github-<app>`, [guide 3](../guides/03-installer-plateforme.md)), **jamais par HTTPS avec un identifiant**. **Dépôt public** : l'HTTPS **sans identifiant** suffit (rien à voler, rien à taper). | Le staging se déploie sous cron : personne n'est là pour taper un mot de passe, et un jeton dans une URL est un secret. `deploy.sh` ne l'attend jamais, il échoue avec la correction | **BLOQUANT** (le `git fetch` échoue : message donnant la commande `git remote set-url`) |
 | C10 | Secrets dans `.env` / `.env.staging`, jamais commités ; **jamais les mêmes** en staging et en production. | Une fuite du staging ne compromet pas la production | Revue |
-| C11 | Toute base a sa sauvegarde chiffrée hors serveur (`BACKUP_SERVICE`), restaurée une fois par mois ([exercice](runbooks/exercice-de-restauration.md)). Une restauration remet la base **dans l'état exact de la sauvegarde** (PostgreSQL, MySQL, MariaDB ; non atomique pour MySQL/MariaDB). **La sauvegarde nocturne est le filet** : `deploy.sh` n'en prend pas de lui-même au déploiement (`BACKUP_BEFORE_DEPLOY=always` pour en avoir une avant chaque déploiement) ; avant une migration risquée, on en prend une à la main (`deploy.sh backup`). **Les sauvegardes vivent sur S3, jamais sur le disque du serveur** : l'agent supprime la copie locale dès qu'elle est envoyée (seule une copie dont l'envoi a échoué reste, trois au plus) ; sans S3 configuré il **refuse** de sauvegarder, et un environnement volontairement non sauvegardé le déclare (`BACKUP_DISABLED=1`). Voir [Sauvegardes](reference/sauvegardes.md). | Le VPS est un point unique de défaillance ; un disque qui se remplit en silence fait tomber **tous** les sites | alerte « aucune sauvegarde envoyée depuis 36 h », alerte disque |
+| C11 | Toute base a sa sauvegarde chiffrée hors serveur (`BACKUP_SERVICE`), restaurée une fois par mois ([exercice](runbooks/exercice-de-restauration.md)). Une restauration remet la base **dans l'état exact de la sauvegarde** (PostgreSQL, MySQL, MariaDB ; non atomique pour MySQL/MariaDB). **La sauvegarde nocturne est le filet** : `deploy.sh` n'en prend pas de lui-même au déploiement (`BACKUP_BEFORE_DEPLOY=always` pour en avoir une avant chaque déploiement) ; avant une migration risquée, on en prend une à la main (`vps-deploy backup`). **Les sauvegardes vivent sur S3, jamais sur le disque du serveur** : l'agent supprime la copie locale dès qu'elle est envoyée (seule une copie dont l'envoi a échoué reste, trois au plus) ; sans S3 configuré il **refuse** de sauvegarder, et un environnement volontairement non sauvegardé le déclare (`BACKUP_DISABLED=1`). Voir [Sauvegardes](reference/sauvegardes.md). | Le VPS est un point unique de défaillance ; un disque qui se remplit en silence fait tomber **tous** les sites | alerte « aucune sauvegarde envoyée depuis 36 h », alerte disque |
 | C12 | **L'observabilité est proportionnée au projet** ([profils](reference/profils-de-projet.md)). Minimum de **tout** projet public : figurer dans la liste des sites sondés (disponibilité et certificat). Un backend ajoute les labels `observability.*` (journaux), puis, s'il le veut, `/metrics` privé. Un simple site web n'a besoin de rien de plus que la sonde. **Ses propres tableaux et alertes, un projet les livre dans son dépôt** (`observability/`, [guide 19](../guides/19-observabilite-de-mon-projet.md)) : la plateforme n'est jamais modifiée pour un projet. | Journaux et erreurs de tous les projets au même endroit, sans imposer à un site statique ce dont il n'a pas l'usage | Audit INFO |
 | C13 | **Un projet déclare son profil dans `platform.env`** : `ENVIRONMENTS` et `PROD_ENVIRONMENTS`. Il peut n'avoir **aucun staging** (une production seule), ou **plusieurs productions**. Dans tous les cas : une production n'est **jamais** déployée automatiquement, chaque production a son dossier, son `.env` et **ses propres secrets**, et la promotion est une décision humaine. Détail : [profils de projet](reference/profils-de-projet.md). | Les projets ne sont pas tous faits pareil ; l'outil ne doit ni les forcer dans un moule ni perdre ses garde-fous | **BLOQUANT** (noms d'environnements valides, productions déclarées parmi les environnements) |
-| C14 | **Chaque projet a sa fiche de déploiement, `docs/DEPLOIEMENT.md`**, d'après le [modèle](../templates/docs-projet/DEPLOIEMENT.md) : la carte des environnements (adresse, dossier, fichier d'environnement, version, qui déploie), les services, les variables (**noms et rôles**, jamais les valeurs), le premier déploiement, la livraison, la mise à jour de ce qui existe, le retour arrière, les sauvegardes, l'observabilité. Elle est à jour à chaque changement de déploiement. | Quelqu'un qui n'a pas construit le projet doit pouvoir le déployer, le mettre à jour et revenir en arrière avec ce seul document | `deploy.sh check` (INFO), revue |
+| C14 | **Chaque projet a sa fiche de déploiement, `docs/DEPLOIEMENT.md`**, d'après le [modèle](../templates/docs-projet/DEPLOIEMENT.md) : la carte des environnements (adresse, dossier, fichier d'environnement, version, qui déploie), les services, les variables (**noms et rôles**, jamais les valeurs), le premier déploiement, la livraison, la mise à jour de ce qui existe, le retour arrière, les sauvegardes, l'observabilité. Elle est à jour à chaque changement de déploiement. | Quelqu'un qui n'a pas construit le projet doit pouvoir le déployer, le mettre à jour et revenir en arrière avec ce seul document | `vps-deploy check` (INFO), revue |
 
 ## 3. Les noms
 
@@ -96,8 +96,8 @@ non prévue**. Rien de ce qui suit ne touche la production avant l'étape 5.
 
 1. **Mesurer, en lecture seule.**
    ```bash
-   /app/vps-platform/bin/vps-inventory.sh > /root/inventaire.md  # tout le serveur, sans secret
-   cd /app/<app>/prod && /app/vps-platform/bin/deploy.sh check prod   # ce projet
+   vps-inventory > /root/inventaire.md  # tout le serveur, sans secret
+   cd /app/<app>/prod && vps-deploy check prod   # ce projet
    ```
 2. **Corriger dans le dépôt**, en partant des modèles : d'abord les BLOQUANT et
    CRITIQUE, puis le reste. Un seul commit peut tout corriger.
@@ -113,8 +113,8 @@ non prévue**. Rien de ce qui suit ne touche la production avant l'étape 5.
 5. **Production, dans un créneau annoncé.** Même procédure. Si la base change de
    nom, la coupure dure de l'arrêt de l'ancien conteneur à la fin du contrôle de
    santé, soit une à deux minutes en général. Avant une migration risquée, prendre une sauvegarde à la main
-   (`deploy.sh backup`).
-6. **Vérifier** : `deploy.sh check prod`, puis `vps-audit.sh`. Le projet ne doit
+   (`vps-deploy backup`).
+6. **Vérifier** : `vps-deploy check prod`, puis `vps-audit.sh`. Le projet ne doit
    plus avoir aucune ligne BLOQUANT, CRITIQUE ni ATTENTION.
 
 Les guides [5 (audit et conformité)](../guides/05-audit-et-conformite.md) et
@@ -138,7 +138,7 @@ dans le même ensemble de commits :
 4. **Les modèles** de `templates/` appliquent la nouvelle règle.
 5. **Ce document** (nouvelle clause, version du contrat) et la table des règles du
    [16 règles](reference/les-16-regles.md).
-6. **Les projets existants** : lancer `deploy.sh check` et `vps-audit.sh` sur chacun,
+6. **Les projets existants** : lancer `vps-deploy check` et `vps-audit.sh` sur chacun,
    et noter les écarts restants dans le retour d'expérience, avec qui s'en occupe.
 
 Un contrôle BLOQUANT ne doit jamais bloquer un projet sain. Le contrôle des noms
@@ -150,9 +150,9 @@ sans conflit n'est pas bloqué, mais il reste un écart au contrat.
 | Version | Date | Changement | Origine |
 | --- | --- | --- | --- |
 | 1 | 2026-09 | 12 règles, audit en lecture seule, déploiement par promotion | [ADR-0064](adr/0064-infrastructure-vps-staging-observabilite-mutualisee.md) |
-| 2 | 2026-10-04 | C3 (noms propres au projet, BLOQUANT), C4 (healthcheck de base par le réseau), C5-C6 (`platform.env` lu dans le commit déployé, cohérent, jamais modifié sur le serveur), C9 (clé de déploiement SSH, jamais d'attente de mot de passe) ; commande `deploy.sh check` | [REX 2026-10-04](retours-experience/2026-10-04-premier-deploiement-skills-devops.md) |
+| 2 | 2026-10-04 | C3 (noms propres au projet, BLOQUANT), C4 (healthcheck de base par le réseau), C5-C6 (`platform.env` lu dans le commit déployé, cohérent, jamais modifié sur le serveur), C9 (clé de déploiement SSH, jamais d'attente de mot de passe) ; commande `vps-deploy check` | [REX 2026-10-04](retours-experience/2026-10-04-premier-deploiement-skills-devops.md) |
 | 2.1 | 2026-10-05 | C11 précisée : la restauration remet la base dans l'état exact de la sauvegarde (PostgreSQL, MySQL, MariaDB), exercice mensuel avec table-témoin | [REX 2026-10-05](retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md) |
 | 2.2 | 2026-10-05 | C11 : sauvegardes **sur S3 seulement**, plus de copies qui s'accumulent sur le disque ; C12 proportionnée au projet ; **C13** : profils de projet (sans staging, plusieurs productions, site simple) | [ADR-0067](adr/0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) |
-| 2.3 | 2026-10-05 | C11 : plus de sauvegarde automatique au déploiement (la nocturne est le filet, `deploy.sh backup` à la main avant une migration risquée) ; remplace l'obligation de l'ADR-0064 | demande de l'équipe, [ADR-0067](adr/0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) |
+| 2.3 | 2026-10-05 | C11 : plus de sauvegarde automatique au déploiement (la nocturne est le filet, `vps-deploy backup` à la main avant une migration risquée) ; remplace l'obligation de l'ADR-0064 | demande de l'équipe, [ADR-0067](adr/0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) |
 | 2.4 | 2026-10-05 | C12 : un projet livre **ses propres tableaux et alertes dans son dépôt** (`observability/`), publiés par `deploy.sh` ; tableau générique « Application » pour tous | [ADR-0068](adr/0068-observabilite-portee-par-le-projet.md) |
-| 2.5 | 2026-10-05 | **C14** : une fiche de déploiement par projet (`docs/DEPLOIEMENT.md`) ; `deploy.sh check` signale son absence (INFO). **C9 précisée** : dépôt privé = clé SSH, dépôt public = HTTPS sans identifiant (c'est la pratique des projets actuels) | [déployer selon la situation](reference/deployer-selon-la-situation.md) |
+| 2.5 | 2026-10-05 | **C14** : une fiche de déploiement par projet (`docs/DEPLOIEMENT.md`) ; `vps-deploy check` signale son absence (INFO). **C9 précisée** : dépôt privé = clé SSH, dépôt public = HTTPS sans identifiant (c'est la pratique des projets actuels) | [déployer selon la situation](reference/deployer-selon-la-situation.md) |

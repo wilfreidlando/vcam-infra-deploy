@@ -313,7 +313,7 @@ sequenceDiagram
 flowchart LR
     subgraph Serveur["VPS"]
         DB[("Base du projet")]
-        Agent["Conteneur backup<br/>chaque nuit à BACKUP_TIME<br/>et à la demande (deploy.sh backup)"]
+        Agent["Conteneur backup<br/>chaque nuit à BACKUP_TIME<br/>et à la demande (vps-deploy backup)"]
         Local[("Aucune copie gardée<br/>(3 au plus si S3 est injoignable)")]
     end
     Pass{{"Phrase de passe<br/>dans le gestionnaire de mots de passe"}}

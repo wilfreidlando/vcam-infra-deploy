@@ -22,8 +22,8 @@ jamais une modification à la main sur le serveur. Une clé retirée du fichier 
 | Clé | Défaut | Rôle |
 | --- | --- | --- |
 | `ENVIRONMENTS` | `staging prod` | Les environnements du projet. Sans staging : `prod`. Plusieurs productions : `staging prod prodeu`. Noms en minuscules et chiffres seulement. [Profils](profils-de-projet.md) |
-| `PROD_ENVIRONMENTS` | `prod` | Ceux de `ENVIRONMENTS` qui sont des **productions** : jamais déployées automatiquement, promues à la main (`deploy.sh promote --env <nom>`). Chacun doit figurer dans `ENVIRONMENTS` |
-| `BRANCH_STAGING` (ancien nom : `STAGING_BRANCH`) | `main` | La branche que `deploy.sh watch` suit pour le staging. **Le projet choisit** : `develop`, `main`, `integration`… |
+| `PROD_ENVIRONMENTS` | `prod` | Ceux de `ENVIRONMENTS` qui sont des **productions** : jamais déployées automatiquement, promues à la main (`vps-deploy promote --env <nom>`). Chacun doit figurer dans `ENVIRONMENTS` |
+| `BRANCH_STAGING` (ancien nom : `STAGING_BRANCH`) | `main` | La branche que `vps-deploy watch` suit pour le staging. **Le projet choisit** : `develop`, `main`, `integration`… |
 | `BRANCH_<ENV>` | — | La branche suivie par un autre environnement non production (par exemple `BRANCH_DEV=develop`) |
 | `BRANCH_PROD`, `BRANCH_<PROD>` | — (aucune contrainte) | **Optionnel : une garde sur une production.** `promote` refuse une version qui n'est pas déjà dans `origin/<branche>` : on fusionne d'abord ce que le staging a validé, puis on promeut. L'image reste **celle du staging**. Chaque production a sa propre branche (`BRANCH_PRODEU=release`). **Sans staging**, c'est la branche que `promote` construit quand on ne donne pas de version (**jamais devinée** : sans cette déclaration, `promote` sans version refuse). La garde est lue dans la version **déjà déployée en production** : elle s'active à la première promotion qui la porte, et un commit ne peut pas s'en dispenser en la retirant (sa propre promotion est contrôlée par la garde en vigueur) |
 
@@ -41,7 +41,7 @@ jamais une modification à la main sur le serveur. Une clé retirée du fichier 
 
 | Clé | Défaut | Rôle |
 | --- | --- | --- |
-| `BACKUP_SERVICE` | vide | Le service de l'agent `db-backup`. Requis pour `deploy.sh backup` et pour `restore.sh` |
+| `BACKUP_SERVICE` | vide | Le service de l'agent `db-backup`. Requis pour `vps-deploy backup` et pour `restore.sh` |
 | `BACKUP_CMD` | `backup.sh` | La commande exécutée dans ce service pour une sauvegarde à la demande |
 | `BACKUP_BEFORE_DEPLOY` | `never` | `always` : une sauvegarde **avant chaque** déploiement de production (le déploiement est annulé si elle échoue). Par défaut aucune : la sauvegarde nocturne est le filet ([sauvegardes](sauvegardes.md)) |
 | `DB_SERVICE` | `postgres` (pour `restore.sh`) | Le service de la base, que `restore.sh` **ne coupe pas** pendant une restauration |
@@ -51,7 +51,7 @@ jamais une modification à la main sur le serveur. Une clé retirée du fichier 
 | Clé | Défaut | Rôle |
 | --- | --- | --- |
 | `BUILD_PER_ENV` | `0` | `1` : une image **par environnement** (pour un front dont la construction intègre la configuration de l'environnement). Sans cela, l'image testée en staging est celle qui part en production |
-| `OBS_BUNDLE` | `observability` | Le dossier du dépôt qui porte les tableaux et alertes **propres au projet** ([guide 19](../../guides/19-observabilite-de-mon-projet.md)). Publié après un déploiement de production réussi, ou par `deploy.sh obs-sync` |
+| `OBS_BUNDLE` | `observability` | Le dossier du dépôt qui porte les tableaux et alertes **propres au projet** ([guide 19](../../guides/19-observabilite-de-mon-projet.md)). Publié après un déploiement de production réussi, ou par `vps-deploy obs-sync` |
 
 ## 2. Les réglages de l'hôte (variables d'environnement, pas des clés de `platform.env`)
 
@@ -72,5 +72,5 @@ Ils valent pour tous les projets du serveur et ne se règlent pas dans un projet
 
 ## 3. Ce qui est vérifié
 
-`deploy.sh check <env>` contrôle, **sans rien changer** : l'accès git, que `platform.env` existe et que `APP_NAME` est défini, que le compose se charge, que les services nommés (`HEALTH_SERVICE`, `MIGRATE_SERVICE`,
+`vps-deploy check <env>` contrôle, **sans rien changer** : l'accès git, que `platform.env` existe et que `APP_NAME` est défini, que le compose se charge, que les services nommés (`HEALTH_SERVICE`, `MIGRATE_SERVICE`,
 `BACKUP_SERVICE`, `DB_SERVICE`) existent dans le compose, et qu'aucun nom de service privé du projet n'est aussi publié sur un réseau partagé par un autre projet ; **que les noms d'hôte du projet ne sont pas déjà pris** par un autre (`vps-hosts --check`) ; et **l'intégrité du clone** : un dossier de `.git` non inscriptible ou des fichiers suivis modifiés à la main sont **refusés**, les commits locaux et les fichiers d'un autre compte sont **signalés** ([clones et droits](clones-et-droits.md)). Les tests ([`tests/test-deploy.sh`](../../tests/test-deploy.sh), [`tests/test-templates.sh`](../../tests/test-templates.sh)) l'exercent sur chaque modèle.

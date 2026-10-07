@@ -21,7 +21,7 @@ ce qu'il faut surveiller en attendant.
   dépôt privé, ou dépôt public seulement une fois les écarts CRITIQUE corrigés).
 - **Noter l'exception** : un constat « origin en HTTPS, dépôt public » dans l'inventaire
   en cours, avec la date prévue pour le retour au privé.
-- `deploy.sh` fonctionne en HTTPS tant que le dépôt est public : `deploy.sh check`
+- `deploy.sh` fonctionne en HTTPS tant que le dépôt est public : `vps-deploy check`
   répond « accès git OK ». Il n'échoue qu'au moment où le dépôt redevient privé.
 
 ## Revenir au privé : l'ordre compte
@@ -81,7 +81,7 @@ $ ssh -T git@<alias>        # première fois : répondre « yes » ; attendu : �
 ```bash
 $ cd /app/<app>/staging && git remote set-url origin git@<alias>:<compte>/<dépôt>.git
 $ cd /app/<app>/prod    && git remote set-url origin git@<alias>:<compte>/<dépôt>.git
-$ cd /app/<app>/staging && /app/vps-platform/bin/deploy.sh check staging   # « accès git OK (git@… ) »
+$ cd /app/<app>/staging && vps-deploy check staging   # « accès git OK (git@… ) »
 ```
 
 Pour la plateforme : `git -C /app/vps-platform remote set-url origin git@github-vcam-infra:wilfreidlando/vcam-infra-deploy.git`
@@ -93,7 +93,7 @@ puis `git -C /app/vps-platform fetch` (doit réussir). Les dépôts appartiennen
 Dépôt → **Settings → Danger Zone → Change visibility → Private**. Puis, sur le serveur :
 
 ```bash
-$ cd /app/<app>/staging && /app/vps-platform/bin/deploy.sh check staging   # doit répondre encore « accès git OK »
+$ cd /app/<app>/staging && vps-deploy check staging   # doit répondre encore « accès git OK »
 ```
 
 ## Retour arrière

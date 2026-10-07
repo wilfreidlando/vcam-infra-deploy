@@ -68,7 +68,7 @@ autres projets. Check-list : `README.md` § 6.
 Quand la recette et les builds gênent la production :
 - **Serveur 2** : staging de tous les projets et runner GitLab. Mêmes outils
   (`deploy.sh`, `vps-hosts.sh`, observabilité).
-- **Registre d'images** : le registre GitLab, inclus. `deploy.sh build` pousse
+- **Registre d'images** : le registre GitLab, inclus. `vps-deploy build` pousse
   l'image, la production la tire. C'est le seul ajout au script : un `docker push` et
   un `docker pull`. Le reste ne change pas.
 - **Observabilité** : une instance par serveur, ou une seule qui reçoit les deux.

@@ -18,7 +18,7 @@ $ df -h / ; free -m                                                         # di
 
 | Symptôme | Cause probable | Action |
 | --- | --- | --- |
-| `Connection refused` pendant les **migrations d'un déploiement**, toujours la même adresse IP | Le nom de la base mène à **un autre projet** (nom générique `db` publié aussi sur `nginx-proxy`) | `cd /app/<projet>/<env> && /app/vps-platform/bin/deploy.sh check <env>` le confirme ; nommer les services `<app>-db`, `<app>-redis` (contrat C3), voir [REX 2026-10-04](../retours-experience/2026-10-04-premier-deploiement-skills-devops.md) |
+| `Connection refused` pendant les **migrations d'un déploiement**, toujours la même adresse IP | Le nom de la base mène à **un autre projet** (nom générique `db` publié aussi sur `nginx-proxy`) | `cd /app/<projet>/<env> && vps-deploy check <env>` le confirme ; nommer les services `<app>-db`, `<app>-redis` (contrat C3), voir [REX 2026-10-04](../retours-experience/2026-10-04-premier-deploiement-skills-devops.md) |
 | La base est `Exited` | Disque plein, mémoire, erreur d'initialisation | Journal du conteneur ; [Disque plein](disque-plein.md) ; mémoire : `dmesg \| grep -i 'out of memory'` |
 | La base démarre mais l'application ne s'y connecte pas | Mauvais `DB_HOST` ou mot de passe dans le `.env` | Comparer **les noms** de variables avec `.env.example` (jamais les valeurs dans un message) |
 | La base paraît prête puis refuse (premier démarrage) | Healthcheck par le socket local au lieu du réseau (clause C4) | Healthcheck `pg_isready -h 127.0.0.1` ; ne pas relancer en boucle |
@@ -27,13 +27,13 @@ $ df -h / ; free -m                                                         # di
 ## 3. Restaurer une sauvegarde
 
 Une sauvegarde chiffrée est prise chaque nuit, et à la main avant une migration risquée
-(`deploy.sh backup`). **Restaurer dans le staging d'abord**, pour vérifier le fichier, puis en
+(`vps-deploy backup`). **Restaurer dans le staging d'abord**, pour vérifier le fichier, puis en
 production dans un créneau annoncé.
 
 ```bash
 $ cd /app/<projet>/staging
 $ read -rs RESTORE_PASSPHRASE && export RESTORE_PASSPHRASE       # saisie à la main, jamais écrite dans un fichier
-$ /app/vps-platform/bin/restore.sh staging <fichier>.dump.enc    # vérifier l'application dans le staging
+$ vps-restore staging <fichier>.dump.enc    # vérifier l'application dans le staging
 ```
 
 Pour la production : `restore.sh prod <fichier>` après vérification et accord du responsable
@@ -46,7 +46,7 @@ Détails : [sauvegardes](../reference/sauvegardes.md) et [guide 12](../../guides
 ## 4. Vérification
 
 - `docker ps` : la base est « healthy ».
-- `deploy.sh status` et le site répondent ; une opération de lecture et d'écriture réussit.
+- `vps-deploy status` et le site répondent ; une opération de lecture et d'écriture réussit.
 - Une nouvelle sauvegarde a été prise.
 
 ## 5. Ce qu'il ne faut pas faire

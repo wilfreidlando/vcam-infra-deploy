@@ -76,9 +76,9 @@ Le dossier `docs/` a lui-même une carte : [docs/README.md](docs/README.md).
 $ tests/run-all.sh hosts
 
 # Sur le serveur, en lecture seule : voir l'état réel
-$ /app/vps-platform/bin/vps-inventory.sh
-$ /app/vps-platform/bin/vps-audit.sh
-$ cd /app/<projet>/prod && /app/vps-platform/bin/deploy.sh check prod   # ne modifie rien
+$ vps-inventory
+$ vps-audit
+$ cd /app/<projet>/prod && vps-deploy check prod   # ne modifie rien
 ```
 
 ## Où est passé le § N du README ?

@@ -85,8 +85,8 @@ $ git clone git@github-vcam-infra:wilfreidlando/vcam-infra-deploy.git /app/vps-p
 $ ls /app/vps-platform        # → bin  docs  guides  host  images  observability  templates  tests  README.md
 ```
 
-Tous les chemins de la documentation partent de là : `/app/vps-platform/bin/deploy.sh`,
-`/app/vps-platform/observability/`… Mettre à jour plus tard : guide 11.
+La documentation écrit les commandes sous leur forme courte (`vps-deploy`, `vps-audit`…, installées ci-dessous) ; sans elles,
+`vps-deploy` se lit `/app/vps-platform/bin/deploy.sh`. Les dossiers partent de là : `/app/vps-platform/observability/`… Mettre à jour plus tard : guide 11.
 
 **Installer les commandes courtes (recommandé, une fois, en root).** Pour ne plus jamais taper ni rater un chemin :
 
@@ -129,7 +129,7 @@ $ nano .env
 
 | Variable | Valeur |
 | --- | --- |
-| `GRAFANA_HOST` | `grafana.visibilitycam.com` (vérifier d'abord : `../bin/vps-hosts.sh --free grafana.visibilitycam.com`) |
+| `GRAFANA_HOST` | `grafana.visibilitycam.com` (vérifier d'abord : `vps-hosts --free grafana.visibilitycam.com`) |
 | `LETSENCRYPT_EMAIL` | une adresse qui reçoit les alertes d'expiration |
 | `GRAFANA_ADMIN_PASSWORD` | `openssl rand -base64 24` — à ranger dans votre gestionnaire de mots de passe |
 | `GRAFANA_ALERT_EMAIL` | l'adresse qui reçoit les alertes du Core |

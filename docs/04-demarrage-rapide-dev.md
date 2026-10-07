@@ -1,8 +1,8 @@
 # Démarrage rapide : mettre mon projet sur le serveur
 
 Pour un développeur qui n'a jamais touché au serveur. Compter environ une heure la
-première fois. Chaque commande existe en forme longue (`/app/vps-platform/bin/deploy.sh`) et en forme courte
-(`vps-deploy`, installée par la plateforme) : elles sont identiques. Les mots inconnus sont dans le [glossaire](03-glossaire.md) ;
+première fois. Les commandes sont écrites sous leur forme courte (`vps-deploy`, `vps-hosts`…), installée par la plateforme
+(guide 3) ; la forme longue, `/app/vps-platform/bin/deploy.sh`, fait exactement la même chose. Les mots inconnus sont dans le [glossaire](03-glossaire.md) ;
 l'image d'ensemble est dans les [schémas](01-schemas.md).
 
 ## Ce que vous allez obtenir
@@ -20,8 +20,8 @@ l'image d'ensemble est dans les [schémas](01-schemas.md).
 Sur le serveur :
 
 ```bash
-/app/vps-platform/bin/vps-hosts.sh --free mon-projet.visibilitycam.com
-/app/vps-platform/bin/vps-hosts.sh --free mon-projet-staging.visibilitycam.com
+vps-hosts --free mon-projet.visibilitycam.com
+vps-hosts --free mon-projet-staging.visibilitycam.com
 ```
 
 Les deux doivent répondre `libre`. Sinon, choisir un autre nom : en minuscules,
@@ -82,15 +82,15 @@ expliquées dans `templates/env.platform.production.example` (production) et `te
 ## 4. Premier déploiement
 
 ```bash
-cd /app/mon-projet/staging && /app/vps-platform/bin/deploy.sh check staging   # contrôle seul, rien n'est modifié
-cd /app/mon-projet/staging && /app/vps-platform/bin/deploy.sh watch    # build + staging
+cd /app/mon-projet/staging && vps-deploy check staging   # contrôle seul, rien n'est modifié
+cd /app/mon-projet/staging && vps-deploy watch    # build + staging
 # vérifier https://mon-projet-staging.visibilitycam.com
-cd /app/mon-projet/prod && /app/vps-platform/bin/deploy.sh promote     # production (taper « oui »). Si platform.env déclare BRANCH_PROD, la version doit déjà être fusionnée dans cette branche
+cd /app/mon-projet/prod && vps-deploy promote     # production (taper « oui »). Si platform.env déclare BRANCH_PROD, la version doit déjà être fusionnée dans cette branche
 ```
 
 Si `deploy.sh` refuse, il dit pourquoi : nom déjà pris, service inconnu, nom en
 conflit avec un autre projet, image absente, contrôle de santé en échec… **Rien n'a
-été cassé** : corriger dans le dépôt, vérifier avec `deploy.sh check staging`,
+été cassé** : corriger dans le dépôt, vérifier avec `vps-deploy check staging`,
 pousser.
 
 ## 5. Staging automatique
@@ -106,14 +106,14 @@ Quelle branche pour quel environnement : le projet le déclare dans `platform.en
 
 | Je veux… | Commande (sur le serveur) |
 | --- | --- |
-| Voir ce qui tourne | `cd /app/mon-projet/prod && /app/vps-platform/bin/deploy.sh status` |
-| Mettre en production | `cd /app/mon-projet/prod && …/deploy.sh promote` |
-| Annuler la dernière mise en production | `cd /app/mon-projet/prod && …/deploy.sh rollback prod` |
+| Voir ce qui tourne | `cd /app/mon-projet/prod && vps-deploy status` |
+| Mettre en production | `cd /app/mon-projet/prod && vps-deploy promote` |
+| Annuler la dernière mise en production | `cd /app/mon-projet/prod && vps-deploy rollback prod` |
 | Voir les journaux | Grafana → *Applications*, ou `docker logs <conteneur> --tail 100` |
-| Déployer une autre branche en staging | `cd /app/mon-projet/staging && …/deploy.sh build origin/ma-branche`, puis `…/deploy.sh up staging <sha affiché>` |
-| Sauvegarder maintenant | `cd /app/mon-projet/prod && …/deploy.sh backup prod` (envoyée sur S3 comme la nocturne ; à faire avant une migration risquée) |
-| Vérifier mon projet | `…/deploy.sh check prod` (lecture seule), puis `/app/vps-platform/bin/vps-audit.sh` et la section de mon projet |
-| Changer une valeur d'un fichier d'environnement | éditer le `.env` de l'environnement (après une copie), puis `…/deploy.sh up <env> <version courante>` : **un `restart` ne la relit pas** ([détail](reference/modifier-une-valeur.md)) |
+| Déployer une autre branche en staging | `cd /app/mon-projet/staging && vps-deploy build origin/ma-branche`, puis `vps-deploy up staging <sha affiché>` |
+| Sauvegarder maintenant | `cd /app/mon-projet/prod && vps-deploy backup prod` (envoyée sur S3 comme la nocturne ; à faire avant une migration risquée) |
+| Vérifier mon projet | `vps-deploy check prod` (lecture seule), puis `vps-audit` et la section de mon projet |
+| Changer une valeur d'un fichier d'environnement | éditer le `.env` de l'environnement (après une copie), puis `vps-deploy up <env> <version courante>` : **un `restart` ne la relit pas** ([détail](reference/modifier-une-valeur.md)) |
 | Prouver qu'une copie (base, fichiers) est exacte | `vps-fingerprint db <conteneur> <base>` et `vps-fingerprint files <volume>`, source puis copie, comparés avec `diff` ([guide 20](../guides/20-migrer-une-application-existante.md)) |
 
 ## Ce qu'il ne faut jamais faire
@@ -131,7 +131,7 @@ Quelle branche pour quel environnement : le projet le déclare dans `platform.en
 - Modifier `platform.env` sur le serveur : il se change par un commit.
 - Faire `git pull`, `git merge` ou `git commit` dans un clone de `/app/<projet>/<env>`, ou y modifier un fichier suivi par git : le clone appartient à `deploy.sh`, `vps-deploy check` le
   refuse ([clones et droits](reference/clones-et-droits.md)).
-- Appliquer une valeur modifiée par un simple `restart` : le conteneur garde son ancien environnement ; c'est `deploy.sh up`.
+- Appliquer une valeur modifiée par un simple `restart` : le conteneur garde son ancien environnement ; c'est `vps-deploy up`.
 - Laisser le runner GitLab du serveur prendre les jobs sans tag : du code de merge request s'exécuterait sur le serveur ([pipeline GitLab](reference/pipeline-gitlab.md)).
 - Supprimer un volume (`docker volume rm`, `down -v`) en production. C'est là que
   sont les données.

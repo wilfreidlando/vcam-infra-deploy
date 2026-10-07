@@ -45,12 +45,12 @@ $ docker exec <projet>-staging-backup-1 backup.sh
 $ docker exec <projet>-staging-<projet>-db-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE TABLE restore_test_marker (id int);"'
 
 # 3. Restauration depuis S3 (la confirmation demandée est le nom <projet>-staging)
-$ echo <projet>-staging | /app/vps-platform/bin/restore.sh staging s3://<bucket>/<préfixe>/<projet>-staging/<fichier>
+$ echo <projet>-staging | vps-restore staging s3://<bucket>/<préfixe>/<projet>-staging/<fichier>
 
 # 4. Vérification : la table-témoin n'existe plus, le site répond
 $ docker exec <projet>-staging-<projet>-db-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt restore_test_marker"'
 #    attendu : « Did not find any relation named "restore_test_marker" »
-$ cd /app/<projet>/staging && /app/vps-platform/bin/deploy.sh status
+$ cd /app/<projet>/staging && vps-deploy status
 ```
 
 `restore.sh` arrête les services applicatifs (tout sauf la base et la sauvegarde), restaure avec l'image `db-backup`,
@@ -66,7 +66,7 @@ la saisir à la main, jamais dans un fichier.
 ```bash
 $ cd /app/<projet>/staging
 $ read -rs RESTORE_PASSPHRASE && export RESTORE_PASSPHRASE
-$ /app/vps-platform/bin/restore.sh staging s3://<bucket>/<préfixe>/<projet>-prod/<fichier>
+$ vps-restore staging s3://<bucket>/<préfixe>/<projet>-prod/<fichier>
 ```
 
 Cela met des données réelles dans le staging : le réinitialiser ensuite si besoin (README, [sauvegardes](../reference/sauvegardes.md)).
@@ -102,7 +102,7 @@ Si un critère échoue : **ne pas écrire dans l'application**, relancer `restor
 | `uploaded to s3://…` n'apparaît pas, `backup: BACKUP_S3_BUCKET is empty — refusing to back up onto the server's own disk` | Variables S3 vides, ou conteneur non recréé après modification du `.env` (un conteneur ne relit son `.env` qu'à sa création) | Renseigner le `.env`, recréer **seulement** le service : `docker compose -p <projet>-<env> -f compose.prod.yaml --env-file <fichier> up -d --no-deps --no-build backup` |
 | Erreur de connexion S3 | `BACKUP_S3_ENDPOINT` sans `https://` : `aws --endpoint-url` exige une URL complète | Ajouter le schéma |
 | `bad decrypt` | Mauvaise phrase de chiffrement (staging et production en ont deux) | Saisir la phrase de l'environnement d'origine de la copie |
-| La table-témoin existe toujours après la restauration | **L'image de l'agent est antérieure au 2026-10-05** : l'ancien `restore.sh` ne supprimait pas ce qui avait été créé après la sauvegarde (voir le [retour d'expérience](../retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md)) | Mettre la plateforme à jour, puis **reconstruire l'image** de l'agent (`deploy.sh build`) et recréer le service `backup` ; un `git pull` seul ne suffit pas |
+| La table-témoin existe toujours après la restauration | **L'image de l'agent est antérieure au 2026-10-05** : l'ancien `restore.sh` ne supprimait pas ce qui avait été créé après la sauvegarde (voir le [retour d'expérience](../retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md)) | Mettre la plateforme à jour, puis **reconstruire l'image** de l'agent (`vps-deploy build`) et recréer le service `backup` ; un `git pull` seul ne suffit pas |
 | Même après mise à jour, la table-témoin existe | `RESTORE_MODE=merge` est défini | Retirer `RESTORE_MODE` |
 
 ## Après

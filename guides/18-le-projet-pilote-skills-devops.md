@@ -47,7 +47,7 @@ graph LR
 | `scheduler` | Lance les tâches planifiées chaque minute | non |
 | `skills-devops-db` | PostgreSQL, données dans un volume | non, jamais |
 | `skills-devops-redis` | Cache, sessions, file d'attente | non |
-| `backup` | Sauvegarde chiffrée chaque nuit (et à la demande : `deploy.sh backup`) | non |
+| `backup` | Sauvegarde chiffrée chaque nuit (et à la demande : `vps-deploy backup`) | non |
 
 ## 3. Anatomie du dépôt : chaque fichier a un rôle
 
@@ -91,7 +91,7 @@ graph LR
     A["merge sur main"] -->|"deploy.sh watch<br/>(cron, 2 min)"| B["build : image taguée par le SHA"]
     B --> C["STAGING<br/>migrations → démarrage → santé"]
     C -->|"santé KO"| D["retour automatique"]
-    C -->|"recette OK"| E["promotion MANUELLE<br/>deploy.sh promote"]
+    C -->|"recette OK"| E["promotion MANUELLE<br/>vps-deploy promote"]
     E --> G["migrations"] --> H["bascule"] --> I{"santé ?"}
     I -->|OK| J["production = SHA"]
     I -->|KO| K["retour automatique"]
@@ -99,12 +99,12 @@ graph LR
 
 | Étape | Commande, depuis `/app/skills-devops/<env>` | Ce qui se passe |
 | --- | --- | --- |
-| Vérifier sans rien changer | `deploy.sh check <env>` | Accès git, cohérence `platform.env` et compose, noms sur les réseaux partagés |
-| Construire | `deploy.sh build origin/main staging` | Image `skills-devops:<sha>`, aucun conteneur touché |
-| Déployer en staging | `deploy.sh up staging <sha>` ou `deploy.sh watch` | Contrôle, migrations, démarrage, santé, retour automatique si échec |
-| Promouvoir en production | `deploy.sh promote` | **La même image** que staging, sans sauvegarde automatique : la nocturne est le filet, `deploy.sh backup` avant une migration risquée |
-| Revenir en arrière | `deploy.sh rollback <env>` | Redéploie la version précédente (les migrations ne sont **pas** annulées) |
-| État | `deploy.sh status` | Version courante et précédente, conteneurs |
+| Vérifier sans rien changer | `vps-deploy check <env>` | Accès git, cohérence `platform.env` et compose, noms sur les réseaux partagés |
+| Construire | `vps-deploy build origin/main staging` | Image `skills-devops:<sha>`, aucun conteneur touché |
+| Déployer en staging | `vps-deploy up staging <sha>` ou `vps-deploy watch` | Contrôle, migrations, démarrage, santé, retour automatique si échec |
+| Promouvoir en production | `vps-deploy promote` | **La même image** que staging, sans sauvegarde automatique : la nocturne est le filet, `vps-deploy backup` avant une migration risquée |
+| Revenir en arrière | `vps-deploy rollback <env>` | Redéploie la version précédente (les migrations ne sont **pas** annulées) |
+| État | `vps-deploy status` | Version courante et précédente, conteneurs |
 
 Le journal de chaque déploiement : `/var/lib/vps-platform/skills-devops/deploy.log`. **Le relire après une promotion** : une
 ligne `ERREUR` après `OK` est un défaut à comprendre (voir le [retour d'expérience](../docs/retours-experience/2026-10-05-nettoyage-des-images-ne-fonctionnait-pas.md)).
@@ -124,7 +124,7 @@ ligne `ERREUR` après `OK` est un défaut à comprendre (voir le [retour d'expé
 
 ## 7. Sauvegarde et restauration
 
-- Le service `backup` fait un `pg_dump` chiffré (AES-256) chaque nuit (et à la demande, avant une migration risquée : `deploy.sh backup`), l'envoie
+- Le service `backup` fait un `pg_dump` chiffré (AES-256) chaque nuit (et à la demande, avant une migration risquée : `vps-deploy backup`), l'envoie
   **sur S3** et ne le garde **pas** sur le serveur (une copie dont l'envoi échoue reste, trois au plus, et repart au passage suivant).
 - La phrase de chiffrement (`BACKUP_PASSPHRASE`) n'existe que dans le `.env` du serveur : **la conserver aussi hors du serveur**.
 - **Une sauvegarde jamais restaurée n'est pas une sauvegarde** : l'[exercice de restauration](../docs/runbooks/exercice-de-restauration.md)
@@ -136,8 +136,8 @@ ligne `ERREUR` après `OK` est un défaut à comprendre (voir le [retour d'expé
 
 | Symptôme | Où regarder en premier | Runbook |
 | --- | --- | --- |
-| Le site ne répond plus | `deploy.sh status`, `docker ps -a`, journaux du web | [Site en panne](../docs/runbooks/site-en-panne.md) |
-| Un déploiement échoue | `deploy.log`, puis `deploy.sh check <env>` | [Déploiement en échec](../docs/runbooks/deploiement-en-echec.md) |
+| Le site ne répond plus | `vps-deploy status`, `docker ps -a`, journaux du web | [Site en panne](../docs/runbooks/site-en-panne.md) |
+| Un déploiement échoue | `deploy.log`, puis `vps-deploy check <env>` | [Déploiement en échec](../docs/runbooks/deploiement-en-echec.md) |
 | Un conteneur redémarre en boucle | `docker logs`, `docker inspect` (code de sortie) | [Conteneur en boucle](../docs/runbooks/conteneur-en-boucle.md) |
 | La base ne répond pas | Journal de `skills-devops-db`, disque, mémoire | [Base inaccessible](../docs/runbooks/base-inaccessible.md) |
 | Plus de place sur le disque | `df -h`, `docker system df` | [Disque plein](../docs/runbooks/disque-plein.md) |

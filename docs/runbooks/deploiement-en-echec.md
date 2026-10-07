@@ -13,8 +13,8 @@ qui ne se défait pas toute seule : **les migrations** de base de données.
 ```bash
 $ cd /app/<projet>/<env>
 $ tail -20 /var/lib/vps-platform/<projet>/deploy.log        # la dernière ligne dit pourquoi
-$ /app/vps-platform/bin/deploy.sh status                    # version courante et précédente, conteneurs
-$ /app/vps-platform/bin/deploy.sh check <env>               # ne modifie rien : refait les contrôles
+$ vps-deploy status                    # version courante et précédente, conteneurs
+$ vps-deploy check <env>               # ne modifie rien : refait les contrôles
 ```
 
 Trois questions : **quel message exact** ? **Qu'est-ce qui tourne maintenant** (`status`) ? **Des migrations ont-elles eu lieu** (le journal
@@ -24,12 +24,12 @@ dit `migrations` avant l'erreur) ?
 
 | Message du journal | Cause | Action |
 | --- | --- | --- |
-| `contrôle avant déploiement en échec (ci-dessus) — rien n'a été modifié` | Un contrôle a refusé : `platform.env` incohérent, nom privé publié sur un réseau partagé, accès git | Lire les lignes **au-dessus**, corriger **dans le dépôt**, vérifier avec `deploy.sh check <env>`, pousser |
+| `contrôle avant déploiement en échec (ci-dessus) — rien n'a été modifié` | Un contrôle a refusé : `platform.env` incohérent, nom privé publié sur un réseau partagé, accès git | Lire les lignes **au-dessus**, corriger **dans le dépôt**, vérifier avec `vps-deploy check <env>`, pousser |
 | `git fetch impossible : origin est en HTTPS …` | Le serveur lit le dépôt sans clé de déploiement (clause C9) | `git remote set-url origin git@<alias>:<compte>/<dépôt>.git` ([guide 3](../../guides/03-installer-plateforme.md), [guide 14](../../guides/14-retour-aux-depots-prives.md)) |
 | `arrêter d'abord l'ancienne installation qui utilise ces volumes` | Un service a été renommé : l'ancien conteneur tient encore le volume (deux bases sur les mêmes fichiers les corrompent) | `docker rm -f <ancien conteneur>` **nommément** (les volumes restent, [contrat § 4](../05-contrat-projet.md)), puis relancer |
 | `fichier .env… absent (copier l'exemple et le remplir)` | Le dossier n'a pas le fichier d'environnement de cet environnement | Le créer à partir de `.env.*.example`, mode `600` |
 | `un autre déploiement de <projet> est en cours` | Un seul déploiement à la fois par projet (verrou) | Attendre la fin ; vérifier `ps` avant de supposer un verrou périmé |
-| `images de <sha> absentes — lancer d'abord « deploy.sh build <sha> »` | On déploie un SHA qui n'a pas été construit | `deploy.sh build <sha>` dans le dossier de **staging** |
+| `images de <sha> absentes — lancer d'abord « vps-deploy build <sha> »` | On déploie un SHA qui n'a pas été construit | `vps-deploy build <sha>` dans le dossier de **staging** |
 | `build <sha> (<env>) en échec` | Erreur dans le `Dockerfile` ou quota du registre d'images (`429`) | Lire la sortie du build ; pour un quota, réessayer plus tard |
 | `nginx-proxy est déjà en erreur — aucun déploiement ne serait pris en compte` | Une configuration invalide bloque tous les changements du serveur | [Site en panne, § 4](site-en-panne.md#4-nginx-proxy-en-erreur) |
 | `noms d'hôte déjà utilisés par un autre projet` | Deux projets pour un même nom public | `bin/vps-hosts.sh` pour voir qui porte quoi |
@@ -47,7 +47,7 @@ Le journal dit `migrations en échec — la version <précédente> tourne toujou
 2. Causes fréquentes : un nom de base qui mène à **un autre projet** (`Connection refused`, toujours la même adresse IP : voir le
    [retour d'expérience](../retours-experience/2026-10-04-premier-deploiement-skills-devops.md)), une base pas encore prête, une erreur de la
    migration elle-même.
-3. Corriger **dans le dépôt**, pousser, relancer `deploy.sh up`. Rien n'a été basculé : le site continue de tourner.
+3. Corriger **dans le dépôt**, pousser, relancer `vps-deploy up`. Rien n'a été basculé : le site continue de tourner.
 4. **Si des tables ont été créées à moitié** (migration non transactionnelle) : restaurer la **dernière sauvegarde** du
    projet (celle de la nuit, ou celle prise à la main avant la migration). Depuis le 2026-10-05, la restauration remet la base **dans l'état exact** de la sauvegarde
    ([exercice de restauration](exercice-de-restauration.md)).
@@ -63,12 +63,12 @@ $ docker logs --tail 80 <conteneur web>          # pourquoi la nouvelle version 
 
 - Les **migrations de la version échouée ne sont pas annulées**. Si elles ne sont pas compatibles avec la version restaurée,
   restaurer la dernière sauvegarde (de la nuit, ou prise à la main avant la migration).
-- Corriger, pousser, redéployer : `deploy.sh up <env> <nouveau sha>`.
+- Corriger, pousser, redéployer : `vps-deploy up <env> <nouveau sha>`.
 
 ## 5. Revenir en arrière à la main
 
 ```bash
-$ cd /app/<projet>/<env> && /app/vps-platform/bin/deploy.sh rollback <env>
+$ cd /app/<projet>/<env> && vps-deploy rollback <env>
 ```
 
 `aucune version précédente connue pour <env>` : c'est le premier déploiement, il n'y a rien où revenir. Arrêter le projet

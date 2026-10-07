@@ -28,7 +28,7 @@ action, vérification, **ce qu'il ne faut pas faire**, et ce qu'on écrit après
 ## Les cinq règles de tout incident
 
 1. **Annoncer** dans le canal de l'équipe : qui s'en occupe, depuis quand, quel site.
-2. **Regarder avant de toucher** : `deploy.sh status`, `docker ps -a`, les journaux. Ne rien
+2. **Regarder avant de toucher** : `vps-deploy status`, `docker ps -a`, les journaux. Ne rien
    redémarrer « pour voir » : un redémarrage efface la trace de ce qui s'est passé.
 3. **Un changement à la fois**, et noter l'heure et la commande.
 4. **Ne jamais détruire de données** : pas de `down -v`, `volume rm`, `system prune -a --volumes`.
@@ -38,10 +38,10 @@ action, vérification, **ce qu'il ne faut pas faire**, et ce qu'on écrit après
 ## Outils de lecture, sûrs à tout moment
 
 ```bash
-$ /app/vps-platform/bin/vps-audit.sh               # tout le serveur, aucun effet
-$ /app/vps-platform/bin/vps-hosts.sh               # sous-domaines : qui porte quoi, collisions
-$ cd /app/<projet>/<env> && /app/vps-platform/bin/deploy.sh status
-$ cd /app/<projet>/<env> && /app/vps-platform/bin/deploy.sh check <env>   # ne modifie rien
+$ vps-audit               # tout le serveur, aucun effet
+$ vps-hosts               # sous-domaines : qui porte quoi, collisions
+$ cd /app/<projet>/<env> && vps-deploy status
+$ cd /app/<projet>/<env> && vps-deploy check <env>   # ne modifie rien
 $ docker ps -a --format '{{.Names}} | {{.Status}}' | grep -i <projet>
 ```
 

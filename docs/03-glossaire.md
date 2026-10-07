@@ -60,6 +60,6 @@ Les mots de la plateforme, expliqués simplement. Classés par thème.
 | **Alloy** | Le collecteur qui ramasse tout cela dans les conteneurs étiquetés |
 | **Audit** (`vps-audit.sh`) | Le contrôle automatique des règles du [contrat](05-contrat-projet.md), en lecture seule |
 | **Contrat d'un projet** | Le [référentiel](05-contrat-projet.md) : ce que tout projet hébergé doit respecter, et qui le vérifie |
-| **Contrôle avant déploiement** (`deploy.sh check`) | Ce que `deploy.sh` vérifie avant de toucher à quoi que ce soit. S'il échoue, le déploiement est refusé (BLOQUANT) et rien n'est modifié. Se lance aussi seul, sans risque, sur un projet en production |
+| **Contrôle avant déploiement** (`vps-deploy check`) | Ce que `deploy.sh` vérifie avant de toucher à quoi que ce soit. S'il échoue, le déploiement est refusé (BLOQUANT) et rien n'est modifié. Se lance aussi seul, sans risque, sur un projet en production |
 | **Clé de déploiement** | Clé SSH en lecture seule, propre à un dépôt, qui permet au serveur de lire le code sans mot de passe (guide 3) |
 | **REX** (retour d'expérience) | Analyse d'un incident, qui n'est close que lorsqu'une protection automatique empêche qu'il se reproduise ([liste](retours-experience/README.md)) |

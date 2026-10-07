@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | un staging **puis** une production | [`profil-a-staging-puis-production.gitlab-ci.yml`](profil-a-staging-puis-production.gitlab-ci.yml) | A, et C pour plusieurs productions (voir § 4) |
 | **seulement** une production | [`profil-b-production-seule.gitlab-ci.yml`](profil-b-production-seule.gitlab-ci.yml) | B |
-| un simple site sans base | le profil B convient ; ou aucun pipeline : `deploy.sh promote` à la main | D |
+| un simple site sans base | le profil B convient ; ou aucun pipeline : `vps-deploy promote` à la main | D |
 
 ## 2. Remplacer les jetons
 

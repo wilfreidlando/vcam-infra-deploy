@@ -65,7 +65,7 @@ de l'observabilité est perdu ; ce n'est pas grave.
 $ mkdir -p /app/<projet> && cd /app/<projet>
 $ git clone <dépôt> staging && git clone <dépôt> prod     # serveur neuf : refaire d'abord les clés du guide 3, étape 0
 # recopier .env (prod) et .env.staging (staging) depuis le coffre
-$ cd staging && /app/vps-platform/bin/deploy.sh build origin/main
+$ cd staging && vps-deploy build origin/main
 ```
 
 Noter le SHA affiché. C'est le dernier commit de `main`, normalement celui qui
@@ -82,19 +82,19 @@ $ docker compose -p <projet>-prod -f compose.prod.yaml --env-file .env up -d <se
 $ docker compose -p <projet>-prod -f compose.prod.yaml --env-file .env run --rm backup \
     sh -c 'aws ${BACKUP_S3_ENDPOINT:+--endpoint-url $BACKUP_S3_ENDPOINT} s3 ls s3://$BACKUP_S3_BUCKET/$BACKUP_S3_PREFIX/$BACKUP_NAME/ | tail -5'
 #   → choisir la plus récente
-$ /app/vps-platform/bin/restore.sh prod s3://<bucket>/backups/<nom>/<fichier>.dump.enc
-$ SKIP_BACKUP=1 /app/vps-platform/bin/deploy.sh up prod <sha de l'étape 5>
+$ vps-restore prod s3://<bucket>/backups/<nom>/<fichier>.dump.enc
+$ SKIP_BACKUP=1 vps-deploy up prod <sha de l'étape 5>
 ```
 
-`deploy.sh up prod <sha>` démarre l'application sur les données restaurées et applique
+`vps-deploy up prod <sha>` démarre l'application sur les données restaurées et applique
 les éventuelles migrations manquantes. `SKIP_BACKUP=1` évite, pour un projet en `BACKUP_BEFORE_DEPLOY=always`, une sauvegarde inutile
 juste après une restauration.
 
 ## Étape 7 — Vérifier et rebrancher
 
 ```bash
-$ /app/vps-platform/bin/vps-hosts.sh         # tous les noms attendus, aucune collision
-$ /app/vps-platform/bin/vps-audit.sh         # aucune ligne CRITIQUE
+$ vps-hosts         # tous les noms attendus, aucune collision
+$ vps-audit         # aucune ligne CRITIQUE
 $ curl -fsS https://<chaque site>/<route de santé>
 ```
 

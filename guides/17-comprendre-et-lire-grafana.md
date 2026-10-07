@@ -130,7 +130,7 @@ Les étiquettes disponibles sont `app`, `deployment`, `service`, `container` et 
 **Run query** en haut à droite ; le sélecteur de temps (en haut) borne la recherche.
 
 **4. Retrouver ce qui s'est passé pendant un déploiement.** Régler l'intervalle autour de
-l'heure indiquée par `deploy.sh status` (ou le journal de déploiement), prendre
+l'heure indiquée par `vps-deploy status` (ou le journal de déploiement), prendre
 `{app="…", deployment="prod"}` et chercher `|= "migrat"` ou `|= "ERROR"`.
 
 **5. Suivre une requête de bout en bout.** Une ligne de journal peut contenir un

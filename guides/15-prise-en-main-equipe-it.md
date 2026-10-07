@@ -74,13 +74,13 @@ Les noms suivent le [contrat, § 3](../docs/05-contrat-projet.md#3-les-noms) : c
 
 | Étape | Commande, depuis `/app/<projet>/<env>` | Ce qui se passe |
 | --- | --- | --- |
-| Contrôle seul | `deploy.sh check <env>` | Vérifie l'accès git, la cohérence `platform.env` et compose, les noms sur les réseaux partagés. **Ne modifie rien.** Utilisable sur la production |
-| Construire | `deploy.sh build [ref] [env]` | Image taguée par le commit |
-| Déployer | `deploy.sh up <env> <sha>` | Contrôle, volumes, migrations, démarrage, santé ; retour automatique si la santé échoue |
+| Contrôle seul | `vps-deploy check <env>` | Vérifie l'accès git, la cohérence `platform.env` et compose, les noms sur les réseaux partagés. **Ne modifie rien.** Utilisable sur la production |
+| Construire | `vps-deploy build [ref] [env]` | Image taguée par le commit |
+| Déployer | `vps-deploy up <env> <sha>` | Contrôle, volumes, migrations, démarrage, santé ; retour automatique si la santé échoue |
 | Staging automatique | `deploy.sh watch` (cron toutes les 2 minutes) | Déploie `main` en staging s'il a bougé |
-| Production | `deploy.sh promote` | Promeut **exactement** l'image testée en staging, après une sauvegarde |
-| Retour arrière | `deploy.sh rollback <env>` | Redéploie la version précédente |
-| État | `deploy.sh status` | Version courante et précédente, conteneurs |
+| Production | `vps-deploy promote` | Promeut **exactement** l'image testée en staging, après une sauvegarde |
+| Retour arrière | `vps-deploy rollback <env>` | Redéploie la version précédente |
+| État | `vps-deploy status` | Version courante et précédente, conteneurs |
 
 Deux garanties : on ne livre en production que ce que le staging a validé, et une version
 qui ne répond pas à son healthcheck ne reste jamais en ligne. Limite : **les migrations ne
@@ -101,7 +101,7 @@ de commits :
    ([tests/README](../tests/README.md)).
 4. **Les modèles** de `templates/` appliquent la nouvelle règle.
 5. **Le contrat** (nouvelle clause, version) et la table des règles du README.
-6. **Les projets existants** : `deploy.sh check` et `vps-audit.sh` sur chacun, écarts notés.
+6. **Les projets existants** : `vps-deploy check` et `vps-audit.sh` sur chacun, écarts notés.
 
 Le flux de travail :
 
@@ -158,5 +158,5 @@ test « le défaut est arrêté » **et** un test « le projet sain passe ».
    voir un test réel tourner.
 3. Sur le serveur, en **lecture seule** : `vps-inventory.sh` puis `vps-audit.sh`. Comparer
    avec le dernier fichier de `docs/inventaire/`.
-4. Choisir un projet de démonstration, lancer `deploy.sh check` dans son dossier et lire la sortie.
+4. Choisir un projet de démonstration, lancer `vps-deploy check` dans son dossier et lire la sortie.
 5. Lire un [runbook](../docs/runbooks/README.md) et se demander : « saurais-je le faire à 3 h du matin ? »

@@ -136,6 +136,9 @@ for dossier, ds, fs in os.walk(racine):
         if not f.endswith(".md"): continue
         chemin = os.path.join(dossier, f)
         for l, ligne in codes(open(chemin, encoding="utf-8").read()):
+            if re.search(r"/app/vps-platform/(bin|host)/(deploy\.sh|vps-[a-z]+\.sh|restore\.sh|obs-bundle\.py|apply-daemon-config\.sh)", l) \
+                    and not re.search(r"cron|\*/\d|install-commands|remplace|se lit|forme longue|sans elles|\$DEPLOY", ligne):
+                bad.append(f"{chemin}: chemin complet de la plateforme : écrire la commande courte (vps-deploy, vps-audit…) : {l.strip()[:70]}")
             for m in cmd.finditer(l):
                 sous, args = m.group(1), re.sub(r"<[^>]*>", "X", m.group(2)).split()
                 if sous not in reelles:
@@ -161,11 +164,11 @@ python3 "${WORK}/commandes.py" . >&2 || true
 # Régression simulée : une doc périmée doit être refusée, pour la bonne raison.
 mkdir -p "${WORK}/perime"
 cat > "${WORK}/perime/a.md" <<'MD'
-Lancer `deploy.sh deploy-all` puis `vps-deploy up prod`, `vps-deploy watch prod`, `vps-hosts --libre mon.exemple.cm` et `vps-deploy promote --force`.
+Lancer `deploy.sh deploy-all` puis `vps-deploy up prod`, `vps-deploy watch prod`, `vps-hosts --libre mon.exemple.cm`, `vps-deploy promote --force` et `/app/vps-platform/bin/deploy.sh status`.
 MD
 perime() { python3 "${WORK}/commandes.py" "${WORK}/perime" 2>&1 || true; }
-check "une doc périmée est refusée (4 écarts : sous-commande, up sans sha, watch prod, option inconnue)" sh -c "[ \$(python3 '${WORK}/commandes.py' '${WORK}/perime' | wc -l) -ge 5 ]"
-check "… et chaque écart est nommé" sh -c "python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'deploy-all' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'veut <env> <sha>' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'watch prod' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q -- '--libre' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q -- '--force'"
+check "une doc périmée est refusée (5 écarts : sous-commande, up sans sha, watch prod, option inconnue, chemin complet)" sh -c "[ \$(python3 '${WORK}/commandes.py' '${WORK}/perime' | wc -l) -ge 6 ]"
+check "… et chaque écart est nommé" sh -c "python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'deploy-all' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'veut <env> <sha>' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'watch prod' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q -- '--libre' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q -- '--force' && python3 '${WORK}/commandes.py' '${WORK}/perime' | grep -q 'commande courte'"
 
 step "Aucun secret dans la documentation"
 secrets() { grep -rIn -E 'ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----' --include='*.md' . | grep -v '^./.git/' || true; }

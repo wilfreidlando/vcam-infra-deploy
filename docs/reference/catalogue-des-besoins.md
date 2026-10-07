@@ -13,17 +13,17 @@ Légende : ✅ disponible aujourd'hui · 🟡 disponible mais à brancher · �
 
 | Service | Ce qu'on obtient | Ce que le projet doit fournir | Comment vérifier | Dans le pilote |
 | --- | --- | --- | --- | --- |
-| ✅ **HTTPS et nom public** | Certificat Let's Encrypt automatique, routage par `nginx-proxy` | `VIRTUAL_HOST`, `LETSENCRYPT_HOST`, `VIRTUAL_PORT` **sur le seul conteneur web**, qui rejoint le réseau `nginx-proxy`. Jamais de `ports:` | `curl -sI https://<nom>/` ; `deploy.sh check` | `skills-devops-web` |
-| ✅ **Déploiement avec retour arrière** | Build par commit, migrations, santé, retour automatique | `compose.prod.yaml` avec `image: <app>:${IMAGE_TAG}`, `platform.env` (`HEALTH_SERVICE`, `HEALTH_CMD`, `MIGRATE_SERVICE`, `MIGRATE_CMD`), une route de santé qui répond 200 | `deploy.sh check <env>` | `platform.env` |
-| ✅ **Staging puis production** | La production reçoit **exactement** l'image testée en staging | Un `.env.staging` et un `.env` **distincts** (secrets différents), même compose | `deploy.sh status` | `.env.*.example` |
+| ✅ **HTTPS et nom public** | Certificat Let's Encrypt automatique, routage par `nginx-proxy` | `VIRTUAL_HOST`, `LETSENCRYPT_HOST`, `VIRTUAL_PORT` **sur le seul conteneur web**, qui rejoint le réseau `nginx-proxy`. Jamais de `ports:` | `curl -sI https://<nom>/` ; `vps-deploy check` | `skills-devops-web` |
+| ✅ **Déploiement avec retour arrière** | Build par commit, migrations, santé, retour automatique | `compose.prod.yaml` avec `image: <app>:${IMAGE_TAG}`, `platform.env` (`HEALTH_SERVICE`, `HEALTH_CMD`, `MIGRATE_SERVICE`, `MIGRATE_CMD`), une route de santé qui répond 200 | `vps-deploy check <env>` | `platform.env` |
+| ✅ **Staging puis production** | La production reçoit **exactement** l'image testée en staging | Un `.env.staging` et un `.env` **distincts** (secrets différents), même compose | `vps-deploy status` | `.env.*.example` |
 | 🟡 **Staging automatique** | `main` se déploie en staging tout seul | Une branche `STAGING_BRANCH` ; une ligne de cron `deploy.sh watch` posée par le responsable de la plateforme | `crontab -l` de `root` | à poser |
-| ✅ **Noms sans collision** | Aucun projet ne peut en détourner un autre | Services nommés `<app>-web`, `<app>-db`, `<app>-redis` (au minimum ceux publiés sur un réseau partagé) | `deploy.sh check` (bloquant) | compose |
+| ✅ **Noms sans collision** | Aucun projet ne peut en détourner un autre | Services nommés `<app>-web`, `<app>-db`, `<app>-redis` (au minimum ceux publiés sur un réseau partagé) | `vps-deploy check` (bloquant) | compose |
 
 ## 2. Données
 
 | Service | Ce qu'on obtient | Ce que le projet doit fournir | Comment vérifier | Dans le pilote |
 | --- | --- | --- | --- | --- |
-| ✅ **Sauvegarde chiffrée** | Dump chaque nuit et à la demande (`deploy.sh backup`), chiffré AES-256, envoyé sur S3 : **aucune copie ne reste sur le serveur** ([sauvegardes](sauvegardes.md)) | Un service `backup` (image de l'agent) avec les variables du moteur (`PGHOST`… ou `MYSQL_*`), `BACKUP_PASSPHRASE`, `BACKUP_NAME` | `docker logs <projet>-<env>-backup-1` : « uploaded to s3://… » ; liste du bucket | service `backup` |
+| ✅ **Sauvegarde chiffrée** | Dump chaque nuit et à la demande (`vps-deploy backup`), chiffré AES-256, envoyé sur S3 : **aucune copie ne reste sur le serveur** ([sauvegardes](sauvegardes.md)) | Un service `backup` (image de l'agent) avec les variables du moteur (`PGHOST`… ou `MYSQL_*`), `BACKUP_PASSPHRASE`, `BACKUP_NAME` | `docker logs <projet>-<env>-backup-1` : « uploaded to s3://… » ; liste du bucket | service `backup` |
 | ✅ **Copie hors serveur** | La même sauvegarde sur S3 | `BACKUP_S3_ENDPOINT` (avec `https://`), `BACKUP_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` dans le `.env` | Le message `uploaded to s3://…` ; liste du bucket | `.env` de production |
 | ✅ **Restauration prouvée** | La base revient à l'état exact de la sauvegarde (PostgreSQL, MySQL, MariaDB) | La phrase de chiffrement **conservée hors du serveur** ; un exercice mensuel | [Exercice de restauration](../runbooks/exercice-de-restauration.md) | premier exercice du 2026-10-04 |
 | ✅ **Santé du conteneur de sauvegarde** | `docker ps` et l'audit signalent une sauvegarde qui cesse de tourner | Un healthcheck « un envoi réussi de moins de 36 h » sur `backup` (marqueur `/backups/.last-upload`) | `docker ps` | service `backup` |
@@ -53,7 +53,7 @@ Règle : **ne jamais** mettre la base, Redis ni un conteneur PHP-FPM sur le rés
 | --- | --- | --- | --- |
 | ✅ **Audit** | Un rapport CRITIQUE / ATTENTION / INFO de tout le serveur | `restart: unless-stopped`, limite mémoire, rotation des journaux, healthcheck, image taguée, pas de `ports:` | `vps-audit.sh` |
 | ✅ **Inventaire** | L'état réel du serveur, sans secret | Un `platform.env` commité | `vps-inventory.sh` |
-| ✅ **Accès git sans mot de passe** | `deploy.sh` ne s'arrête jamais sur un identifiant | Une clé de déploiement SSH en lecture seule par dépôt, alias `<forge>-<app>` | `deploy.sh check` |
+| ✅ **Accès git sans mot de passe** | `deploy.sh` ne s'arrête jamais sur un identifiant | Une clé de déploiement SSH en lecture seule par dépôt, alias `<forge>-<app>` | `vps-deploy check` |
 | ✅ **Secrets hors du dépôt** | Aucune fuite par `git add` | `.env` et `.env.staging` ignorés par git, mode `600` sur le serveur | `ls -l`, `git status` |
 
 ## 5. Comment lire cette page pour un nouveau projet
@@ -61,4 +61,4 @@ Règle : **ne jamais** mettre la base, Redis ni un conteneur PHP-FPM sur le rés
 1. Cocher ce qu'on veut : tout ce qui est ✅ est **demandé par le contrat** ; les 🟡 sont des **options à décider**.
 2. Pour chaque ligne cochée, relire la colonne « Ce que le projet doit fournir » : c'est la liste du travail.
 3. Partir du [modèle](../../templates) et du [pilote](../../guides/18-le-projet-pilote-skills-devops.md), pas d'une page blanche.
-4. Faire valider par `deploy.sh check`, puis `vps-audit.sh`.
+4. Faire valider par `vps-deploy check`, puis `vps-audit.sh`.

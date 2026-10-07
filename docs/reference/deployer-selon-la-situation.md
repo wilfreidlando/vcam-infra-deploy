@@ -11,13 +11,13 @@
 | Dossier sur le serveur | `/app/<projet>/dev` | `/app/<projet>/staging` | `/app/<projet>/prod` | `/app/<projet>/<nom>` |
 | Fichier d'environnement | `.env.dev` | `.env.staging` | `.env` | `.env.<nom>` |
 | Version qui s'y trouve | une branche (`BRANCH_DEV`) | la branche **choisie par le projet** (`BRANCH_STAGING`, par défaut `main`), **suivie automatiquement** | **celle du staging**, jamais construite en production ; si le projet déclare `BRANCH_PROD`, seulement ce qui est **déjà dans cette branche** | chacune **la sienne**, avec sa propre branche (`BRANCH_<NOM>`) |
-| Qui la déploie | automatique (`deploy.sh watch dev`) | automatique (`deploy.sh watch`) | **une personne**, jamais automatique : `deploy.sh promote` | `deploy.sh promote --env <nom>` |
+| Qui la déploie | automatique (`vps-deploy watch dev`) | automatique (`vps-deploy watch`) | **une personne**, jamais automatique : `vps-deploy promote` | `vps-deploy promote --env <nom>` |
 | Secrets | propres | **propres, jamais ceux de la production** | propres | **propres à chaque production** |
 | Sauvegarde | non | **non** (`BACKUP_DISABLED=1`) | **oui, chaque nuit, sur S3** | oui, un dossier S3 chacune |
 | Données | jetables | jetables (une copie de la production **seulement pour une répétition**, jamais laissée) | réelles | réelles |
 | Étiquette de supervision | `deployment=dev` | `deployment=staging` | `deployment=prod` | `deployment=<nom>` |
 
-**Sans staging** (profil B) : une seule ligne, la production. Le projet déclare sa branche (`BRANCH_PROD=main`) et `deploy.sh promote` construit `origin/main` sur place. Voir les [profils de projet](profils-de-projet.md).
+**Sans staging** (profil B) : une seule ligne, la production. Le projet déclare sa branche (`BRANCH_PROD=main`) et `vps-deploy promote` construit `origin/main` sur place. Voir les [profils de projet](profils-de-projet.md).
 
 ### Les branches : le projet choisit, la plateforme n'impose rien
 
@@ -25,55 +25,55 @@
 | --- | --- | --- |
 | `develop` pour le staging, `main` pour la production | `BRANCH_STAGING=develop` et `BRANCH_PROD=main` | Le staging suit `develop`. Pour promouvoir, la version validée doit **d'abord être fusionnée dans `main`** ; la production reçoit alors l'**image du staging**, sans rien reconstruire |
 | `main` pour les deux, sans étape de fusion | `BRANCH_STAGING=main`, pas de `BRANCH_PROD` | Le staging suit `main` ; la production reçoit ce que le staging a validé, sans contrainte de branche |
-| Une production **sans staging** | `ENVIRONMENTS=prod` et `BRANCH_PROD=main` | `deploy.sh promote` construit `origin/main` sur place ; l'image n'a été validée par aucun staging |
+| Une production **sans staging** | `ENVIRONMENTS=prod` et `BRANCH_PROD=main` | `vps-deploy promote` construit `origin/main` sur place ; l'image n'a été validée par aucun staging |
 | **Plusieurs productions** | `PROD_ENVIRONMENTS="prod prodeu"`, `BRANCH_PROD=main`, `BRANCH_PRODEU=release` | Chaque production a sa branche ; `promote --env <nom>` dit laquelle |
 
-**Le passage staging → production**, dans tous les cas : `deploy.sh promote` déploie **l'image exacte** construite pour le staging (étiquette = commit) ; si elle n'existe pas, il **refuse** au lieu de reconstruire. Il écrit « même image que staging : rien n'est reconstruit »
-dans le journal. Seule exception, annoncée dans le journal : `BUILD_PER_ENV=1`, pour un front dont l'image intègre la configuration de l'environnement. `deploy.sh status` et `deploy.sh check` disent, pour chaque environnement, **quelle branche il suit**.
+**Le passage staging → production**, dans tous les cas : `vps-deploy promote` déploie **l'image exacte** construite pour le staging (étiquette = commit) ; si elle n'existe pas, il **refuse** au lieu de reconstruire. Il écrit « même image que staging : rien n'est reconstruit »
+dans le journal. Seule exception, annoncée dans le journal : `BUILD_PER_ENV=1`, pour un front dont l'image intègre la configuration de l'environnement. `vps-deploy status` et `vps-deploy check` disent, pour chaque environnement, **quelle branche il suit**.
 
 ## 2. Selon la situation
 
 | Je veux… | Je fais | Commande (sur le serveur) | Qui | Coupure | Retour arrière |
 | --- | --- | --- | --- | --- | --- |
-| **Créer un nouveau projet** | Choisir le modèle, le remplir, préparer **un `.env` par environnement**, contrôler, déployer le staging puis la production | [`templates/README.md`](../../templates/README.md), puis `deploy.sh check staging`, `deploy.sh watch`, `deploy.sh promote` | le responsable du projet | aucune (nouveau) | `docker compose -p <projet>-<env> down` (sans `-v`) |
-| **Mettre au standard un projet déjà en production** | Le [guide 16](../../guides/16-mettre-un-projet-au-standard.md) et le [contrat § 4](../05-contrat-projet.md) : **ne jamais renommer** le projet Docker ni un volume, **répéter les migrations sur une copie** | `deploy.sh check prod` (ne change rien), puis le guide | le responsable du projet, avec le responsable de la plateforme | quelques secondes à 3 min | l'ancien dossier conservé ([cas du Core](../../guides/06-core-au-standard.md)) |
-| **Livrer une nouvelle version du code** | Merge sur la branche du staging, recette, puis promotion | staging : automatique ou `deploy.sh watch` ; production : `deploy.sh promote` | développeur, puis responsable | quelques secondes en production | `deploy.sh rollback <env>` ; **automatique** si la santé échoue |
-| **Changer une variable** d'environnement | Éditer le `.env` **de l'environnement concerné** sur le serveur, recréer les conteneurs | `deploy.sh up <env> <version courante>` (voir `deploy.sh status`) | le responsable du projet | quelques secondes | remettre l'ancienne valeur, même commande |
-| **Changer `compose.prod.yaml` ou `platform.env`** | Un commit : ils sont lus **dans le commit déployé** ; jamais de modification à la main sur le serveur | comme une livraison | le responsable du projet | comme une livraison | `deploy.sh rollback <env>` |
-| **Livrer une migration risquée** | Une **sauvegarde à la main avant**, puis la livraison. D'abord le staging **avec une copie de la production** | `deploy.sh backup <env>` puis `deploy.sh promote` | le responsable du projet | selon la migration | restauration depuis S3 : `restore.sh <env> s3://…` |
+| **Créer un nouveau projet** | Choisir le modèle, le remplir, préparer **un `.env` par environnement**, contrôler, déployer le staging puis la production | [`templates/README.md`](../../templates/README.md), puis `vps-deploy check staging`, `vps-deploy watch`, `vps-deploy promote` | le responsable du projet | aucune (nouveau) | `docker compose -p <projet>-<env> down` (sans `-v`) |
+| **Mettre au standard un projet déjà en production** | Le [guide 16](../../guides/16-mettre-un-projet-au-standard.md) et le [contrat § 4](../05-contrat-projet.md) : **ne jamais renommer** le projet Docker ni un volume, **répéter les migrations sur une copie** | `vps-deploy check prod` (ne change rien), puis le guide | le responsable du projet, avec le responsable de la plateforme | quelques secondes à 3 min | l'ancien dossier conservé ([cas du Core](../../guides/06-core-au-standard.md)) |
+| **Livrer une nouvelle version du code** | Merge sur la branche du staging, recette, puis promotion | staging : automatique ou `vps-deploy watch` ; production : `vps-deploy promote` | développeur, puis responsable | quelques secondes en production | `vps-deploy rollback <env>` ; **automatique** si la santé échoue |
+| **Changer une variable** d'environnement | Éditer le `.env` **de l'environnement concerné** sur le serveur, recréer les conteneurs | `vps-deploy up <env> <version courante>` (voir `vps-deploy status`) | le responsable du projet | quelques secondes | remettre l'ancienne valeur, même commande |
+| **Changer `compose.prod.yaml` ou `platform.env`** | Un commit : ils sont lus **dans le commit déployé** ; jamais de modification à la main sur le serveur | comme une livraison | le responsable du projet | comme une livraison | `vps-deploy rollback <env>` |
+| **Livrer une migration risquée** | Une **sauvegarde à la main avant**, puis la livraison. D'abord le staging **avec une copie de la production** | `vps-deploy backup <env>` puis `vps-deploy promote` | le responsable du projet | selon la migration | restauration depuis S3 : `restore.sh <env> s3://…` |
 | **Changer de version de base de données** | Staging d'abord, avec une copie restaurée de la production ; tester la restauration **sur cette version** | [sauvegardes](sauvegardes.md) | le responsable du projet | selon le cas | restauration |
-| **Ajouter une production** (client, région) | `PROD_ENVIRONMENTS` dans `platform.env`, un dossier, un `.env.<nom>`, **ses propres secrets et son nom public** | `deploy.sh promote --env <nom>` | le responsable du projet | aucune (nouvelle) | `deploy.sh rollback <nom>` |
-| **Ajouter un environnement dev** | `ENVIRONMENTS="dev staging prod"`, `BRANCH_DEV` | `deploy.sh watch dev` | le responsable du projet | aucune | `docker compose -p <projet>-dev down` |
+| **Ajouter une production** (client, région) | `PROD_ENVIRONMENTS` dans `platform.env`, un dossier, un `.env.<nom>`, **ses propres secrets et son nom public** | `vps-deploy promote --env <nom>` | le responsable du projet | aucune (nouvelle) | `vps-deploy rollback <nom>` |
+| **Ajouter un environnement dev** | `ENVIRONMENTS="dev staging prod"`, `BRANCH_DEV` | `vps-deploy watch dev` | le responsable du projet | aucune | `docker compose -p <projet>-dev down` |
 | **Mettre à jour la plateforme** (outils, supervision) | [Guide 11](../../guides/11-depot-plateforme.md) : `git pull`, puis **recréer les composants dont la configuration a changé** ; jamais tout d'un coup | `git -C /app/vps-platform pull --ff-only` | le responsable de la plateforme | aucune pour les sites | `git reset --hard <ancien commit>` |
-| **Donner à un projet ses tableaux et alertes** | `observability/` dans **son** dépôt ; publié après la production | `deploy.sh obs-sync` ([guide 19](../../guides/19-observabilite-de-mon-projet.md)) | le responsable du projet | aucune | `deploy.sh obs-sync --remove` |
+| **Donner à un projet ses tableaux et alertes** | `observability/` dans **son** dépôt ; publié après la production | `vps-deploy obs-sync` ([guide 19](../../guides/19-observabilite-de-mon-projet.md)) | le responsable du projet | aucune | `vps-deploy obs-sync --remove` |
 | **Faire surveiller un site** | L'ajouter à la liste des sites sondés (fichier local au serveur) | éditer `observability/prometheus/targets/sites.yml` | le responsable de la plateforme | aucune | retirer la ligne |
 | **Changer les branches** du staging ou de la production | Le contenu **d'abord** sur la nouvelle branche, puis `platform.env` **et** `.gitlab-ci.yml` dans le même commit ; jamais sur le serveur | [les branches d'un projet](branches-et-fusions.md) | le responsable du projet | aucune | revert du commit |
 | **Fusionner `develop` dans `main`** sans perdre de contenu | Répéter la fusion dans un espace de travail séparé ; méfiance de la fusion « qui garde la nôtre » | [fusionner sans rien perdre](branches-et-fusions.md#4-fusionner-sans-perdre-de-contenu) | le développeur | aucune | — |
-| **Déployer en production sans passer par le staging** | Projet sans staging : `promote origin/<branche>` ; avec staging : `build <sha> staging` puis `promote <sha>` ; **dernier recours** | [déployer sans staging](branches-et-fusions.md#5-déployer-une-version-sans-passer-par-le-staging) | le responsable du projet | quelques secondes | `deploy.sh rollback <env>` |
+| **Déployer en production sans passer par le staging** | Projet sans staging : `promote origin/<branche>` ; avec staging : `build <sha> staging` puis `promote <sha>` ; **dernier recours** | [déployer sans staging](branches-et-fusions.md#5-déployer-une-version-sans-passer-par-le-staging) | le responsable du projet | quelques secondes | `vps-deploy rollback <env>` |
 | **Brancher le pipeline GitLab** d'un projet | Copier un modèle, ajouter le runner SSH sans les jobs sans tag, créer les clones | [modèles de pipeline](../../templates/gitlab-ci/README.md), [pipeline GitLab](pipeline-gitlab.md) | le responsable de la plateforme | aucune | retirer le fichier |
 | **Un job GitLab reste « pending »** | Le runner est-il en ligne, a-t-il le tag, accepte-t-il les jobs sans tag ? | [runbook](../runbooks/runner-gitlab-hors-service.md) | le responsable de la plateforme | aucune | — |
 | **`vps-deploy check` refuse un clone** (« modifiés à la main », « dossier non inscriptible ») | Lire le message : il donne la commande de réparation | [clones et droits](clones-et-droits.md) | le responsable de la plateforme | aucune | — |
 | **Migrer une application en service** vers un projet de la plateforme (même nom de domaine) | Geler, copier, **prouver**, ouvrir ; l'ancienne reste intacte | [guide 20](../../guides/20-migrer-une-application-existante.md) | le responsable de la plateforme | 10 à 15 minutes | l'ancienne installation, restée intacte |
 | **Prouver qu'une copie est exacte** (base, fichiers) | Les empreintes de la source, puis de la copie, comparées | `vps-fingerprint db <conteneur> <base>`, `vps-fingerprint files <volume>` | le responsable du projet | aucune | — |
 | **Ajouter `www.`** (ou tout nom) à un projet | DNS d'abord, puis `APP_VIRTUAL_HOSTS` et `APP_CERT_HOSTS`, puis `up` ; redirection dans le nginx du projet | [`www` et DNS](domaines-et-dns.md#wwwdomaine--un-nom-de-plus-à-déclarer-trois-fois) | le responsable du projet | aucune | retirer le nom |
-| **Revenir à la version d'avant** | Remettre la version précédente du code | `deploy.sh rollback <env>` | le responsable du projet | quelques secondes | — |
+| **Revenir à la version d'avant** | Remettre la version précédente du code | `vps-deploy rollback <env>` | le responsable du projet | quelques secondes | — |
 | **Revenir aux données d'avant** | Restaurer une sauvegarde ; la base est **remplacée** | `restore.sh <env> s3://<bucket>/<préfixe>/<projet>-<env>/<fichier>` ([exercice](../runbooks/exercice-de-restauration.md)) | le responsable du projet | le site est arrêté 1 à 2 min | refaire une sauvegarde avant |
-| **Retirer un projet** | Arrêter sans détruire, retirer son observabilité, **garder les volumes jusqu'à la décision** | `docker compose -p <projet>-<env> down` (**sans `-v`**), `deploy.sh obs-sync --remove` | le responsable de la plateforme | le site s'arrête | `docker compose … up -d` |
+| **Retirer un projet** | Arrêter sans détruire, retirer son observabilité, **garder les volumes jusqu'à la décision** | `docker compose -p <projet>-<env> down` (**sans `-v`**), `vps-deploy obs-sync --remove` | le responsable de la plateforme | le site s'arrête | `docker compose … up -d` |
 
 ## 3. Un environnement, pas à pas
 
 ### Staging
 
-1. Le staging **suit la branche** : un merge suffit ; `deploy.sh watch` (planifié) construit l'image **une seule fois**, applique les migrations, vérifie la santé et revient seul en arrière si elle échoue.
+1. Le staging **suit la branche** : un merge suffit ; `vps-deploy watch` (planifié) construit l'image **une seule fois**, applique les migrations, vérifie la santé et revient seul en arrière si elle échoue.
 2. Le responsable fait la **recette** sur l'adresse du staging.
 3. **Le staging n'est pas sauvegardé** : ses données sont jetables. Il ne reçoit **jamais** les secrets de la production.
 
 ### Production
 
-1. **Contrôle** : `deploy.sh check prod` (ne change rien).
-2. **Migration risquée ?** Une sauvegarde à la main : `deploy.sh backup prod`.
-3. **Promotion** : `cd /app/<projet>/prod && deploy.sh promote` — l'image **exacte** du staging, jamais reconstruite ; confirmer à l'invite.
-4. **Vérifier** : `deploy.sh status`, la route de santé en HTTPS, Grafana → Plateforme → **Application — vue d'ensemble** → le projet.
+1. **Contrôle** : `vps-deploy check prod` (ne change rien).
+2. **Migration risquée ?** Une sauvegarde à la main : `vps-deploy backup prod`.
+3. **Promotion** : `cd /app/<projet>/prod && vps-deploy promote` — l'image **exacte** du staging, jamais reconstruite ; confirmer à l'invite.
+4. **Vérifier** : `vps-deploy status`, la route de santé en HTTPS, Grafana → Plateforme → **Application — vue d'ensemble** → le projet.
 5. **Si la santé échoue** : retour automatique à la version précédente. **Première promotion d'un projet déjà en production** : pas de version précédente connue, retour **manuel** depuis l'ancien dossier conservé.
 
 ### Plusieurs productions
@@ -84,18 +84,18 @@ Chaque production se promeut **séparément** (`--env`), a sa version, son `.env
 
 | Commande | Ce qu'elle fait | Change quelque chose ? |
 | --- | --- | --- |
-| `deploy.sh check [env]` | Contrôle avant déploiement : accès git, `platform.env`, compose, noms | **non** |
-| `deploy.sh status` | Version courante et précédente de chaque environnement, **la branche qu'il suit**, conteneurs | non |
-| `deploy.sh build [ref] [env]` | Construit l'image d'un commit | construit une image |
-| `deploy.sh up <env> <version>` | Déploie une version déjà construite (aussi : recréer les conteneurs après un changement de `.env`) | **oui** |
-| `deploy.sh watch [env]` | Staging automatique : construit et déploie si la branche a bougé | **oui** (staging) |
-| `deploy.sh promote [version] [-y] [--env <nom>]` | Production : l'image testée en staging, **à condition qu'elle soit dans la branche de production** si le projet en déclare une ; sans staging, construit la branche déclarée | **oui** (production) |
-| `deploy.sh rollback <env>` | Remet la version précédente | **oui** |
-| `deploy.sh backup [env]` | Une sauvegarde maintenant, envoyée sur S3 | crée une copie sur S3 |
-| `deploy.sh obs-sync [--remove]` | Publie (ou retire) les tableaux et alertes du projet | écrit dans l'arbre de Grafana |
-| `deploy.sh where` | Où est la plateforme, quelle version (aucun projet requis) | **non** |
+| `vps-deploy check [env]` | Contrôle avant déploiement : accès git, `platform.env`, compose, noms | **non** |
+| `vps-deploy status` | Version courante et précédente de chaque environnement, **la branche qu'il suit**, conteneurs | non |
+| `vps-deploy build [ref] [env]` | Construit l'image d'un commit | construit une image |
+| `vps-deploy up <env> <version>` | Déploie une version déjà construite (aussi : recréer les conteneurs après un changement de `.env`) | **oui** |
+| `vps-deploy watch [env]` | Staging automatique : construit et déploie si la branche a bougé | **oui** (staging) |
+| `vps-deploy promote [version] [-y] [--env <nom>]` | Production : l'image testée en staging, **à condition qu'elle soit dans la branche de production** si le projet en déclare une ; sans staging, construit la branche déclarée | **oui** (production) |
+| `vps-deploy rollback <env>` | Remet la version précédente | **oui** |
+| `vps-deploy backup [env]` | Une sauvegarde maintenant, envoyée sur S3 | crée une copie sur S3 |
+| `vps-deploy obs-sync [--remove]` | Publie (ou retire) les tableaux et alertes du projet | écrit dans l'arbre de Grafana |
+| `vps-deploy where` | Où est la plateforme, quelle version (aucun projet requis) | **non** |
 
-**Le chemin.** Partout, `deploy.sh` s'écrit `/app/vps-platform/bin/deploy.sh`, ou simplement `vps-deploy` une fois les [commandes courtes](../../guides/03-installer-plateforme.md#étape-1--cloner-la-plateforme) installées (une fois, en root).
+**Le chemin.** Partout, `deploy.sh` s'écrit `vps-deploy`, ou simplement `vps-deploy` une fois les [commandes courtes](../../guides/03-installer-plateforme.md#étape-1--cloner-la-plateforme) installées (une fois, en root).
 
 Variables utiles : `BACKUP_BEFORE_DEPLOY=always` (dans `platform.env`) pour une sauvegarde avant **chaque** déploiement ; `SKIP_MIGRATIONS=1`, `SKIP_BACKUP=1` pour les cas exceptionnels, avec l'accord du responsable.
 

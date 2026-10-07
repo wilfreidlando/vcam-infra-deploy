@@ -62,10 +62,10 @@ Pour les chiffres que **seul le projet connaît**. Tout vit dans le dépôt du p
 1. **Partir du modèle** : copier [`templates/observabilite-projet/observability/`](../templates/observabilite-projet/README.md) à la racine du projet, remplacer `mon-projet`, écrire ses panneaux et ses règles.
 2. **Vérifier sans rien publier** (ne change rien) :
    ```bash
-   python3 /app/vps-platform/bin/obs-bundle.py validate --app <projet> --src observability \
+   python3 vps-obs-bundle validate --app <projet> --src observability \
        --grafana-dir /app/vps-platform/observability/grafana
    ```
-3. **Livrer** : le bundle voyage avec le code. Après un **déploiement de production réussi**, `deploy.sh` le publie tout seul. À la demande : `cd /app/<projet>/prod && deploy.sh obs-sync`.
+3. **Livrer** : le bundle voyage avec le code. Après un **déploiement de production réussi**, `deploy.sh` le publie tout seul. À la demande : `cd /app/<projet>/prod && vps-deploy obs-sync`.
 4. **Les tableaux** apparaissent dans un **dossier Grafana au nom du projet** en une dizaine de secondes. **Les alertes** ne sont relues qu'au redémarrage de Grafana : `deploy.sh` l'écrit dans son journal quand elles ont changé, et le responsable de la plateforme recrée Grafana
    (`cd /app/vps-platform/observability && docker compose --env-file .env up -d --no-deps --force-recreate grafana`).
 
@@ -79,7 +79,7 @@ Pour les chiffres que **seul le projet connaît**. Tout vit dans le dépôt du p
 | Dans un message d'alerte : `{{ .Labels.nom }}`, **jamais** `{{ $labels.nom }}` | Grafana remplace `$nom` dans ces fichiers : la règle se charge mais son message ne s'évalue pas |
 | Noms de fichiers simples : lettres, chiffres, `.`, `_`, `-` | Aucun chemin ne sort du dossier du projet |
 
-**Une publication refusée ne bloque jamais un déploiement** : l'erreur est écrite dans le journal (`/var/lib/vps-platform/<projet>/deploy.log`) et **le dépôt précédent reste intact**. La commande explicite `deploy.sh obs-sync`, elle, échoue pour qu'on le voie.
+**Une publication refusée ne bloque jamais un déploiement** : l'erreur est écrite dans le journal (`/var/lib/vps-platform/<projet>/deploy.log`) et **le dépôt précédent reste intact**. La commande explicite `vps-deploy obs-sync`, elle, échoue pour qu'on le voie.
 
 ### Écrire un bon tableau
 
@@ -103,7 +103,7 @@ Pour les chiffres que **seul le projet connaît**. Tout vit dans le dépôt du p
 
 ### Retirer l'observabilité d'un projet
 
-`deploy.sh obs-sync --remove` : le dossier Grafana et les fichiers d'alertes du projet disparaissent (les alertes au prochain redémarrage de Grafana). Retirer un fichier du dépôt puis republier retire aussi **ce fichier** du dépôt de Grafana.
+`vps-deploy obs-sync --remove` : le dossier Grafana et les fichiers d'alertes du projet disparaissent (les alertes au prochain redémarrage de Grafana). Retirer un fichier du dépôt puis republier retire aussi **ce fichier** du dépôt de Grafana.
 
 ## 5. Si ça ne marche pas
 
@@ -115,7 +115,7 @@ Pour les chiffres que **seul le projet connaît**. Tout vit dans le dépôt du p
 | `REFUSÉ — le dossier du groupe … doit être « <projet> »` | `folder` ne porte pas le nom du projet | Mettre le nom du projet |
 | `REFUSÉ — la règle « … » a une requête invalide (…)` / `requête du panneau « … » invalide (…)` | Une requête mal formée : parenthèse ou accolade non fermée, valeur de label sans guillemets, `\"` dans une chaîne YAML entre apostrophes | Corriger la requête comme le message le dit (il en montre le début) ; elle ne se serait **jamais évaluée** |
 | `REFUSÉ — PyYAML est requis` | Le serveur n'a pas PyYAML | `apt install python3-yaml` |
-| Le dossier du projet n'apparaît pas dans Grafana | Le bundle n'a pas été publié (déploiement de production pas fait, ou refus) | Lire le journal du déploiement ; `deploy.sh obs-sync` |
+| Le dossier du projet n'apparaît pas dans Grafana | Le bundle n'a pas été publié (déploiement de production pas fait, ou refus) | Lire le journal du déploiement ; `vps-deploy obs-sync` |
 | Les tableaux sont là, les alertes non | Grafana n'a pas été recréé depuis la publication | Le responsable de la plateforme recrée Grafana |
 | Une alerte se charge mais son message est une erreur | `{{ $labels… }}` | `{{ .Labels… }}` |
 

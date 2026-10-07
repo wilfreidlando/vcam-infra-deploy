@@ -25,7 +25,7 @@ en `CORE_PUBLIC_HOST` (étape 3).
 - Guides 1 à 4 faits : inventaire, DNS wildcard, plateforme installée, MEGA S4 testé.
 - Le nom du staging est libre :
   ```bash
-  $ /app/vps-platform/bin/vps-hosts.sh --free core-system-staging.visibilitycam.com
+  $ vps-hosts --free core-system-staging.visibilitycam.com
   ```
 - Retrouver le dossier actuel du Core :
   ```bash
@@ -154,7 +154,7 @@ $ cd /app/core-system/prod
 $ make prod-promote            # tape « oui » pour confirmer
 ```
 
-**Avant de promouvoir**, prendre une sauvegarde à la main : `/app/vps-platform/bin/deploy.sh backup` (envoyée sur S3, aucune copie ne reste sur le serveur). `deploy.sh` n'en prend pas de lui-même
+**Avant de promouvoir**, prendre une sauvegarde à la main : `vps-deploy backup` (envoyée sur S3, aucune copie ne reste sur le serveur). `deploy.sh` n'en prend pas de lui-même
 au déploiement (la nocturne est le filet), sauf si `BACKUP_BEFORE_DEPLOY=always` est dans `platform.env`.
 
 Le script :
@@ -172,7 +172,7 @@ relancer.
 ```bash
 $ make deploy-status
 $ curl -fsS https://core-system.visibilitycam.com/health/ready
-$ /app/vps-platform/bin/vps-audit.sh | sed -n '/■ core-system-prod/,/^$/p'    # aucune ligne CRITIQUE ou ATTENTION
+$ vps-audit | sed -n '/■ core-system-prod/,/^$/p'    # aucune ligne CRITIQUE ou ATTENTION
 ```
 
 Puis, dans la console admin de production : connexion, liste des paiements, détail
@@ -196,6 +196,6 @@ $ docker volume rm <ces volumes>
 | La promotion échoue avant la bascule (migration) | Rien n'a basculé. Lire l'erreur, corriger, relancer |
 | **Première promotion d'un projet déjà en production** : la santé échoue après la bascule | **Pas de retour automatique** : l'outil ne connaît pas encore de version précédente. Retour manuel : depuis l'**ancien dossier** (conservé), `docker compose -f compose.prod.yaml up -d` recrée l'ancienne pile avec ses anciennes images. Les migrations restent appliquées : vérifier que l'ancien code les supporte, sinon restaurer la copie de l'étape 1 |
 | Le retour automatique a eu lieu | La production tourne sur l'ancienne version. Les migrations éventuelles sont restées |
-| Il faut revenir aux données d'avant | `cd /app/core-system/prod && /app/vps-platform/bin/restore.sh prod <fichier de sauvegarde sur S3>` |
+| Il faut revenir aux données d'avant | `cd /app/core-system/prod && vps-restore prod <fichier de sauvegarde sur S3>` |
 | Ultime recours | `docker exec -i core-system-postgres sh -c 'pg_restore --clean --if-exists --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /root/core-avant-standard-<date>.dump` (attention : `--clean` ne supprime pas ce qui a été créé **après** la copie ; l'outil `restore.sh` le fait, voir le [retour d'expérience](../docs/retours-experience/2026-10-05-la-restauration-ne-remplacait-pas-la-base.md)) |
 | Quand tout est bon | Supprimer la copie `/root/core-avant-standard-*.dump` : à partir de là, les sauvegardes vivent sur S3 |

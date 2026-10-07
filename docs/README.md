@@ -45,7 +45,7 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Voir un projet complet au standard, fichier par fichier | [Guide 18, le projet pilote](../guides/18-le-projet-pilote-skills-devops.md) |
 | Régler `platform.env` : **chaque clé**, son défaut, son effet | [Référence de `platform.env`](reference/platform-env.md) |
 | Savoir ce que la plateforme offre et ce que mon projet doit fournir | [Profils de projet](reference/profils-de-projet.md) (sans staging, plusieurs productions, site simple : ce que chacun demande), [catalogue des besoins](reference/catalogue-des-besoins.md) |
-| **Changer une valeur** d'un fichier d'environnement : faut-il redéployer ? | [Modifier une valeur](reference/modifier-une-valeur.md) (un `restart` ne la relit pas : `deploy.sh up`) |
+| **Changer une valeur** d'un fichier d'environnement : faut-il redéployer ? | [Modifier une valeur](reference/modifier-une-valeur.md) (un `restart` ne la relit pas : `vps-deploy up`) |
 | Changer les **branches** d'un projet, **fusionner** `develop` dans `main` sans perdre de contenu, déployer sans staging | [Les branches d'un projet](reference/branches-et-fusions.md) |
 | Brancher le **pipeline GitLab** d'un projet, comprendre pourquoi il a cette forme, ce qui le bloque | [Le pipeline GitLab](reference/pipeline-gitlab.md), [modèles prêts à copier](../templates/gitlab-ci/README.md) |
 | Un job GitLab reste « pending » ; plus aucun pipeline ne part | [Runbook : runner GitLab hors service](runbooks/runner-gitlab-hors-service.md) |

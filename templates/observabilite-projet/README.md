@@ -13,8 +13,8 @@
 ## En trois étapes
 
 1. **Copier** le dossier `observability/` à la racine du projet, remplacer `mon-projet` par le nom de l'application (la valeur de `observability.app`), et adapter.
-2. **Vérifier** sans rien publier : `python3 /app/vps-platform/bin/obs-bundle.py validate --app <projet> --src observability --grafana-dir /app/vps-platform/observability/grafana`.
-3. **Déployer** : après un déploiement de production réussi, la publication est automatique. À la demande : `deploy.sh obs-sync`.
+2. **Vérifier** sans rien publier : `python3 vps-obs-bundle validate --app <projet> --src observability --grafana-dir /app/vps-platform/observability/grafana`.
+3. **Déployer** : après un déploiement de production réussi, la publication est automatique. À la demande : `vps-deploy obs-sync`.
 4. **Vérifier que la règle s'évalue** (pas seulement qu'elle est chargée) : après le redémarrage de Grafana, `docker logs observability-grafana 2>&1 | grep "Failed to evaluate rule"` ne doit rien montrer pour votre règle. `execErrState: OK` rend muette une règle qui ne s'évalue jamais.
 
 ## Les règles (sinon la publication est refusée, avec le motif)

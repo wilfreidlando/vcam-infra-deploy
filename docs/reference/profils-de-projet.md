@@ -28,9 +28,9 @@ flowchart TB
 
 | Règle | Pourquoi |
 | --- | --- |
-| Une production **n'est jamais déployée automatiquement** : c'est toujours une décision humaine (`deploy.sh promote`) | Une erreur ne doit jamais atteindre les clients toute seule |
+| Une production **n'est jamais déployée automatiquement** : c'est toujours une décision humaine (`vps-deploy promote`) | Une erreur ne doit jamais atteindre les clients toute seule |
 | **Chaque projet déclare ses branches** (`BRANCH_STAGING`, et `BRANCH_PROD` s'il veut une garde) ; la plateforme n'en impose aucune ([les branches](deployer-selon-la-situation.md#les-branches--le-projet-choisit-la-plateforme-nimpose-rien)) | Chaque équipe a son propre flux de travail |
-| Il n'y a **pas de sauvegarde automatique au déploiement** : la sauvegarde **nocturne** est le filet, et avant une migration risquée on en prend une à la main (`deploy.sh backup`). Un projet qui préfère la prudence met `BACKUP_BEFORE_DEPLOY=always` | Pouvoir revenir en arrière après une migration, **grâce à la sauvegarde nocturne** ou à celle prise à la main |
+| Il n'y a **pas de sauvegarde automatique au déploiement** : la sauvegarde **nocturne** est le filet, et avant une migration risquée on en prend une à la main (`vps-deploy backup`). Un projet qui préfère la prudence met `BACKUP_BEFORE_DEPLOY=always` | Pouvoir revenir en arrière après une migration, **grâce à la sauvegarde nocturne** ou à celle prise à la main |
 | **Le retour arrière** est automatique si la nouvelle version ne répond pas | Un déploiement raté ne coupe pas le site |
 | Chaque production a **ses propres secrets** (jamais ceux d'un autre environnement) | Une fuite n'en compromet pas une autre ([clause C10](../05-contrat-projet.md)) |
 | Aucun port publié, un nom propre à chaque service, aucun projet ne rejoint le réseau d'un autre ([clauses C1 à C3](../05-contrat-projet.md)) | Les projets du serveur restent isolés |
@@ -46,11 +46,11 @@ ENVIRONMENTS=prod
 
 | Question | Réponse |
 | --- | --- |
-| Comment déployer ? | `cd /app/<projet>/prod && deploy.sh promote origin/main` : l'image est **construite sur place**, puis sauvegarde, migrations, santé |
+| Comment déployer ? | `cd /app/<projet>/prod && vps-deploy promote origin/main` : l'image est **construite sur place**, puis sauvegarde, migrations, santé |
 | Et avec GitLab ? | le [modèle de pipeline du profil B](../../templates/gitlab-ci/profil-b-production-seule.gitlab-ci.yml) : un **bouton** manuel (jamais automatique), précédé d'un contrôle sans effet ; [explications](pipeline-gitlab.md) |
 | Et `watch` (le déploiement automatique) ? | Refusé : « ce projet n'a que des productions ». Il n'y a rien à déployer automatiquement |
-| Et le retour arrière ? | `deploy.sh rollback prod` ; automatique si la santé échoue |
-| Comment limiter le risque sans staging ? | 1. **Tests automatiques** dans le dépôt avant de pousser. 2. `deploy.sh check` avant chaque promotion (il ne change rien). 3. Déployer **hors des heures d'activité**. 4. **Répéter les migrations sur une copie restaurée de la production** ([guide 6, étape 5 bis](../../guides/06-core-au-standard.md#étape-5-bis--répéter-les-migrations-sur-les-données-réelles-fortement-recommandé)), puis faire **réellement** l'[exercice de restauration](../runbooks/exercice-de-restauration.md), et **prendre une sauvegarde à la main avant une migration risquée** (`deploy.sh backup`) : sans staging, c'est votre seul filet |
+| Et le retour arrière ? | `vps-deploy rollback prod` ; automatique si la santé échoue |
+| Comment limiter le risque sans staging ? | 1. **Tests automatiques** dans le dépôt avant de pousser. 2. `vps-deploy check` avant chaque promotion (il ne change rien). 3. Déployer **hors des heures d'activité**. 4. **Répéter les migrations sur une copie restaurée de la production** ([guide 6, étape 5 bis](../../guides/06-core-au-standard.md#étape-5-bis--répéter-les-migrations-sur-les-données-réelles-fortement-recommandé)), puis faire **réellement** l'[exercice de restauration](../runbooks/exercice-de-restauration.md), et **prendre une sauvegarde à la main avant une migration risquée** (`vps-deploy backup`) : sans staging, c'est votre seul filet |
 | Quand passer au profil A ? | Dès que le projet a des utilisateurs qu'on ne veut pas surprendre : un second environnement coûte peu |
 
 ## 4. Profil C : plusieurs productions
@@ -76,8 +76,8 @@ flowchart LR
 | --- | --- |
 | **Noms d'environnements** | Lettres minuscules et chiffres seulement (`prod`, `prodeu`, `prod2`). Pas de tiret ni de majuscule : ces noms servent à nommer les projets Docker, les images et les variables. Un nom invalide est refusé avec une explication |
 | **Un dossier par production** | `/app/<projet>/prod`, `/app/<projet>/prodeu`, chacun avec son `.env` (`.env` pour `prod`, `.env.<nom>` pour les autres) |
-| **Promouvoir** | `deploy.sh promote --env prodeu` (sans `--env`, l'outil **refuse** de choisir à votre place : « plusieurs productions, préciser laquelle ») |
-| **Versions** | Indépendantes : `prod` peut être en `v2` et `prodeu` en `v1`. Chaque production a sa version courante et sa précédente (`deploy.sh status` les liste) |
+| **Promouvoir** | `vps-deploy promote --env prodeu` (sans `--env`, l'outil **refuse** de choisir à votre place : « plusieurs productions, préciser laquelle ») |
+| **Versions** | Indépendantes : `prod` peut être en `v2` et `prodeu` en `v1`. Chaque production a sa version courante et sa précédente (`vps-deploy status` les liste) |
 | **Image** | La même qu'en staging : construite une fois, promue deux fois |
 | **Domaines** | Un nom par production : deux productions ne peuvent pas porter le même (`deploy.sh` le bloque) |
 | **Secrets** | **Distincts** à chaque production (clause C10) |
@@ -116,7 +116,7 @@ Quoi qu'il arrive, **la plateforme observe déjà le serveur et chaque conteneur
 
 | Profil | Sauvegarde | Où | Détail |
 | --- | --- | --- | --- |
-| A, B, C avec base | Chaque nuit ; à la demande (`deploy.sh backup`) | **S3 uniquement** | [Sauvegardes](sauvegardes.md) |
+| A, B, C avec base | Chaque nuit ; à la demande (`vps-deploy backup`) | **S3 uniquement** | [Sauvegardes](sauvegardes.md) |
 | Staging | Facultative : `BACKUP_DISABLED=1` si l'on ne veut pas de sauvegarde. Sinon S3, avec son propre dossier | S3 | Un staging n'a pas de données précieuses ; mais il peut contenir une copie de production |
 | D (site simple) | Aucune | | Pas de base |
 
@@ -124,12 +124,12 @@ Quoi qu'il arrive, **la plateforme observe déjà le serveur et chaque conteneur
 
 | Je veux… | Je fais |
 | --- | --- |
-| Savoir ce que `deploy.sh` comprend de mon projet | `deploy.sh check` (ne change rien) |
+| Savoir ce que `deploy.sh` comprend de mon projet | `vps-deploy check` (ne change rien) |
 | Déclarer mes environnements | `ENVIRONMENTS` et, si besoin, `PROD_ENVIRONMENTS` dans `platform.env` ([modèle](../../templates/platform.env)) |
-| Déployer une production seule | `deploy.sh promote origin/main` |
-| Déployer l'une de plusieurs productions | `deploy.sh promote --env <nom>` |
-| Revenir en arrière | `deploy.sh rollback <nom>` |
-| Voir l'état de tous les environnements | `deploy.sh status` |
+| Déployer une production seule | `vps-deploy promote origin/main` |
+| Déployer l'une de plusieurs productions | `vps-deploy promote --env <nom>` |
+| Revenir en arrière | `vps-deploy rollback <nom>` |
+| Voir l'état de tous les environnements | `vps-deploy status` |
 | Refuser un nom invalide | Rien à faire : l'outil s'arrête avec « nom d'environnement invalide » |
 
 La décision de ce choix de conception est écrite dans l'[ADR-0067](../adr/0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md). Les cas
