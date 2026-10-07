@@ -45,6 +45,15 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | Voir un projet complet au standard, fichier par fichier | [Guide 18, le projet pilote](../guides/18-le-projet-pilote-skills-devops.md) |
 | Régler `platform.env` : **chaque clé**, son défaut, son effet | [Référence de `platform.env`](reference/platform-env.md) |
 | Savoir ce que la plateforme offre et ce que mon projet doit fournir | [Profils de projet](reference/profils-de-projet.md) (sans staging, plusieurs productions, site simple : ce que chacun demande), [catalogue des besoins](reference/catalogue-des-besoins.md) |
+| **Changer une valeur** d'un fichier d'environnement : faut-il redéployer ? | [Modifier une valeur](reference/modifier-une-valeur.md) (un `restart` ne la relit pas : `deploy.sh up`) |
+| Changer les **branches** d'un projet, **fusionner** `develop` dans `main` sans perdre de contenu, déployer sans staging | [Les branches d'un projet](reference/branches-et-fusions.md) |
+| Brancher le **pipeline GitLab** d'un projet, comprendre pourquoi il a cette forme, ce qui le bloque | [Le pipeline GitLab](reference/pipeline-gitlab.md), [modèles prêts à copier](../templates/gitlab-ci/README.md) |
+| Un job GitLab reste « pending » ; plus aucun pipeline ne part | [Runbook : runner GitLab hors service](runbooks/runner-gitlab-hors-service.md) |
+| Savoir à qui est un **clone** de projet sur le serveur, ce qu'on y fait, le réparer après une commande en root | [Clones et droits](reference/clones-et-droits.md) |
+| Écrire l'`entrypoint` d'un conteneur : attendre la base sans boucler, signaler une erreur de configuration | [Un conteneur qui démarre proprement](reference/demarrage-robuste.md) |
+| **Migrer une application déjà en service** vers la plateforme, sans perdre une donnée, avec retour arrière | [Guide 20](../guides/20-migrer-une-application-existante.md) |
+| **Prouver qu'une copie** (base, fichiers) est exacte | `vps-fingerprint` : [guide 20](../guides/20-migrer-une-application-existante.md), [contenu du dépôt](reference/contenu-du-depot.md) |
+| Copier un script d'exploitation (`ops.sh`) ou de génération des secrets (`make-env.py`) | [Scripts modèles](../templates/scripts/README.md) |
 | Un déploiement échoue | [Runbook : déploiement en échec](runbooks/deploiement-en-echec.md) |
 | Un conteneur redémarre en boucle | [Runbook : conteneur en boucle](runbooks/conteneur-en-boucle.md) |
 | Le serveur est chargé : où voir, ce qui cause | [Runbook : serveur chargé](runbooks/serveur-charge.md) |
@@ -84,6 +93,11 @@ Chaque dossier outil a aussi son propre `README.md`, à côté du code qu'il dé
 | [Supervision et incidents](reference/supervision-et-incidents.md) | Ce qu'on surveille, première réponse |
 | [Carte complète de l'observabilité](reference/observabilite-carte-complete.md) | Les neuf composants, les signaux, les alertes, les tableaux, la sécurité, la mise en service progressive |
 | [Contenu du dépôt, outil par outil](reference/contenu-du-depot.md) | Chaque dossier et chaque outil de `bin/` |
+| [Modifier une valeur : faut-il redéployer ?](reference/modifier-une-valeur.md) | Fichier d'environnement, `platform.env`, modèles : ce qui s'applique, comment, ce qu'on ne change jamais à chaud |
+| [Les branches d'un projet](reference/branches-et-fusions.md) | Les déclarer, les changer dans l'ordre, fusionner sans perdre de contenu, déployer sans staging |
+| [Le pipeline GitLab d'un projet](reference/pipeline-gitlab.md) | Les garanties, le runner SSH du serveur, `config.toml`, pourquoi un job reste « pending » |
+| [Clones et droits](reference/clones-et-droits.md) | Les clones de projet, la mise en place, le contrôle d'intégrité, la réparation |
+| [Un conteneur qui démarre proprement](reference/demarrage-robuste.md) | Attendre sans quitter, erreurs de configuration, contrôles de santé, les cinq scénarios à tester |
 
 ### Guides pas à pas
 
@@ -97,6 +111,7 @@ Classés par thème dans l'[index des guides](../guides/README.md) : **installer
 [disque plein](runbooks/disque-plein.md), [certificat non émis](runbooks/certificat-non-emis.md),
 [base inaccessible](runbooks/base-inaccessible.md), [déploiement en échec](runbooks/deploiement-en-echec.md),
 [conteneur en boucle](runbooks/conteneur-en-boucle.md), [serveur chargé](runbooks/serveur-charge.md),
+[runner GitLab hors service](runbooks/runner-gitlab-hors-service.md),
 [exercice de restauration](runbooks/exercice-de-restauration.md),
 [mise en service de la supervision](runbooks/mise-en-service-supervision.md).
 

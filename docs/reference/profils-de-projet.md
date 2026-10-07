@@ -47,6 +47,7 @@ ENVIRONMENTS=prod
 | Question | Réponse |
 | --- | --- |
 | Comment déployer ? | `cd /app/<projet>/prod && deploy.sh promote origin/main` : l'image est **construite sur place**, puis sauvegarde, migrations, santé |
+| Et avec GitLab ? | le [modèle de pipeline du profil B](../../templates/gitlab-ci/profil-b-production-seule.gitlab-ci.yml) : un **bouton** manuel (jamais automatique), précédé d'un contrôle sans effet ; [explications](pipeline-gitlab.md) |
 | Et `watch` (le déploiement automatique) ? | Refusé : « ce projet n'a que des productions ». Il n'y a rien à déployer automatiquement |
 | Et le retour arrière ? | `deploy.sh rollback prod` ; automatique si la santé échoue |
 | Comment limiter le risque sans staging ? | 1. **Tests automatiques** dans le dépôt avant de pousser. 2. `deploy.sh check` avant chaque promotion (il ne change rien). 3. Déployer **hors des heures d'activité**. 4. **Répéter les migrations sur une copie restaurée de la production** ([guide 6, étape 5 bis](../../guides/06-core-au-standard.md#étape-5-bis--répéter-les-migrations-sur-les-données-réelles-fortement-recommandé)), puis faire **réellement** l'[exercice de restauration](../runbooks/exercice-de-restauration.md), et **prendre une sauvegarde à la main avant une migration risquée** (`deploy.sh backup`) : sans staging, c'est votre seul filet |

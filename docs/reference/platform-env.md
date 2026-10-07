@@ -65,10 +65,12 @@ Ils valent pour tous les projets du serveur et ne se règlent pas dans un projet
 | `SKIP_BACKUP=1` | — | Passer outre la sauvegarde d'avant déploiement (cas exceptionnel, avec l'accord du responsable) |
 | `SKIP_MIGRATIONS=1` | — | Passer outre les migrations (cas exceptionnel ; le retour arrière l'utilise aussi) |
 | `SKIP_BRANCH_CHECK=1` | — | Promouvoir une version qui n'est pas dans la branche de production du projet (`BRANCH_<PROD>`) : une **exception**, consignée dans le journal, avec l'accord du responsable |
+| `ALLOW_DIRTY_CLONE=1` | — | Laisser passer `check` malgré des **fichiers suivis par git modifiés à la main** dans le clone (l'image ne correspondra pas exactement au commit) : une **exception**, à ses risques, avec l'accord du responsable. Ne couvre pas un dossier de `.git` non inscriptible : celui-là se répare ([clones et droits](clones-et-droits.md)) |
+| `OBS_GRAFANA_DIR` | `<plateforme>/observability/grafana` | Où `deploy.sh` publie les tableaux et alertes **du projet** (`obs-sync`). **À rediriger vers un dossier jetable dans le test d'un projet** : sinon ses fichiers restent dans l'arbre du clone de la plateforme et font échouer les tests de la plateforme |
 
 `IMAGE_TAG` est fixé par `deploy.sh` (le SHA du commit) : ne pas le régler.
 
 ## 3. Ce qui est vérifié
 
 `deploy.sh check <env>` contrôle, **sans rien changer** : l'accès git, que `platform.env` existe et que `APP_NAME` est défini, que le compose se charge, que les services nommés (`HEALTH_SERVICE`, `MIGRATE_SERVICE`,
-`BACKUP_SERVICE`, `DB_SERVICE`) existent dans le compose, et qu'aucun nom de service privé du projet n'est aussi publié sur un réseau partagé par un autre projet. Les tests ([`tests/test-deploy.sh`](../../tests/test-deploy.sh), [`tests/test-templates.sh`](../../tests/test-templates.sh)) l'exercent sur chaque modèle.
+`BACKUP_SERVICE`, `DB_SERVICE`) existent dans le compose, et qu'aucun nom de service privé du projet n'est aussi publié sur un réseau partagé par un autre projet ; **que les noms d'hôte du projet ne sont pas déjà pris** par un autre (`vps-hosts --check`) ; et **l'intégrité du clone** : un dossier de `.git` non inscriptible ou des fichiers suivis modifiés à la main sont **refusés**, les commits locaux et les fichiers d'un autre compte sont **signalés** ([clones et droits](clones-et-droits.md)). Les tests ([`tests/test-deploy.sh`](../../tests/test-deploy.sh), [`tests/test-templates.sh`](../../tests/test-templates.sh)) l'exercent sur chaque modèle.

@@ -50,6 +50,9 @@ contourner.
 | 5 | [Runbooks d'incident](../docs/runbooks/README.md) | Quoi faire quand quelque chose tombe |
 | 6 | [Inventaires](../docs/inventaire/README.md) | L'état du serveur à une date donnée, et les écarts connus |
 | 7 | [Mettre un projet au standard](16-mettre-un-projet-au-standard.md) | La procédure pour chaque projet |
+| 8 | [Déployer selon la situation](../docs/reference/deployer-selon-la-situation.md) | **La page où arriver avec un problème** : chaque situation, la commande, qui, la coupure, le retour arrière |
+| 9 | [Le pipeline GitLab](../docs/reference/pipeline-gitlab.md), [clones et droits](../docs/reference/clones-et-droits.md), [les branches](../docs/reference/branches-et-fusions.md), [modifier une valeur](../docs/reference/modifier-une-valeur.md) | Comment un projet arrive sur le serveur, à qui sont ses dossiers, ce qui se change comment |
+| 10 | [Migrer une application en service](20-migrer-une-application-existante.md) | La bascule d'une ancienne installation, avec preuve de copie exacte et retour arrière |
 
 ## 3. Où se trouvent les choses sur le serveur
 
@@ -124,6 +127,9 @@ test « le défaut est arrêté » **et** un test « le projet sain passe ».
 - Ne jamais publier un port d'un conteneur (`ports:`) : Docker contourne le pare-feu. Tout passe
   par `nginx-proxy`.
 - Ne jamais modifier `platform.env` sur le serveur : on le change par un commit.
+- Ne jamais faire `git pull`, `merge` ni `commit` dans le clone d'un **projet** (`/app/<projet>/<env>`) : c'est `vps-deploy` qui le met à jour ; une commande en root dans ces dossiers se termine par la vérification des propriétaires ([clones et droits](../docs/reference/clones-et-droits.md)).
+- Un `restart` ne relit pas un fichier d'environnement modifié : c'est `vps-deploy up <env> <version courante>` ([modifier une valeur](../docs/reference/modifier-une-valeur.md)).
+- Valider avant de redémarrer le runner GitLab : `gitlab-runner verify`, jamais l'inverse (un `config.toml` invalide met **tous** les projets sans runner) ; le runner SSH du serveur ne prend **que** les jobs qui portent son tag ([runbook](../docs/runbooks/runner-gitlab-hors-service.md)).
 - Ne jamais renommer `APP_NAME` ni un volume d'un projet en production (nouveaux volumes vides).
 - Un refus de `deploy.sh` n'est pas un obstacle : il dit quoi corriger, et rien n'a été modifié.
 

@@ -87,8 +87,12 @@ pousser.
 
 ## 5. Staging automatique
 
-Ajouter la ligne cron de votre projet (guide 7). Désormais, chaque merge sur `main`
-arrive en staging en moins de 2 minutes.
+Deux voies, **une seule à la fois** (jamais les deux) :
+
+- **le pipeline GitLab** (recommandé) : copier un [modèle de pipeline](../templates/gitlab-ci/README.md) ; chaque push sur la branche du staging la déploie, un bouton met en production ;
+- **une ligne cron** ([guide 7](../guides/07-staging-automatique.md)) : chaque merge sur la branche du staging arrive en staging en moins de 2 minutes.
+
+Quelle branche pour quel environnement : le projet le déclare dans `platform.env` ([les branches](reference/branches-et-fusions.md)).
 
 ## Au quotidien
 
@@ -101,6 +105,8 @@ arrive en staging en moins de 2 minutes.
 | Déployer une autre branche en staging | `cd /app/mon-projet/staging && …/deploy.sh build origin/ma-branche`, puis `…/deploy.sh up staging <sha affiché>` |
 | Sauvegarder maintenant | `docker compose -p mon-projet-prod -f compose.prod.yaml --env-file .env run --rm backup backup.sh` |
 | Vérifier mon projet | `…/deploy.sh check prod` (lecture seule), puis `/app/vps-platform/bin/vps-audit.sh` et la section de mon projet |
+| Changer une valeur d'un fichier d'environnement | éditer le `.env` de l'environnement (après une copie), puis `…/deploy.sh up <env> <version courante>` : **un `restart` ne la relit pas** ([détail](reference/modifier-une-valeur.md)) |
+| Prouver qu'une copie (base, fichiers) est exacte | `vps-fingerprint db <conteneur> <base>` et `vps-fingerprint files <volume>`, source puis copie, comparés avec `diff` ([guide 20](../guides/20-migrer-une-application-existante.md)) |
 
 ## Ce qu'il ne faut jamais faire
 
@@ -115,5 +121,9 @@ arrive en staging en moins de 2 minutes.
 - Réutiliser un sous-domaine sans `vps-hosts.sh --free`.
 - Committer un `.env`.
 - Modifier `platform.env` sur le serveur : il se change par un commit.
+- Faire `git pull`, `git merge` ou `git commit` dans un clone de `/app/<projet>/<env>`, ou y modifier un fichier suivi par git : le clone appartient à `deploy.sh`, `vps-deploy check` le
+  refuse ([clones et droits](reference/clones-et-droits.md)).
+- Appliquer une valeur modifiée par un simple `restart` : le conteneur garde son ancien environnement ; c'est `deploy.sh up`.
+- Laisser le runner GitLab du serveur prendre les jobs sans tag : du code de merge request s'exécuterait sur le serveur ([pipeline GitLab](reference/pipeline-gitlab.md)).
 - Supprimer un volume (`docker volume rm`, `down -v`) en production. C'est là que
   sont les données.

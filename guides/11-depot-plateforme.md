@@ -54,12 +54,24 @@ $ git pull --ff-only
 | --- | --- |
 | **`bin/`** (`deploy.sh`, `restore.sh`, `vps-*.sh`) | **Rien.** Pris en compte à la prochaine commande. Vérifier : `vps where`, puis `vps-deploy check <env>` sur un projet (ne change rien) |
 | **Une nouvelle commande** (`bin/vps.sh`, un script ajouté à la liste de `host/install-commands.sh`) | Relancer `host/install-commands.sh` (en root). `host/install-commands.sh --check` dit si c'est nécessaire |
+| **Un contrôle de `deploy.sh` plus strict** (ex. l'intégrité des clones) | **Rien à installer, mais il peut refuser ce qui passait.** Lancer `vps-deploy check <env>` sur chaque projet (il ne change rien) : il dit quoi corriger ([clones et droits](../docs/reference/clones-et-droits.md)) |
 | **`host/`** (réglage de Docker) | Rien tant qu'on ne le lance pas : `vps-daemon-config` applique, de nuit |
 | **`images/db-backup`** (agent de sauvegarde) | **Le `pull` ne suffit pas.** Chaque projet reçoit la nouvelle image à son **prochain déploiement** ; les agents qui tournent gardent l'ancienne jusque-là |
 | **`observability/`** : tableaux | Rien : Grafana les recharge seul en une minute |
 | **`observability/`** : règles d'alerte ou notifications | **Recréer Grafana** (`cd /app/vps-platform/observability && docker compose --env-file .env up -d --no-deps --force-recreate grafana`) |
 | **`observability/`** : autre composant (Tempo, Alloy, Prometheus…) | Recréer **ce** composant seulement, jamais tout d'un coup |
 | **`templates/`, `docs/`, `guides/`, `tests/`** | Rien : rien ne s'exécute sur le serveur. Les projets copient les modèles à la main |
+
+## Après le `pull` : vérifier que c'est pris en compte
+
+```bash
+$ vps where                                  # la version de la plateforme, la date : doit être celle du dernier commit
+$ /app/vps-platform/host/install-commands.sh --check      # (en root si une commande a été ajoutée) : chaque commande « en place »
+$ cd /app/<projet>/<env> && vps-deploy check <env>          # pour chaque projet, avec le compte de déploiement : « OK »
+```
+- Les scripts de `bin/` sont pris en compte **à la prochaine commande**, y compris par les jobs d'un pipeline qui démarrent ensuite : **aucun déploiement ne doit être en cours** (`pgrep -af 'deploy.sh (build|up|watch|promote|rollback)'` ne renvoie rien).
+- Le clone de la plateforme appartient à root : le `pull` s'y fait en root. **C'est une exception** : dans le clone d'un *projet*, on ne fait jamais de `git pull` ([clones et droits](../docs/reference/clones-et-droits.md)).
+- Si une vérification échoue : [revenir en arrière](#revenir-en-arrière), puis chercher pourquoi.
 
 Deux conditions pour que le `pull` passe : le clone du serveur ne doit avoir **aucune modification locale** (les fichiers propres au serveur, comme `sites.yml` ou `.env`, sont ignorés par git), et il se fait en root avec `--ff-only`.
 

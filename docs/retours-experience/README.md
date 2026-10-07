@@ -19,6 +19,10 @@ automatique : un contrôle, un test, un modèle corrigé. Voir le
 | 2026-10-05 | [L'alerte « un conteneur redémarre en boucle » et le panneau « Redémarrages » ne voyaient aucune relance](2026-10-05-alerte-de-boucle-aveugle-aux-relances.md) | Le signal est le compteur de processeur (`resets`), plus la date de création du conteneur ; test avec un conteneur qui est vraiment relancé par Docker, et un conteneur stable témoin | Corrigé dans le dépôt, à déployer |
 | 2026-10-06 | [Le runner GitLab tombe après un redémarrage : `config.toml` invalide, puis jobs sans tag](2026-10-06-runner-gitlab-config-invalide-et-jobs-sans-tag.md) | Runbook et règles (documentaire ; contrôle automatique à décider) | Partiel |
 | 2026-10-06 | [Un `git pull` en root dans un clone de projet](2026-10-06-git-pull-en-root-dans-un-clone.md) | `deploy.sh check` refuse un dossier `.git` non inscriptible et un fichier suivi modifié, signale les commits locaux ; `tests/test-clone.sh` | Clos une fois la plateforme mise à jour sur le serveur |
+| 2026-10-07 | [Une requête d'alerte invalide passait la validation d'`obs-bundle` : la règle ne s'évaluait jamais](2026-10-07-requete-dalerte-invalide-validee-par-obs-bundle.md) | `obs-bundle` vérifie le contenu des requêtes (équilibre, guillemets, antislash) ; 38 contrôles | Clos |
+| 2026-10-07 | [Une fusion qui n'apporte aucun contenu : l'historique dit « fusionné », six fichiers ne l'étaient pas](2026-10-07-fusion-qui-ne-change-rien.md) | Page « les branches d'un projet » (reconnaître, réparer, répéter une fusion) ; pas de contrôle automatique | Partiel |
+| 2026-10-07 | [Première bascule d'une application en service : ce qui n'a pas été prévu](2026-10-07-premiere-bascule-ce-qui-na-pas-ete-prevu.md) | `check` voit la collision de nom ; guide 20 ; `vps-fingerprint` ; la lenteur du proxy reste à expliquer | Partiel |
+| 2026-10-07 | [Les tests de déploiement de deux projets publiaient leurs tableaux dans l'arbre du clone de la plateforme](2026-10-07-tests-de-projet-publiaient-dans-larbre-de-la-plateforme.md) | `OBS_GRAFANA_DIR` vers un dossier jetable ; le test d'`obs-bundle` détecte les résidus | Clos |
 
 ## Modèle
 

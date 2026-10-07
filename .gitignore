@@ -13,3 +13,7 @@ observability/prometheus/targets/*.yml
 observability/grafana/projets/dashboards/*
 !observability/grafana/projets/dashboards/.gitkeep
 observability/grafana/provisioning/alerting/projet-*.yaml
+
+# Python : fichiers compilés, jamais commités
+__pycache__/
+*.pyc

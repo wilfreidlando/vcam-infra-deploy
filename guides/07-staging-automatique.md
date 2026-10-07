@@ -70,14 +70,13 @@ $ cat > /etc/logrotate.d/vps-deploy <<'CONF'
 CONF
 ```
 
-## Plus tard : GitLab CI
+## Avec GitLab CI (recommandé quand le projet est sur GitLab)
 
-Quand le projet sera sur GitLab, le runner déjà installé sur le serveur remplace la
-ligne cron. Le job est dans `README.md` § 5 : un bouton manuel pour la
-production, automatique pour le staging. **Supprimer alors la ligne cron**, pour ne
-pas avoir deux déclencheurs.
+Le pipeline remplace la ligne cron : un push sur la branche du staging construit et déploie le staging, un **bouton** met en production (jamais automatique). **Supprimer alors la
+ligne cron**, pour ne pas avoir deux déclencheurs.
 
-Le runner doit être de type `shell` et tourner sur ce serveur, avec le droit
-d'utiliser Docker : `usermod -aG docker gitlab-runner`. Il faut aussi que
-`gitlab-runner` puisse écrire dans `/var/lib/vps-platform` et dans les dossiers
-`/app/<projet>`.
+- **Le modèle** : [`templates/gitlab-ci/`](../templates/gitlab-ci/README.md) (profil A : staging puis production ; profil B : production seule), testé.
+- **Le runner** : un runner à exécuteur **SSH** qui se connecte au serveur avec le compte de déploiement, **sans** les jobs sans tag, avec le tag du projet. Ce n'est pas un runner « shell » de `gitlab-runner`
+  ni un compte `gitlab-runner` ajouté au groupe `docker` : c'est le compte de déploiement qui exécute `vps-deploy`, avec son accès au dépôt. La procédure, les pièges et ce qui le bloque :
+  [le pipeline GitLab d'un projet](../docs/reference/pipeline-gitlab.md), et le [runbook](../docs/runbooks/runner-gitlab-hors-service.md) quand un job reste « pending ».
+- **Les clones** de chaque environnement, leurs droits et ce qu'on n'y fait jamais : [clones et droits](../docs/reference/clones-et-droits.md).

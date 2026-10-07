@@ -38,6 +38,7 @@ Retour au [sommaire de la documentation](../docs/README.md).
 | # | Guide | Risque pour les sites existants | Durée |
 | --- | --- | --- | --- |
 | 5 | [Audit et mise en conformité des projets](05-audit-et-conformite.md) | par projet, au moment choisi | variable |
+| 20 | [Migrer une application déjà en service vers la plateforme (la bascule)](20-migrer-une-application-existante.md) | l'application migrée est coupée 10 à 15 min ; l'ancienne reste intacte | 1 h + la fenêtre |
 | 6 | [Passer le Core au standard (staging + production)](06-core-au-standard.md) | quelques secondes de coupure du Core | 45 min |
 | 16 | [Mettre un projet au standard (fiche de conformité)](16-mettre-un-projet-au-standard.md) | selon le projet | 2 h par projet |
 

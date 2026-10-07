@@ -31,10 +31,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: [ docs, commands, obs-bundle, templates, hosts, deploy, branches, inventory, backup, observability ]
+        test: [ docs, commands, obs-bundle, templates, gitlab-ci, scripts-modeles, laravel-modeles, fingerprint, hosts, clone, deploy, branches, inventory, backup, observability ]
     steps:
       - uses: actions/checkout@v4
       - name: Docker
         run: docker version && docker compose version
+      - name: PyYAML (test-gitlab-ci)
+        run: python3 -c 'import yaml' 2>/dev/null || sudo apt-get install -y python3-yaml
       - name: tests/test-${{ matrix.test }}.sh
         run: tests/run-all.sh ${{ matrix.test }}

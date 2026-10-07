@@ -17,6 +17,7 @@ Retour au [sommaire de la documentation](../README.md).
 | [0067](0067-profils-de-projet-et-sauvegardes-sur-s3-seulement.md) | Profils de projet (sans staging, plusieurs productions, site simple) et sauvegardes sur S3 seulement | Accepté | 2026-10-05 |
 | [0068](0068-observabilite-portee-par-le-projet.md) | Observabilité portée par le projet : tableaux et alertes dans le dépôt du projet, tableau générique « Application » pour tous | Accepté | 2026-10-05 |
 | [0069](0069-commandes-courtes-et-branches-declarees-par-le-projet.md) | Des commandes sans chemin (`vps`, `vps-deploy`…), des branches déclarées par chaque projet, une promotion encadrée (même image, garde optionnelle) | Accepté | 2026-10-05 |
+| [0070](0070-outils-et-modeles-issus-des-premiers-projets.md) | Ce que les deux premiers projets en production ont appris : contrôles de `check` (intégrité des clones, collision de nom), `vps-fingerprint`, modèles de pipeline et de scripts, validation des requêtes d'alerte, cache avec mot de passe | **Proposé** (écarts au contrat à valider) | 2026-10-07 |
 
 ## Quand écrire une ADR
 

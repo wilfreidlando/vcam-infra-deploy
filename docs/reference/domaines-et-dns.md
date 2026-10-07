@@ -62,3 +62,25 @@ l'IP du serveur, mais modifie trois choses pour **tous** les projets proxifiés 
 À activer projet par projet, en activant le nuage orange sur l'enregistrement
 explicite de ce projet, après avoir ajouté la restauration de l'IP. Jamais sur le
 wildcard d'un coup.
+
+## `www.<domaine>` : un nom de plus, à déclarer trois fois
+
+Un nom n'arrive à un projet que s'il est **déclaré à `nginx-proxy`**, **dans le certificat** et **dans le DNS**. Ce n'est vrai ni pour `www.` ni pour un sous-domaine d'un domaine déjà servi : si un projet n'a déclaré que
+`exemple.cm`, `https://www.exemple.cm` ne marche pas (pas de certificat pour ce nom, ou aucune route). Ce n'est pas propre à un projet : c'est vrai de **tous** ceux du serveur.
+
+| Il faut | Où | Comment |
+| --- | --- | --- |
+| Le **DNS** | la zone du domaine | un enregistrement `www` vers le serveur ; **le vérifier avant d'ajouter le nom** : un nom sans DNS fait échouer l'émission du certificat pour **tous** les noms de la liste |
+| Le **routage** | `.env.<env>` : `APP_VIRTUAL_HOSTS=exemple.cm,www.exemple.cm` | porté par le conteneur web seul (`VIRTUAL_HOST`) |
+| Le **certificat** | `.env.<env>` : `APP_CERT_HOSTS=exemple.cm,www.exemple.cm` | un certificat par nom (HTTP-01), pas de joker ; l'émission prend une à deux minutes après `vps-deploy up` |
+
+**Redirection vers le nom sans `www`** (recommandée : un seul nom canonique, pas de contenu en double) : dans le nginx **du projet** (le conteneur qui reçoit le trafic de `nginx-proxy`), un bloc **avant** le serveur par défaut :
+```nginx
+server {
+    listen 80;
+    server_name ~^www\.(?<domaine_sans_www>.+)$;
+    return 301 https://$domaine_sans_www$request_uri;      # chemin et paramètres conservés ; aucun nom écrit en dur
+}
+```
+La règle est la même pour chaque environnement : seul le `www.` qui arrive jusqu'au conteneur (déclaré dans `APP_VIRTUAL_HOSTS`) est redirigé. Un `www.dev.exemple.cm` n'existe que si on le déclare.
+Le changement de `.env.<env>` s'applique par `vps-deploy up` ([modifier une valeur](modifier-une-valeur.md)) ; la redirection, elle, fait partie de l'image du projet (une livraison).
