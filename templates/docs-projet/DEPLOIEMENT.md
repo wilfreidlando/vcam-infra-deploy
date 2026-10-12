@@ -34,7 +34,7 @@ scripts/ops.sh <env> status          # (si le projet a ce script) l'exploitation
 
 1. **Jamais de `git pull`, `merge` ni `commit` dans un clone** (`/app/<projet>/<env>`) : `vps-deploy` le met à jour. Après toute commande en root dans le dossier, vérifier les propriétaires : `find /app/<projet> \( ! -user <compte de déploiement> \) | wc -l` doit répondre 0.
 2. **Ne jamais supprimer un volume** (`docker volume rm`, `down -v`, `system prune --volumes`) : les données y sont.
-3. **Un `restart` ne relit pas un fichier d'environnement modifié** : c'est `vps-deploy up <env> <version courante>` (après une copie du fichier).
+3. **Un `restart` ne relit pas un fichier d'environnement modifié** : c'est `vps-deploy apply-env <env>` (après une copie du fichier).
 4. **Promouvoir la production seulement après la recette du staging** ; un retour automatique ne défait pas les migrations déjà jouées.
 5. **Aucun secret** dans une discussion, un ticket ou un commit.
 6. <règle propre au projet>
@@ -122,7 +122,7 @@ La production reçoit **exactement l'image testée en staging**. Elle n'est **ja
 | Je change… | Je fais | Coupure | Retour arrière |
 | --- | --- | --- | --- |
 | Le **code** | § 5 | quelques secondes en production | `vps-deploy rollback <env>` |
-| Une **variable** (`.env`, `.env.staging`) | éditer le fichier du serveur, puis `vps-deploy up <env> <version courante>` : les conteneurs sont recréés avec la nouvelle valeur | quelques secondes | remettre l'ancienne valeur, même commande |
+| Une **variable** (`.env`, `.env.staging`) | éditer le fichier du serveur, puis `vps-deploy apply-env <env>` : les conteneurs sont recréés avec la nouvelle valeur | quelques secondes | remettre l'ancienne valeur, même commande |
 | `compose.prod.yaml` ou `platform.env` | un commit, puis § 5 : le compose et `platform.env` sont lus **dans le commit déployé** | comme une livraison | `vps-deploy rollback <env>` |
 | **Une dépendance** (version de base de données, d'image) | d'abord le staging, **avec une copie restaurée de la production** | selon le cas | restauration (§ 8) |
 | Les **tableaux et alertes du projet** | `observability/` dans le dépôt, publié après la production ou `vps-deploy obs-sync` | aucune | republier la version précédente |

@@ -113,7 +113,7 @@ Quelle branche pour quel environnement : le projet le déclare dans `platform.en
 | Déployer une autre branche en staging | `cd /app/mon-projet/staging && vps-deploy build origin/ma-branche`, puis `vps-deploy up staging <sha affiché>` |
 | Sauvegarder maintenant | `cd /app/mon-projet/prod && vps-deploy backup prod` (envoyée sur S3 comme la nocturne ; à faire avant une migration risquée) |
 | Vérifier mon projet | `vps-deploy check prod` (lecture seule), puis `vps-audit` et la section de mon projet |
-| Changer une valeur d'un fichier d'environnement | éditer le `.env` de l'environnement (après une copie), puis `vps-deploy up <env> <version courante>` : **un `restart` ne la relit pas** ([détail](reference/modifier-une-valeur.md)) |
+| Changer une valeur d'un fichier d'environnement | éditer le `.env` de l'environnement (après une copie), puis `vps-deploy apply-env <env>` : **un `restart` ne la relit pas** ([détail](reference/modifier-une-valeur.md)) |
 | Prouver qu'une copie (base, fichiers) est exacte | `vps-fingerprint db <conteneur> <base>` et `vps-fingerprint files <volume>`, source puis copie, comparés avec `diff` ([guide 20](../guides/20-migrer-une-application-existante.md)) |
 
 ## Ce qu'il ne faut jamais faire

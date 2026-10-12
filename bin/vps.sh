@@ -24,6 +24,7 @@ DÉPLOYER, depuis le dossier d'un projet (/app/<projet>/<env>) :
   vps-deploy promote          production : l'image EXACTE validée en staging, jamais reconstruite
   vps-deploy status           versions, branches suivies et conteneurs de chaque environnement
   vps-deploy rollback <env>   revient à la version précédente
+  vps-deploy apply-env <env>  un fichier .env a changé : recrée les conteneurs sur la version en service (un restart ne le relit pas)
   vps-deploy backup [env]     une sauvegarde maintenant, envoyée sur S3
   vps-deploy obs-sync         publie les tableaux et alertes propres au projet
 

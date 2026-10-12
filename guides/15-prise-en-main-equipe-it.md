@@ -128,7 +128,7 @@ test « le défaut est arrêté » **et** un test « le projet sain passe ».
   par `nginx-proxy`.
 - Ne jamais modifier `platform.env` sur le serveur : on le change par un commit.
 - Ne jamais faire `git pull`, `merge` ni `commit` dans le clone d'un **projet** (`/app/<projet>/<env>`) : c'est `vps-deploy` qui le met à jour ; une commande en root dans ces dossiers se termine par la vérification des propriétaires ([clones et droits](../docs/reference/clones-et-droits.md)).
-- Un `restart` ne relit pas un fichier d'environnement modifié : c'est `vps-deploy up <env> <version courante>` ([modifier une valeur](../docs/reference/modifier-une-valeur.md)).
+- Un `restart` ne relit pas un fichier d'environnement modifié : c'est `vps-deploy apply-env <env>` ([modifier une valeur](../docs/reference/modifier-une-valeur.md)).
 - Valider avant de redémarrer le runner GitLab : `gitlab-runner verify`, jamais l'inverse (un `config.toml` invalide met **tous** les projets sans runner) ; le runner SSH du serveur ne prend **que** les jobs qui portent son tag ([runbook](../docs/runbooks/runner-gitlab-hors-service.md)).
 - Ne jamais renommer `APP_NAME` ni un volume d'un projet en production (nouveaux volumes vides).
 - Un refus de `deploy.sh` n'est pas un obstacle : il dit quoi corriger, et rien n'a été modifié.

@@ -119,7 +119,7 @@ alias = {"vps-hosts.sh": "vps-hosts", "vps-audit.sh": "vps-audit", "vps-inventor
          "obs-bundle.py": "vps-obs-bundle", "vps-fingerprint.sh": "vps-fingerprint", "apply-daemon-config.sh": "vps-daemon-config"}
 alias.update({k: k for k in outils})
 options = {k: set(re.findall(r"(?<![\w-])(--[a-z][a-z-]*)", open(os.path.join(INFRA, v), encoding="utf-8").read())) for k, v in outils.items()}
-max_args = {"status": 0, "where": 0, "check": 1, "rollback": 1, "backup": 1, "build": 2, "watch": 1}
+max_args = {"apply-env": 1, "status": 0, "where": 0, "check": 1, "rollback": 1, "backup": 1, "build": 2, "watch": 1}
 bad = []
 def codes(texte):
     fence = False

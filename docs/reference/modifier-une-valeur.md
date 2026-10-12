@@ -7,7 +7,7 @@
 
 | Je modifie | Où | Ce que je fais | Pourquoi |
 | --- | --- | --- | --- |
-| Une **valeur de l'application** : clé d'un fournisseur, SMTP, mot de passe, mémoire, nom d'hôte… | `.env.<env>` sur le serveur (jamais commité) | **`vps-deploy up <env> <version courante>`** (la version : `vps-deploy status`) | Docker lit ce fichier à la **création** du conteneur. `up` recrée **seulement** les conteneurs dont la configuration a changé, contrôle la santé et revient en arrière seul en cas d'échec |
+| Une **valeur de l'application** : clé d'un fournisseur, SMTP, mot de passe, mémoire, nom d'hôte… | `.env.<env>` sur le serveur (jamais commité) | **`vps-deploy apply-env <env>`** | Docker lit ce fichier à la **création** du conteneur. `up` recrée **seulement** les conteneurs dont la configuration a changé, contrôle la santé et revient en arrière seul en cas d'échec |
 | `platform.env` (branches, santé, migrations, sauvegarde…) | le **dépôt** du projet : commit, push | déployer ce commit (pipeline, ou `vps-deploy watch` / `promote`) | il est lu **dans la version déployée**. L'éditer sur le serveur modifie un fichier suivi par git : `vps-deploy check` **refuse** alors le clone ([clones et droits](clones-et-droits.md)) |
 | `compose.prod.yaml`, un `Dockerfile`, la configuration du nginx du projet | le dépôt | une livraison normale (nouvelle image) | ils font partie de l'image ou de la composition du commit |
 | Une variable lue à la **construction** (`VITE_*`, `NEXT_PUBLIC_*`…) | le dépôt (ou `BUILD_PER_ENV=1`) | une nouvelle image : un nouveau commit | elle est figée dans les fichiers produits par le build ; la modifier dans `.env.<env>` ne change rien |
@@ -21,8 +21,7 @@
 
 ```bash
 # après avoir modifié .env.<env> : la bonne commande, dans le dossier de l'environnement, avec le compte de déploiement
-vps-deploy status                      # repérer la version courante de l'environnement
-vps-deploy up <env> <version courante>
+vps-deploy apply-env <env>             # relit le fichier de l'environnement ; sans <env> : le staging (une production demande « oui », ou -y)
 ```
 
 Vérifier qu'une valeur est active **sans l'afficher** (un secret ne s'affiche jamais) :

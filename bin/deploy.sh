@@ -43,6 +43,8 @@
 #                                  observability/) into the platform's Grafana tree, without touching the platform
 #                                  repo. Run automatically after a successful production deploy. See bin/obs-bundle.py.
 #   deploy.sh rollback <env>       redeploy the previous SHA of that environment
+#   deploy.sh apply-env [env] [-y] take into account a changed environment file (.env.<env>): redeploy the version ALREADY
+#                                  running there (no rebuild, no migration, no backup). A restart does NOT re-read the file.
 #   deploy.sh status               current/previous SHA and containers of each environment
 #   deploy.sh check [env]          pre-flight only (git access, platform.env ↔ compose,
 #                                  name collisions on shared networks) — changes nothing
@@ -683,6 +685,38 @@ cmd_obs_sync() {
     return 0
 }
 
+# apply-env [env] [-y] — the file of an environment was edited: recreate its containers on the version already running, so that Docker
+# re-reads it (a restart keeps the old values). Same checks and automatic rollback as any deploy; nothing is rebuilt, migrated or saved.
+# A production asks for confirmation (-y to skip), like promote: its containers are recreated.
+cmd_apply_env() {
+    local env="" yes=0 arg current
+    for arg in "$@"; do
+        case "${arg}" in
+            -y|--yes) yes=1 ;;
+            -*) die "option inconnue « ${arg} » (apply-env [env] [-y])" ;;
+            *) env="${arg}" ;;
+        esac
+    done
+    if [[ -z "${env}" ]]; then
+        env="$(preprod_env)"
+        if [[ -z "${env}" ]]; then
+            # shellcheck disable=SC2086
+            set -- ${PROD_ENVIRONMENTS}
+            [[ $# -eq 1 ]] || die "ce projet a plusieurs productions (${PROD_ENVIRONMENTS}) : préciser laquelle (deploy.sh apply-env <nom>)"
+            env="$1"
+        fi
+    fi
+    is_env "${env}" || die "environnement inconnu « ${env} » (${ENVIRONMENTS})"
+    current="$(state_get "${env}" current)"
+    [[ -n "${current}" ]] || die "aucune version déployée en ${env} : rien à recharger (premier déploiement : watch ou promote)"
+    log "apply-env ${env} : fichier $(env_file_for "${env}") relu sur la version ${current:0:12} déjà en service (rien n'est reconstruit)"
+    if is_prod "${env}" && [[ "${yes}" != 1 ]]; then
+        read -r -p "Recréer les conteneurs de la PRODUCTION (${env}) ? Tapez « oui » : " answer
+        [[ "${answer}" == "oui" ]] || die "annulé"
+    fi
+    SKIP_MIGRATIONS=1 SKIP_BACKUP=1 cmd_up "${env}" "${current}"
+}
+
 cmd_rollback() {
     local env="${1:?env}" previous
     previous="$(state_get "${env}" previous)"
@@ -778,6 +812,7 @@ main() {
         watch) lock; cmd_watch "$@" ;;
         promote) lock; cmd_promote "$@" ;;
         rollback) lock; cmd_rollback "$@" ;;
+        apply-env) lock; cmd_apply_env "$@" ;;
         backup) lock; cmd_backup "$@" ;;
         obs-sync) cmd_obs_sync "$@" ;;
         status) cmd_status ;;

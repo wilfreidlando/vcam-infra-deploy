@@ -69,7 +69,7 @@ interdit "… et rien n'a été arrêté" " stop |"
 run prod stop --yes >/dev/null;                       attendu "stop de la prod avec --yes" "-p monprojet-prod -f compose.prod.yaml --env-file .env.prod stop"
 run prod restart app --yes >/dev/null;                attendu "restart d'un service (raccourci) en production avec --yes" "restart monprojet-app"
 out="$("${OPS}" staging restart 2>&1 </dev/null)"
-[[ "${out}" == *"ne relit PAS le fichier"* && "${out}" == *"vps-deploy up staging"* ]] && ok "restart rappelle qu'il ne relit pas le fichier d'environnement, et la commande à utiliser" || ko "rappel de restart absent"
+[[ "${out}" == *"ne relit PAS le fichier"* && "${out}" == *"vps-deploy apply-env staging"* ]] && ok "restart rappelle qu'il ne relit pas le fichier d'environnement, et la commande à utiliser" || ko "rappel de restart absent"
 run staging shell >/dev/null;                         attendu "shell par défaut : le service app" "exec monprojet-app sh"
 run staging shell db >/dev/null;                      attendu "shell d'un autre service par raccourci" "exec monprojet-db sh"
 

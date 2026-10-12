@@ -40,6 +40,7 @@ services:
     container_name: vpstest-demo-${ENV_NAME}-app
     environment:
       VIRTUAL_HOST: ${ENV_NAME}.demo.vpstest.test
+      BANNER: ${BANNER:-avant}
     volumes: [ data:/data ]
 volumes:
   data:
@@ -57,8 +58,8 @@ touch "${ORIGIN}/Dockerfile"; git -C "${ORIGIN}" add -A
 commit_version v1
 for env in staging prod; do
     git clone -q "${ORIGIN}" "${WORK}/${env}"
-    echo "ENV_NAME=staging" > "${WORK}/${env}/.env.staging"
-    echo "ENV_NAME=prod" > "${WORK}/${env}/.env"
+    printf "ENV_NAME=staging\nBANNER=avant\n" > "${WORK}/${env}/.env.staging"
+    printf "ENV_NAME=prod\nBANNER=avant\n" > "${WORK}/${env}/.env"
 done
 ok "dépôt git, checkouts staging et prod"
 
@@ -68,9 +69,26 @@ check "v1 en staging" test "$(page staging)" = v1
 (cd "${WORK}/staging" && "${DEPLOY}" watch >/dev/null 2>&1)
 check "watch sans nouveau commit : rien à faire" test "$(wc -l < "${STATE_DIR}/vpstest-demo/staging/history")" = 1
 
+step "Valeur modifiée dans le fichier d'environnement : apply-env (un restart ne la relit pas)"
+cur_stg="$(cat "${STATE_DIR}/vpstest-demo/staging/current")"
+sed -i 's/^BANNER=.*/BANNER=apres/' "${WORK}/staging/.env.staging"
+docker restart vpstest-demo-staging-app >/dev/null
+check "un restart garde l'ANCIENNE valeur (c'est pourquoi apply-env existe)" test "$(docker exec vpstest-demo-staging-app printenv BANNER)" = avant
+check "apply-env sans argument : le staging relit le fichier" sh -c "cd '${WORK}/staging' && '${DEPLOY}' apply-env"
+check "… la nouvelle valeur est dans le conteneur" test "$(docker exec vpstest-demo-staging-app printenv BANNER)" = apres
+check "… la version déployée n'a pas changé" test "$(cat "${STATE_DIR}/vpstest-demo/staging/current")" = "${cur_stg}"
+check "… et le site répond toujours" test "$(page staging)" = v1
+check_not "apply-env d'un environnement inconnu est refusé" sh -c "cd '${WORK}/staging' && '${DEPLOY}' apply-env nulle-part"
+check_not "apply-env d'une option inconnue est refusé" sh -c "cd '${WORK}/staging' && '${DEPLOY}' apply-env --force"
+
 step "Promotion en production (même image)"
 (cd "${WORK}/prod" && "${DEPLOY}" promote --yes >/dev/null 2>&1)
 check "v1 en production" test "$(page prod)" = v1
+sed -i 's/^BANNER=.*/BANNER=prodapres/' "${WORK}/prod/.env"
+check_not "apply-env en production sans confirmation (entrée vide) est annulé" sh -c "cd '${WORK}/prod' && '${DEPLOY}' apply-env prod < /dev/null"
+check "… la production n'a pas bougé" test "$(docker exec vpstest-demo-prod-app printenv BANNER)" = avant
+check "apply-env prod -y : la production relit son fichier" sh -c "cd '${WORK}/prod' && '${DEPLOY}' apply-env prod -y"
+check "… nouvelle valeur en production, staging inchangé" sh -c "[ \"\$(docker exec vpstest-demo-prod-app printenv BANNER)\" = prodapres ] && [ \"\$(docker exec vpstest-demo-staging-app printenv BANNER)\" = apres ]"
 check "même image en staging et en production" test \
     "$(docker inspect -f '{{.Image}}' vpstest-demo-staging-app)" = "$(docker inspect -f '{{.Image}}' vpstest-demo-prod-app)"
 check "checkout prod positionné sur le commit déployé" test \

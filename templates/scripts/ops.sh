@@ -17,7 +17,7 @@
 #
 # Ce script ne déploie rien et ne supprime ni conteneur ni volume : déployer = `vps-deploy` ou le pipeline GitLab.
 # Sur une production, stop et restart demandent une confirmation tapée (ou --yes) : ils coupent le site.
-# POUR APPLIQUER UNE VALEUR MODIFIÉE dans un fichier d'environnement : `vps-deploy up <env> <version courante>` ; un restart garde l'ancienne
+# POUR APPLIQUER UNE VALEUR MODIFIÉE dans un fichier d'environnement : `vps-deploy apply-env <env>` ; un restart garde l'ancienne
 # valeur (Docker lit le fichier à la création du conteneur : docs/reference/modifier-une-valeur.md).
 #
 # À ADAPTER : APP_DEFAULT, SHORTCUTS, HEALTH_PATH ci-dessous ; les actions propres au projet (console applicative, données de départ,
@@ -107,7 +107,7 @@ case "${ACTION}" in
     restart)
         confirm "Redémarrage" "le site sera brièvement coupé"
         if [[ $# -gt 0 ]]; then dc restart "$(svc "$1")"; else dc restart; fi
-        echo "Rappel : restart ne relit PAS le fichier d'environnement. Pour appliquer une valeur modifiée : vps-deploy up ${ENV_NAME} <version courante> (vps-deploy status)." >&2
+        echo "Rappel : restart ne relit PAS le fichier d'environnement. Pour appliquer une valeur modifiée : vps-deploy apply-env ${ENV_NAME}." >&2
         ;;
     shell) dc exec "$(svc "${1:-${DEFAULT_SHELL_SERVICE}}")" sh ;;
     check)  ( cd "${DIR}" && "${VPS_DEPLOY}" check "${ENV_NAME}" ) ;;
