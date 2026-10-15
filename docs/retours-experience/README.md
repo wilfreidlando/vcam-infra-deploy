@@ -23,6 +23,7 @@ automatique : un contrôle, un test, un modèle corrigé. Voir le
 | 2026-10-07 | [Une fusion qui n'apporte aucun contenu : l'historique dit « fusionné », six fichiers ne l'étaient pas](2026-10-07-fusion-qui-ne-change-rien.md) | Page « les branches d'un projet » (reconnaître, réparer, répéter une fusion) ; pas de contrôle automatique | Partiel |
 | 2026-10-07 | [Première bascule d'une application en service : ce qui n'a pas été prévu](2026-10-07-premiere-bascule-ce-qui-na-pas-ete-prevu.md) | `check` voit la collision de nom ; guide 20 ; `vps-fingerprint` ; la lenteur du proxy reste à expliquer | Partiel |
 | 2026-10-07 | [Les tests de déploiement de deux projets publiaient leurs tableaux dans l'arbre du clone de la plateforme](2026-10-07-tests-de-projet-publiaient-dans-larbre-de-la-plateforme.md) | `OBS_GRAFANA_DIR` vers un dossier jetable ; le test d'`obs-bundle` détecte les résidus | Clos |
+| 2026-10-15 | [Première promotion d'e-tourisme : deux refus aux messages trompeurs](2026-10-15-premiere-promotion-apres-changement-de-branche.md) | `guard_branch` reconnaît une version qui change la branche de production et le dit ; `missing_images` affiche l'erreur réelle de Compose ; `test-branches.sh` et `test-deploy.sh` | Corrigé dans le dépôt, à déployer ; cause côté serveur à confirmer |
 
 ## Modèle
 

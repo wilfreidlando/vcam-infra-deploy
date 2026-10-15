@@ -236,7 +236,14 @@ missing_images() {
         found=1
         docker image inspect "${img}" >/dev/null 2>&1 || { log "image absente : ${img}"; missing=1; }
     done < <(images_for "${env}" "${sha}")
-    [[ "${found}" == 1 ]] || die "aucune image du compose n'utilise \${IMAGE_TAG} — voir templates"
+    if [[ "${found}" != 1 ]]; then
+        # images_for hides Compose's own errors: an unreadable env file or a missing required variable (${VAR:?…}) also yields
+        # an empty list. Say the real cause first — « no image uses IMAGE_TAG » sent people to the compose file for nothing.
+        local erreur
+        erreur="$(IMAGE_TAG="$(tag_for "${env}" "${sha}")" dc "${env}" config --quiet 2>&1)" \
+            || die "configuration Compose de ${env} invalide (${COMPOSE_FILE} avec $(env_file_for "${env}")) : ${erreur}"
+        die "aucune image du compose n'utilise \${IMAGE_TAG} — voir templates"
+    fi
     [[ "${missing}" == 1 ]]
 }
 
@@ -457,10 +464,27 @@ guard_branch() {  # guard_branch <env> <sha>
     fi
     is_git || { log "hors git : la branche ${br} n'est pas vérifiée"; return 0; }
     fetch_origin || die "impossible de vérifier la branche ${br} (voir ci-dessus)"
-    git -C "${PROJECT_DIR}" rev-parse --verify --quiet "origin/${br}^{commit}" >/dev/null \
-        || die "la branche de production « ${br} » (${var} dans platform.env) n'existe pas sur origin"
-    git -C "${PROJECT_DIR}" merge-base --is-ancestor "${sha}" "origin/${br}" \
-        || die "${sha:0:12} n'est pas dans origin/${br} (${var} dans platform.env) : fusionner d'abord dans ${br} la version validée. Exception, avec l'accord du responsable : SKIP_BRANCH_CHECK=1"
+    local existe=1
+    git -C "${PROJECT_DIR}" rev-parse --verify --quiet "origin/${br}^{commit}" >/dev/null || existe=0
+    [[ "${existe}" == 1 ]] && git -C "${PROJECT_DIR}" merge-base --is-ancestor "${sha}" "origin/${br}" && return 0
+    # The promoted version may itself CHANGE the production branch (BRANCH_PROD=old -> new in its platform.env). The rule in force
+    # stays the one of the version in production — a commit never authorises itself by editing platform.env — so this first promotion
+    # needs the explicit exception. Say so plainly, and check the version against the new branch, so the exception is an informed one.
+    local nouvelle dans
+    nouvelle="$(branch_declared_in "${sha}" "${var}")"
+    if [[ -n "${nouvelle}" && "${nouvelle}" != "${br}" ]]; then
+        dans="n'est PAS non plus dans origin/${nouvelle} : fusionner d'abord"
+        git -C "${PROJECT_DIR}" merge-base --is-ancestor "${sha}" "origin/${nouvelle}" 2>/dev/null && dans="est bien dans origin/${nouvelle}"
+        die "${sha:0:12} change la branche de production : ${br} → ${nouvelle} (${var} dans platform.env). La règle en vigueur est celle de la version en production (${br}) ; elle deviendra ${nouvelle} après cette promotion. ${sha:0:12} ${dans}. Si ce changement est voulu, promouvoir UNE fois avec SKIP_BRANCH_CHECK=1, avec l'accord du responsable (GitLab : variable du projet le temps de relancer le job, ou « Run pipeline » avec cette variable)"
+    fi
+    [[ "${existe}" == 1 ]] || die "la branche de production « ${br} » (${var} dans platform.env) n'existe pas sur origin"
+    die "${sha:0:12} n'est pas dans origin/${br} (${var} dans platform.env) : fusionner d'abord dans ${br} la version validée. Exception, avec l'accord du responsable : SKIP_BRANCH_CHECK=1"
+}
+
+# The branch a given commit declares in its own platform.env (read as text, never sourced: the commit is not deployed yet).
+branch_declared_in() {  # branch_declared_in <sha> <VAR>
+    git -C "${PROJECT_DIR}" show "$1:platform.env" 2>/dev/null \
+        | sed -n "s/^[[:space:]]*$2=[\"']\{0,1\}\([^\"'[:space:]#]*\).*/\1/p" | tail -1 || true  # pipefail: no platform.env = no branch
 }
 
 # One line saying which branch an environment follows, or checks against (used by status and check).

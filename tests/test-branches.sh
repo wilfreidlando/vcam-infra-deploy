@@ -111,6 +111,31 @@ check "une fois dans release, v3 passe en prodeu" test "$(page prodeu)" = v3
 check "prodeu a la même image que le staging" test \
     "$(docker inspect -f '{{.Image}}' vpstest-br-staging-app)" = "$(docker inspect -f '{{.Image}}' vpstest-br-prodeu-app)"
 
+step "Une version qui CHANGE la branche de production : refus expliqué, exception une fois, puis la nouvelle branche fait foi"
+# Ce qui est arrivé à e-tourisme le 2026-10-15 : BRANCH_PROD passée de refonte/l1-socle à main ; la production, encore sur l'ancienne
+# version, refusait toute promotion, même fusionnée dans main, avec un message qui ne disait pas pourquoi.
+git -C "${ORIGIN}" checkout -q develop
+sed -i 's/^BRANCH_PROD=main$/BRANCH_PROD=stable/' "${ORIGIN}/platform.env"
+commit_version "${ORIGIN}" v4
+git -C "${ORIGIN}" branch stable develop
+git -C "${ORIGIN}" checkout -q main
+deploy "${WORK}/staging" watch >/dev/null 2>&1 || true
+check "v4 en staging" test "$(page staging)" = v4
+check_not "v4 (qui passe la production à stable) est refusée : la règle en vigueur reste main" deploy "${WORK}/prod" promote --yes --env prod
+check "le journal explique le changement de branche : main → stable" grep -q "change la branche de production : main → stable (BRANCH_PROD dans platform.env)" "${LOG}"
+check "…vérifie la version contre la nouvelle branche et dit comment faire l'exception" grep -q "est bien dans origin/stable. Si ce changement est voulu, promouvoir UNE fois avec SKIP_BRANCH_CHECK=1" "${LOG}"
+check "toujours v3 en production" test "$(page prod)" = v3
+SKIP_BRANCH_CHECK=1 deploy "${WORK}/prod" promote --yes --env prod >/dev/null 2>&1 || true
+check "avec l'exception, une fois : v4 en production" test "$(page prod)" = v4
+git -C "${ORIGIN}" checkout -q develop
+commit_version "${ORIGIN}" v5
+git -C "${ORIGIN}" checkout -q stable
+git -C "${ORIGIN}" merge -q --ff-only develop
+git -C "${ORIGIN}" checkout -q main
+deploy "${WORK}/staging" watch >/dev/null 2>&1 || true
+deploy "${WORK}/prod" promote --yes --env prod >/dev/null 2>&1 || true
+check "ensuite la nouvelle branche fait foi : v5, fusionnée dans stable (pas dans main), passe SANS exception" test "$(page prod)" = v5
+
 step "Un projet SANS staging : la production suit la branche déclarée, sur demande"
 SOLO="${WORK}/solo-origin"
 mkdir -p "${SOLO}"

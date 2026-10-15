@@ -111,6 +111,29 @@ check "v2 en production" test "$(page prod)" = v2
 (cd "${WORK}/prod" && "${DEPLOY}" rollback prod >/dev/null 2>&1)
 check "rollback : v1 en production" test "$(page prod)" = v1
 
+step "Variable obligatoire absente du fichier de production : la vraie cause, jamais « aucune image n'utilise IMAGE_TAG »"
+# Incident e-tourisme du 2026-10-15 : la configuration Compose de la production échouait, l'erreur était avalée et le message
+# envoyait chercher dans le fichier compose, qui n'avait pas changé.
+sed -i 's/^      BANNER: \${BANNER:-avant}$/&\n      JETON: ${JETON:?JETON absent du fichier d environnement}/' "${ORIGIN}/compose.yaml"
+echo "JETON=essai" >> "${WORK}/staging/.env.staging"
+commit_version v4
+(cd "${WORK}/staging" && "${DEPLOY}" watch >/dev/null 2>&1)
+check "v4 (qui exige JETON) en staging" test "$(page staging)" = v4
+check_not "promotion refusée : JETON manque dans le fichier de la production" sh -c "cd '${WORK}/prod' && '${DEPLOY}' promote --yes"
+check "le journal donne la vraie cause : configuration Compose de prod invalide…" grep -q "configuration Compose de prod invalide (compose.yaml avec .env)" "${STATE_DIR}/vpstest-demo/deploy.log"
+check "…avec le message de Compose qui nomme la variable" grep -q "required variable JETON is missing a value" "${STATE_DIR}/vpstest-demo/deploy.log"
+check_not "…et plus le message trompeur sur IMAGE_TAG" grep -q "aucune image du compose" "${STATE_DIR}/vpstest-demo/deploy.log"
+check "rien n'a changé en production (v1)" test "$(page prod)" = v1
+echo "JETON=essai" >> "${WORK}/prod/.env"
+(cd "${WORK}/prod" && "${DEPLOY}" promote --yes >/dev/null 2>&1)
+check "la variable ajoutée, v4 passe en production" test "$(page prod)" = v4
+# Retirer l'exigence : les étapes suivantes créent des fichiers d'environnement qui ne connaissent pas JETON. Même page (v4).
+sed -i '/JETON/d' "${ORIGIN}/compose.yaml"
+commit_version v4
+(cd "${WORK}/staging" && "${DEPLOY}" watch >/dev/null 2>&1)
+(cd "${WORK}/prod" && "${DEPLOY}" promote --yes >/dev/null 2>&1)
+check "exigence retirée, redéployée partout (staging et production en v4)" sh -c "[ \"\$(docker exec vpstest-demo-staging-app cat /www/index.html)\" = v4 ] && [ \"\$(docker exec vpstest-demo-prod-app cat /www/index.html)\" = v4 ]"
+
 step "Verrou"
 exec 8>"${STATE_DIR}/vpstest-demo/lock"; flock 8
 check_not "un second déploiement simultané est refusé" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
@@ -125,7 +148,7 @@ check_not "déploiement refusé : le nom staging.demo est déjà pris par un aut
 check "refus causé par la collision (journal)" grep -q "COLLISION : staging.demo.vpstest.test" "${STATE_DIR}/vpstest-demo/deploy.log"
 check_not "« check » voit aussi la collision, sans rien déployer (une bascule la voit AVANT de déployer)" sh -c "cd '${WORK}/staging' && '${DEPLOY}' check staging"
 check "… et le dit dans son message" sh -c "cd '${WORK}/staging' && '${DEPLOY}' check staging 2>&1 | grep -q 'COLLISION : staging.demo.vpstest.test'"
-check "rien n'a changé : v2 toujours en staging" test "$(page staging)" = v2
+check "rien n'a changé : v4 toujours en staging" test "$(page staging)" = v4
 check "checkout staging remis sur la version en ligne" test \
     "$(git -C "${WORK}/staging" rev-parse HEAD)" = "$(cat "${STATE_DIR}/vpstest-demo/staging/current")"
 check "commit marqué en échec : watch ne le reconstruit pas en boucle" sh -c "cd '${WORK}/staging' && '${DEPLOY}' watch"
